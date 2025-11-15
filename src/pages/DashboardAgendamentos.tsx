@@ -1,84 +1,93 @@
-import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { useOutletContext } from 'react-router-dom'
-import { Calendar, Clock, TrendingUp, CheckCircle, XCircle, User } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { DateRangePicker } from '@/components/DateRangePicker'
-import { mockAppointments } from '@/data/mockData'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import { useOutletContext } from "react-router-dom";
+import {
+  Calendar,
+  Clock,
+  TrendingUp,
+  CheckCircle,
+  XCircle,
+  User,
+} from "lucide-react";
+import { Header } from "@/components/layout/Header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { mockAppointments } from "@/data/mockData";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
-}
+      staggerChildren: 0.1,
+    },
+  },
+};
 
 const item = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
-}
+  show: { opacity: 1, y: 0 },
+};
 
-type DateRange = { from?: Date; to?: Date }
+type DateRange = { from?: Date; to?: Date };
 
 interface DailyStats {
-  date: Date
-  total: number
-  completed: number
-  cancelled: number
-  pending: number
-  confirmed: number
-  revenue: number
+  date: Date;
+  total: number;
+  completed: number;
+  cancelled: number;
+  pending: number;
+  confirmed: number;
+  revenue: number;
 }
 
 interface HourlyStats {
-  hour: string
-  count: number
-  revenue: number
+  hour: string;
+  count: number;
+  revenue: number;
 }
 
 export function DashboardAgendamentos() {
-  const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
-  const today = new Date()
+  const { setIsMobileMenuOpen } = useOutletContext<{
+    setIsMobileMenuOpen: (value: boolean) => void;
+  }>();
+  const today = new Date();
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(today.getFullYear(), today.getMonth(), 1),
-    to: today
-  })
+    to: today,
+  });
 
   // Filtrar agendamentos por data
   const filteredAppointments = useMemo(() => {
-    if (!dateRange.from) return []
+    if (!dateRange.from) return [];
 
-    return mockAppointments.filter(apt => {
-      const aptDate = new Date(apt.date)
-      aptDate.setHours(0, 0, 0, 0)
+    return mockAppointments.filter((apt) => {
+      const aptDate = new Date(apt.date);
+      aptDate.setHours(0, 0, 0, 0);
 
-      const fromDate = new Date(dateRange.from!)
-      fromDate.setHours(0, 0, 0, 0)
+      const fromDate = new Date(dateRange.from!);
+      fromDate.setHours(0, 0, 0, 0);
 
       if (dateRange.to) {
-        const toDate = new Date(dateRange.to)
-        toDate.setHours(23, 59, 59, 999)
-        return aptDate >= fromDate && aptDate <= toDate
+        const toDate = new Date(dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        return aptDate >= fromDate && aptDate <= toDate;
       }
 
-      return aptDate.toDateString() === fromDate.toDateString()
-    })
-  }, [dateRange])
+      return aptDate.toDateString() === fromDate.toDateString();
+    });
+  }, [dateRange]);
 
   // Estatísticas por dia
   const dailyStats = useMemo((): DailyStats[] => {
-    const statsMap = new Map<string, DailyStats>()
+    const statsMap = new Map<string, DailyStats>();
 
-    filteredAppointments.forEach(apt => {
-      const dateKey = apt.date.toDateString()
-      const existing = statsMap.get(dateKey)
+    filteredAppointments.forEach((apt) => {
+      const dateKey = apt.date.toDateString();
+      const existing = statsMap.get(dateKey);
 
       if (!existing) {
         statsMap.set(dateKey, {
@@ -88,101 +97,120 @@ export function DashboardAgendamentos() {
           cancelled: 0,
           pending: 0,
           confirmed: 0,
-          revenue: 0
-        })
+          revenue: 0,
+        });
       }
 
-      const stats = statsMap.get(dateKey)!
-      stats.total++
+      const stats = statsMap.get(dateKey)!;
+      stats.total++;
 
-      if (apt.status === 'completed') {
-        stats.completed++
-        stats.revenue += apt.price
-      } else if (apt.status === 'cancelled') {
-        stats.cancelled++
-      } else if (apt.status === 'pending') {
-        stats.pending++
-      } else if (apt.status === 'confirmed') {
-        stats.confirmed++
+      if (apt.status === "completed") {
+        stats.completed++;
+        stats.revenue += apt.price;
+      } else if (apt.status === "cancelled") {
+        stats.cancelled++;
+      } else if (apt.status === "pending") {
+        stats.pending++;
+      } else if (apt.status === "confirmed") {
+        stats.confirmed++;
       }
-    })
+    });
 
-    return Array.from(statsMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
-  }, [filteredAppointments])
+    return Array.from(statsMap.values()).sort(
+      (a, b) => a.date.getTime() - b.date.getTime()
+    );
+  }, [filteredAppointments]);
 
   // Estatísticas por horário
   const hourlyStats = useMemo((): HourlyStats[] => {
-    const statsMap = new Map<number, HourlyStats>()
+    const statsMap = new Map<number, HourlyStats>();
 
     // Inicializar todos os horários (9h às 18h)
     for (let h = 9; h <= 18; h++) {
       statsMap.set(h, {
-        hour: `${h.toString().padStart(2, '0')}:00`,
+        hour: `${h.toString().padStart(2, "0")}:00`,
         count: 0,
-        revenue: 0
-      })
+        revenue: 0,
+      });
     }
 
-    filteredAppointments.forEach(apt => {
-      const hour = apt.date.getHours()
-      const stats = statsMap.get(hour)
+    filteredAppointments.forEach((apt) => {
+      const hour = apt.date.getHours();
+      const stats = statsMap.get(hour);
 
       if (stats) {
-        stats.count++
-        if (apt.status === 'completed') {
-          stats.revenue += apt.price
+        stats.count++;
+        if (apt.status === "completed") {
+          stats.revenue += apt.price;
         }
       }
-    })
+    });
 
-    return Array.from(statsMap.values())
-  }, [filteredAppointments])
+    return Array.from(statsMap.values());
+  }, [filteredAppointments]);
 
   // Horários de pico
   const peakHours = useMemo(() => {
-    return [...hourlyStats]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-  }, [hourlyStats])
+    return [...hourlyStats].sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [hourlyStats]);
 
   // Estatísticas por dia da semana
   const weekdayStats = useMemo(() => {
-    const weekdays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-    const stats = Array(7).fill(0).map((_, i) => ({
-      day: weekdays[i],
-      count: 0,
-      revenue: 0
-    }))
+    const weekdays = [
+      "Domingo",
+      "Segunda",
+      "Terça",
+      "Quarta",
+      "Quinta",
+      "Sexta",
+      "Sábado",
+    ];
+    const stats = Array(7)
+      .fill(0)
+      .map((_, i) => ({
+        day: weekdays[i],
+        count: 0,
+        revenue: 0,
+      }));
 
-    filteredAppointments.forEach(apt => {
-      const day = apt.date.getDay()
-      stats[day].count++
-      if (apt.status === 'completed') {
-        stats[day].revenue += apt.price
+    filteredAppointments.forEach((apt) => {
+      const day = apt.date.getDay();
+      stats[day].count++;
+      if (apt.status === "completed") {
+        stats[day].revenue += apt.price;
       }
-    })
+    });
 
-    return stats.filter(s => s.count > 0).sort((a, b) => b.count - a.count)
-  }, [filteredAppointments])
+    return stats.filter((s) => s.count > 0).sort((a, b) => b.count - a.count);
+  }, [filteredAppointments]);
 
   // Estatísticas gerais
   const totalStats = useMemo(() => {
-    const completed = filteredAppointments.filter(a => a.status === 'completed')
-    const cancelled = filteredAppointments.filter(a => a.status === 'cancelled')
-    const pending = filteredAppointments.filter(a => a.status === 'pending')
-    const confirmed = filteredAppointments.filter(a => a.status === 'confirmed')
+    const completed = filteredAppointments.filter(
+      (a) => a.status === "completed"
+    );
+    const cancelled = filteredAppointments.filter(
+      (a) => a.status === "cancelled"
+    );
+    const pending = filteredAppointments.filter((a) => a.status === "pending");
+    const confirmed = filteredAppointments.filter(
+      (a) => a.status === "confirmed"
+    );
 
-    const revenue = completed.reduce((sum, apt) => sum + apt.price, 0)
-    const completionRate = filteredAppointments.length > 0
-      ? (completed.length / filteredAppointments.length) * 100
-      : 0
-    const cancellationRate = filteredAppointments.length > 0
-      ? (cancelled.length / filteredAppointments.length) * 100
-      : 0
+    const revenue = completed.reduce((sum, apt) => sum + apt.price, 0);
+    const completionRate =
+      filteredAppointments.length > 0
+        ? (completed.length / filteredAppointments.length) * 100
+        : 0;
+    const cancellationRate =
+      filteredAppointments.length > 0
+        ? (cancelled.length / filteredAppointments.length) * 100
+        : 0;
 
-    const avgPerDay = dailyStats.length > 0
-      ? filteredAppointments.length / dailyStats.length
-      : 0
+    const avgPerDay =
+      dailyStats.length > 0
+        ? filteredAppointments.length / dailyStats.length
+        : 0;
 
     return {
       total: filteredAppointments.length,
@@ -193,40 +221,40 @@ export function DashboardAgendamentos() {
       revenue,
       completionRate,
       cancellationRate,
-      avgPerDay
-    }
-  }, [filteredAppointments, dailyStats])
+      avgPerDay,
+    };
+  }, [filteredAppointments, dailyStats]);
 
   // Status badge helper
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed':
-        return 'success'
-      case 'pending':
-        return 'warning'
-      case 'completed':
-        return 'default'
-      case 'cancelled':
-        return 'destructive'
+      case "confirmed":
+        return "success";
+      case "pending":
+        return "warning";
+      case "completed":
+        return "default";
+      case "cancelled":
+        return "destructive";
       default:
-        return 'default'
+        return "default";
     }
-  }
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'confirmed':
-        return 'Confirmado'
-      case 'pending':
-        return 'Pendente'
-      case 'completed':
-        return 'Concluído'
-      case 'cancelled':
-        return 'Cancelado'
+      case "confirmed":
+        return "Confirmado";
+      case "pending":
+        return "Pendente";
+      case "completed":
+        return "Concluído";
+      case "cancelled":
+        return "Cancelado";
       default:
-        return status
+        return status;
     }
-  }
+  };
 
   return (
     <div>
@@ -334,7 +362,8 @@ export function DashboardAgendamentos() {
                       {totalStats.pending + totalStats.confirmed}
                     </h3>
                     <p className="text-xs text-gray-500">
-                      {totalStats.pending} pendentes, {totalStats.confirmed} confirmados
+                      {totalStats.pending} pendentes, {totalStats.confirmed}{" "}
+                      confirmados
                     </p>
                   </div>
                   <div className="bg-gold p-3 rounded-lg">
@@ -380,22 +409,30 @@ export function DashboardAgendamentos() {
                       <div className="flex gap-1">
                         <div
                           className="h-2 bg-green-500 rounded-l"
-                          style={{ width: `${(day.completed / day.total) * 100}%` }}
+                          style={{
+                            width: `${(day.completed / day.total) * 100}%`,
+                          }}
                           title={`Concluídos: ${day.completed}`}
                         />
                         <div
                           className="h-2 bg-blue-500"
-                          style={{ width: `${(day.confirmed / day.total) * 100}%` }}
+                          style={{
+                            width: `${(day.confirmed / day.total) * 100}%`,
+                          }}
                           title={`Confirmados: ${day.confirmed}`}
                         />
                         <div
                           className="h-2 bg-yellow-500"
-                          style={{ width: `${(day.pending / day.total) * 100}%` }}
+                          style={{
+                            width: `${(day.pending / day.total) * 100}%`,
+                          }}
                           title={`Pendentes: ${day.pending}`}
                         />
                         <div
                           className="h-2 bg-red-500 rounded-r"
-                          style={{ width: `${(day.cancelled / day.total) * 100}%` }}
+                          style={{
+                            width: `${(day.cancelled / day.total) * 100}%`,
+                          }}
                           title={`Cancelados: ${day.cancelled}`}
                         />
                       </div>
@@ -443,10 +480,16 @@ export function DashboardAgendamentos() {
                     <div key={hourStat.hour}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <div className={`
+                          <div
+                            className={`
                             w-8 h-8 rounded flex items-center justify-center text-sm font-bold
-                            ${index === 0 ? 'bg-gold text-white' : 'bg-gray-100 text-gray-600'}
-                          `}>
+                            ${
+                              index === 0
+                                ? "bg-gold text-white"
+                                : "bg-gray-100 text-gray-600"
+                            }
+                          `}
+                          >
                             {index + 1}
                           </div>
                           <span className="text-sm font-medium text-gray-700">
@@ -466,7 +509,11 @@ export function DashboardAgendamentos() {
                         <div
                           className="bg-gold h-2 rounded-full"
                           style={{
-                            width: `${(hourStat.count / Math.max(...hourlyStats.map(h => h.count))) * 100}%`
+                            width: `${
+                              (hourStat.count /
+                                Math.max(...hourlyStats.map((h) => h.count))) *
+                              100
+                            }%`,
                           }}
                         />
                       </div>
@@ -480,11 +527,17 @@ export function DashboardAgendamentos() {
                   </h4>
                   <div className="grid grid-cols-5 gap-1">
                     {hourlyStats.map((hourStat) => {
-                      const maxCount = Math.max(...hourlyStats.map(h => h.count))
-                      const height = maxCount > 0 ? (hourStat.count / maxCount) * 100 : 0
+                      const maxCount = Math.max(
+                        ...hourlyStats.map((h) => h.count)
+                      );
+                      const height =
+                        maxCount > 0 ? (hourStat.count / maxCount) * 100 : 0;
 
                       return (
-                        <div key={hourStat.hour} className="flex flex-col items-center">
+                        <div
+                          key={hourStat.hour}
+                          className="flex flex-col items-center"
+                        >
                           <div className="w-full h-20 flex items-end">
                             <div
                               className="w-full bg-gold rounded-t"
@@ -493,10 +546,10 @@ export function DashboardAgendamentos() {
                             />
                           </div>
                           <span className="text-xs text-gray-500 mt-1">
-                            {hourStat.hour.split(':')[0]}h
+                            {hourStat.hour.split(":")[0]}h
                           </span>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </div>
@@ -521,8 +574,11 @@ export function DashboardAgendamentos() {
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
                 {weekdayStats.map((stat) => {
-                  const maxCount = Math.max(...weekdayStats.map(s => s.count))
-                  const percentage = maxCount > 0 ? (stat.count / maxCount) * 100 : 0
+                  const maxCount = Math.max(
+                    ...weekdayStats.map((s) => s.count)
+                  );
+                  const percentage =
+                    maxCount > 0 ? (stat.count / maxCount) * 100 : 0;
 
                   return (
                     <div
@@ -547,7 +603,7 @@ export function DashboardAgendamentos() {
                         </div>
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </div>
             </CardContent>
@@ -604,14 +660,20 @@ export function DashboardAgendamentos() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-gray-900">{apt.clientName}</span>
+                            <span className="font-medium text-gray-900">
+                              {apt.clientName}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-900">{apt.service}</span>
+                          <span className="text-sm text-gray-900">
+                            {apt.service}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-500">{apt.professional}</span>
+                          <span className="text-sm text-gray-500">
+                            {apt.professional}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge variant={getStatusColor(apt.status)}>
@@ -633,5 +695,5 @@ export function DashboardAgendamentos() {
         </motion.div>
       </div>
     </div>
-  )
+  );
 }
