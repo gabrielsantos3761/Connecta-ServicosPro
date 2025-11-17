@@ -137,7 +137,7 @@ export function Login() {
                 className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg overflow-hidden"
               >
                 <img
-                  src="/Projeto-barbearia/assets/images/Logo.png"
+                  src="/Connecta-ServicosPro/assets/images/Logo.png"
                   alt="Logo BarberPro"
                   className="w-full h-full object-cover scale-110"
                 />

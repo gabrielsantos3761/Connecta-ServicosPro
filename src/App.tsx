@@ -17,7 +17,7 @@ import { ClienteDashboard } from './pages/ClienteDashboard'
 
 function App() {
   return (
-    <Router basename="/Projeto-barbearia">
+    <Router basename="/Connecta-ServicosPro">
       <AuthProvider>
         <Routes>
           {/* Rota pública */}
