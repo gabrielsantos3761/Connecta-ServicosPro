@@ -75,6 +75,7 @@ interface Coupon {
 
 export function Servicos() {
   const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
+  const [searchQuery, setSearchQuery] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
   const [isPromotionDialogOpen, setIsPromotionDialogOpen] = useState(false)
@@ -306,12 +307,24 @@ export function Servicos() {
     setSelectedCouponServices(newSelection)
   }
 
+  // Filtrar serviços baseado na pesquisa
+  const filteredServices = mockServices.filter((service) => {
+    const searchLower = searchQuery.toLowerCase()
+    return (
+      service.name.toLowerCase().includes(searchLower) ||
+      service.description.toLowerCase().includes(searchLower) ||
+      categoryLabels[service.category].toLowerCase().includes(searchLower)
+    )
+  })
+
   return (
     <div>
       <Header
         title="Serviços"
         subtitle="Gerencie seu catálogo de serviços"
         onMobileMenuClick={() => setIsMobileMenuOpen(true)}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
       />
 
       <div className="p-4 md:p-8">
@@ -320,10 +333,10 @@ export function Servicos() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
             <div>
               <h2 className="text-lg md:text-xl font-semibold text-gray-900">
-                {mockServices.length} Serviços Disponíveis
+                {filteredServices.length} Serviços {searchQuery && `(${mockServices.length} total)`}
               </h2>
               <p className="text-xs md:text-sm text-gray-500 mt-1">
-                Organize e atualize seus serviços
+                {searchQuery ? `Resultados para "${searchQuery}"` : 'Organize e atualize seus serviços'}
               </p>
             </div>
 
@@ -417,7 +430,21 @@ export function Servicos() {
           animate={{ opacity: 1 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
         >
-          {mockServices.map((service, index) => (
+          {filteredServices.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Scissors className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                Nenhum serviço encontrado
+              </h3>
+              <p className="text-sm text-gray-500">
+                {searchQuery
+                  ? `Não encontramos serviços que correspondam a "${searchQuery}"`
+                  : 'Adicione serviços para começar'
+                }
+              </p>
+            </div>
+          ) : (
+            filteredServices.map((service, index) => (
             <motion.div
               key={service.id}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -548,7 +575,8 @@ export function Servicos() {
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
+          ))
+          )}
         </motion.div>
       </div>
 
