@@ -1,24 +1,30 @@
-import { useState } from 'react'
-import { Bell, Search, Menu, X } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { useState } from "react";
+import { Bell, Search, Menu } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from "@/components/ui/dialog";
 
 interface HeaderProps {
-  title: string
-  subtitle?: string
-  onMobileMenuClick?: () => void
-  searchValue?: string
-  onSearchChange?: (value: string) => void
+  title: string;
+  subtitle?: string;
+  onMobileMenuClick?: () => void;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
 }
 
-export function Header({ title, subtitle, onMobileMenuClick, searchValue, onSearchChange }: HeaderProps) {
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
+export function Header({
+  title,
+  subtitle,
+  onMobileMenuClick,
+  searchValue,
+  onSearchChange,
+}: HeaderProps) {
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 md:py-6">
@@ -37,9 +43,13 @@ export function Header({ title, subtitle, onMobileMenuClick, searchValue, onSear
 
           {/* Title */}
           <div className="min-w-0">
-            <h1 className="text-xl md:text-3xl font-bold text-gray-900 truncate">{title}</h1>
+            <h1 className="text-xl md:text-3xl font-bold text-gray-900 truncate">
+              {title}
+            </h1>
             {subtitle && (
-              <p className="text-xs md:text-sm text-gray-500 mt-1 truncate">{subtitle}</p>
+              <p className="text-xs md:text-sm text-gray-500 mt-1 truncate">
+                {subtitle}
+              </p>
             )}
           </div>
         </div>
@@ -53,7 +63,7 @@ export function Header({ title, subtitle, onMobileMenuClick, searchValue, onSear
               type="search"
               placeholder="Buscar..."
               className="pl-10 text-sm"
-              value={searchValue || ''}
+              value={searchValue || ""}
               onChange={(e) => onSearchChange?.(e.target.value)}
             />
           </div>
@@ -88,7 +98,7 @@ export function Header({ title, subtitle, onMobileMenuClick, searchValue, onSear
               type="search"
               placeholder="Buscar..."
               className="pl-10"
-              value={searchValue || ''}
+              value={searchValue || ""}
               onChange={(e) => onSearchChange?.(e.target.value)}
               autoFocus
             />
@@ -96,5 +106,5 @@ export function Header({ title, subtitle, onMobileMenuClick, searchValue, onSear
         </DialogContent>
       </Dialog>
     </header>
-  )
+  );
 }
