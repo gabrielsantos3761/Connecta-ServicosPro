@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Search, MapPin, Star, Clock, Phone, SlidersHorizontal, TrendingUp, Award, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Search, MapPin, Star, Clock, Phone, TrendingUp, Award, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
