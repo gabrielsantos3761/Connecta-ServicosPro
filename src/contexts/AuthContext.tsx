@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: '(11) 98765-4321',
         pix: 'profissional@barberpro.com',
         specialties: ['Corte Masculino', 'Barba Completa', 'Design de Barba'],
-        businesses: ['1', '2'], // Trabalha em 2 empresas
+        businesses: ['biz-1', 'biz-4'], // Trabalha em BarberPro Premium e Estilo & Charme
       },
     }
 
@@ -89,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else if (email === 'profissional@barberpro.com' && password === 'prof123' && role === 'professional') {
       setUser(demoUsers.professional)
       localStorage.setItem('barberpro_user', JSON.stringify(demoUsers.professional))
-      // Profissional vai para seu dashboard
-      navigate('/profissional')
+      // Profissional vai para tela de associação de barbearias
+      navigate('/profissional/associar-barbearia')
     } else {
       throw new Error('Credenciais inválidas')
     }

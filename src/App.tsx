@@ -22,6 +22,7 @@ import { Checkout } from './pages/Checkout'
 import { ConfirmacaoAgendamento } from './pages/ConfirmacaoAgendamento'
 import { ProfissionalDashboard } from './pages/ProfissionalDashboard'
 import { ProfissionalPerfil } from './pages/ProfissionalPerfil'
+import { ProfissionalAssociarBarbearia } from './pages/ProfissionalAssociarBarbearia'
 
 function App() {
   return (
@@ -47,6 +48,14 @@ function App() {
           />
 
           {/* Rotas do Profissional */}
+          <Route
+            path="/profissional/associar-barbearia"
+            element={
+              <ProtectedRoute allowedRoles={['professional']}>
+                <ProfissionalAssociarBarbearia />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/profissional"
             element={
