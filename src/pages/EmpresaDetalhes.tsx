@@ -257,39 +257,6 @@ export function EmpresaDetalhes() {
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Header */}
-      <motion.div
-        className="bg-black/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <motion.button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <ArrowLeft className="w-5 h-5 text-white" />
-            </motion.button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-white">{business.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge className="bg-gradient-to-r from-gold to-yellow-600 text-black border-0">
-                  <Star className="w-3 h-3 mr-1 fill-black" />
-                  {business.rating.toFixed(1)}
-                </Badge>
-                <span className="text-sm text-gray-400">
-                  ({business.totalReviews} avaliações)
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}

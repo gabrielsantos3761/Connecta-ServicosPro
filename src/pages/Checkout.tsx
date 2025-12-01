@@ -141,35 +141,6 @@ export function Checkout() {
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Header */}
-      <motion.div
-        className="bg-black/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <motion.button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <ArrowLeft className="w-5 h-5 text-white" />
-            </motion.button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-white">Checkout</h1>
-              <p className="text-sm text-gray-400">Finalize seu agendamento</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Lock className="w-4 h-4 text-green-400" />
-              <span>Pagamento Seguro</span>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}

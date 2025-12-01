@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Mail, Eye, EyeOff, User, Crown, Scissors, Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export function Login() {
-  const { login, isLoading } = useAuth();
+  const { login, loginWithGoogle, loginWithFacebook, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>("client");
   const [isFocused, setIsFocused] = useState(false);
@@ -21,6 +24,21 @@ export function Login() {
     password: "",
     general: "",
   });
+
+  // Pre-fill email and role from URL parameters (após registro)
+  useEffect(() => {
+    const emailParam = searchParams.get('email');
+    const roleParam = searchParams.get('role');
+
+    if (emailParam) {
+      setFormData(prev => ({ ...prev, email: emailParam }));
+    }
+
+    if (roleParam && (roleParam === 'client' || roleParam === 'professional' || roleParam === 'owner')) {
+      setSelectedRole(roleParam as UserRole);
+      setIsFocused(true); // Foca automaticamente no role selecionado
+    }
+  }, [searchParams]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -478,6 +496,16 @@ export function Login() {
           <div className="grid grid-cols-2 gap-3">
             <motion.button
               type="button"
+              onClick={async () => {
+                try {
+                  await loginWithGoogle(selectedRole);
+                } catch (error: any) {
+                  setErrors((prev) => ({
+                    ...prev,
+                    general: error.message || "Erro ao fazer login com Google",
+                  }));
+                }
+              }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="flex items-center justify-center gap-2 h-10 bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-white/20 transition-all text-sm"
@@ -493,6 +521,16 @@ export function Login() {
             </motion.button>
             <motion.button
               type="button"
+              onClick={async () => {
+                try {
+                  await loginWithFacebook(selectedRole);
+                } catch (error: any) {
+                  setErrors((prev) => ({
+                    ...prev,
+                    general: error.message || "Erro ao fazer login com Facebook",
+                  }));
+                }
+              }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="flex items-center justify-center gap-2 h-10 bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-white/20 transition-all text-sm"
@@ -509,7 +547,11 @@ export function Login() {
           <div className="mt-5 text-center">
             <p className="text-xs text-gray-500">
               Não tem uma conta?{" "}
-              <button type="button" className={`font-semibold ${colors.text} hover:opacity-80 transition-colors`}>
+              <button
+                type="button"
+                onClick={() => navigate('/register')}
+                className={`font-semibold ${colors.text} hover:opacity-80 transition-colors`}
+              >
                 Cadastre-se
               </button>
             </p>
