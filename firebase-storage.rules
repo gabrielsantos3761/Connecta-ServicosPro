@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Regras para pasta de usuários
+    match /users/{userId}/{allPaths=**} {
+      // Permitir leitura para qualquer usuário autenticado
+      allow read: if request.auth != null;
+
+      // Permitir escrita apenas para o próprio usuário
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      // Validações adicionais para uploads
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.size < 5 * 1024 * 1024  // Máximo 5MB
+                    && request.resource.contentType.matches('image/.*');  // Apenas imagens
+
+      // Permitir atualização apenas do próprio usuário
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.size < 5 * 1024 * 1024  // Máximo 5MB
+                    && request.resource.contentType.matches('image/.*');  // Apenas imagens
+
+      // Permitir deletar apenas o próprio usuário
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Regras para pasta de barbearias (futura implementação)
+    match /barbershops/{barbershopId}/{allPaths=**} {
+      // Permitir leitura para todos autenticados
+      allow read: if request.auth != null;
+
+      // Permitir escrita apenas para proprietários da barbearia
+      // TODO: Implementar verificação de ownership no Firestore
+      allow write: if request.auth != null;
+    }
+
+    // Negar tudo que não esteja especificado acima
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
