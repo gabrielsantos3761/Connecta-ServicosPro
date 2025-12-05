@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Mail, Eye, EyeOff, User, ArrowLeft, Phone, CreditCard, Calendar, ChevronDown, Scissors, Crown, AlertCircle, CheckCircle } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, User, ArrowLeft, Phone, CreditCard, Calendar, ChevronDown, Scissors, Crown, AlertCircle, CheckCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { registerWithEmail, checkEmailExists, addRoleWithPassword } from "@/services/authService";
 import type { UserRole } from "@/contexts/AuthContext";
+import {
+  sanitizeString,
+  isValidEmail,
+  isValidCPF,
+  isValidCNPJ,
+  isValidPhone,
+  isValidPassword,
+  getPasswordStrength,
+  detectXSS,
+  detectSQLInjection
+} from "@/lib/securityUtils";
 
 // Country codes with flags
 const countryCodes = [
@@ -25,12 +36,12 @@ export function Register() {
   const [selectedRole, setSelectedRole] = useState<UserRole>("client");
   const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]); // Brasil por padrão
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
   const [existingUserData, setExistingUserData] = useState<any>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [currentStep, setCurrentStep] = useState(1); // 1: Tipo de conta, 2: Dados pessoais, 3: Credenciais
 
   const [formData, setFormData] = useState({
     name: "",
@@ -57,46 +68,16 @@ export function Register() {
     general: "",
   });
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  // SEGURANÇA: Mostra força da senha
+  const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong'>('weak');
 
-  const validateCPF = (cpf: string) => {
-    const cleanCPF = cpf.replace(/\D/g, '');
+  const handlePasswordChange = (password: string) => {
+    setFormData(prev => ({ ...prev, password }));
+    setPasswordStrength(getPasswordStrength(password));
 
-    // Verifica se tem 11 dígitos
-    if (cleanCPF.length !== 11) return false;
-
-    // Verifica se todos os dígitos são iguais (CPF inválido)
-    if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
-
-    // Validação do primeiro dígito verificador
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: "" }));
     }
-    let firstDigit = 11 - (sum % 11);
-    if (firstDigit >= 10) firstDigit = 0;
-
-    if (parseInt(cleanCPF.charAt(9)) !== firstDigit) return false;
-
-    // Validação do segundo dígito verificador
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += parseInt(cleanCPF.charAt(i)) * (11 - i);
-    }
-    let secondDigit = 11 - (sum % 11);
-    if (secondDigit >= 10) secondDigit = 0;
-
-    if (parseInt(cleanCPF.charAt(10)) !== secondDigit) return false;
-
-    return true;
-  };
-
-  const validatePhone = (phone: string) => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    return cleanPhone.length === 10 || cleanPhone.length === 11;
   };
 
   const formatCPF = (value: string) => {
@@ -110,44 +91,6 @@ export function Register() {
     return value;
   };
 
-  const validateCNPJ = (cnpj: string) => {
-    const cleanCNPJ = cnpj.replace(/\D/g, '');
-
-    if (cleanCNPJ.length !== 14) return false;
-
-    // Verifica se todos os dígitos são iguais
-    if (/^(\d)\1{13}$/.test(cleanCNPJ)) return false;
-
-    // Validação dos dígitos verificadores
-    let length = cleanCNPJ.length - 2;
-    let numbers = cleanCNPJ.substring(0, length);
-    const digits = cleanCNPJ.substring(length);
-    let sum = 0;
-    let pos = length - 7;
-
-    for (let i = length; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(length - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-
-    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-    if (result !== parseInt(digits.charAt(0))) return false;
-
-    length = length + 1;
-    numbers = cleanCNPJ.substring(0, length);
-    sum = 0;
-    pos = length - 7;
-
-    for (let i = length; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(length - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-
-    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-    if (result !== parseInt(digits.charAt(1))) return false;
-
-    return true;
-  };
 
   const formatCNPJ = (value: string) => {
     const cleanValue = value.replace(/\D/g, '');
@@ -198,50 +141,69 @@ export function Register() {
       general: "",
     };
 
-    if (!formData.name) {
+    // SEGURANÇA: Sanitizar inputs
+    const sanitizedName = sanitizeString(formData.name);
+    const sanitizedEmail = sanitizeString(formData.email);
+
+    // Validar nome
+    if (!sanitizedName) {
       newErrors.name = "Nome é obrigatório";
+    } else if (sanitizedName.length < 2 || sanitizedName.length > 100) {
+      newErrors.name = "Nome deve ter entre 2 e 100 caracteres";
+    } else if (detectXSS(sanitizedName) || detectSQLInjection(sanitizedName)) {
+      newErrors.name = "Nome contém caracteres inválidos";
     }
 
-    if (!formData.email) {
+    // Validar email
+    if (!sanitizedEmail) {
       newErrors.email = "Email é obrigatório";
-    } else if (!validateEmail(formData.email)) {
+    } else if (!isValidEmail(sanitizedEmail)) {
       newErrors.email = "Email inválido";
+    } else if (detectXSS(sanitizedEmail)) {
+      newErrors.email = "Email contém caracteres inválidos";
     }
 
+    // Validar senha
     if (!formData.password) {
       newErrors.password = "Senha é obrigatória";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Senha deve ter no mínimo 6 caracteres";
+    } else if (!isValidPassword(formData.password)) {
+      newErrors.password = "Senha deve ter no mínimo 8 caracteres, incluindo letras e números";
     }
 
+    // Validar confirmação de senha
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = "Confirme sua senha";
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "As senhas não coincidem";
     }
 
+    // Validar CPF
     if (!formData.cpf) {
       newErrors.cpf = "CPF é obrigatório";
-    } else if (!validateCPF(formData.cpf)) {
+    } else if (!isValidCPF(formData.cpf)) {
       newErrors.cpf = "CPF inválido";
     }
 
+    // Validar telefone
+    const fullPhone = `${selectedCountry.code}${formData.phone.replace(/\D/g, '')}`;
     if (!formData.phone) {
       newErrors.phone = "Telefone é obrigatório";
-    } else if (!validatePhone(formData.phone)) {
+    } else if (!isValidPhone(fullPhone)) {
       newErrors.phone = "Telefone inválido";
     }
 
+    // Validar gênero
     if (!formData.gender) {
       newErrors.gender = "Gênero é obrigatório";
     }
 
+    // Validar data de nascimento
     if (!formData.birthDate) {
       newErrors.birthDate = "Data de nascimento é obrigatória";
     }
 
-    // Validação do CNPJ (opcional para proprietários e profissionais)
-    if ((selectedRole === 'owner' || selectedRole === 'professional') && formData.cnpj && !validateCNPJ(formData.cnpj)) {
+    // Validar CNPJ (opcional para profissionais e proprietários)
+    if ((selectedRole === 'owner' || selectedRole === 'professional') && formData.cnpj && !isValidCNPJ(formData.cnpj)) {
       newErrors.cnpj = "CNPJ inválido";
     }
 
@@ -254,6 +216,7 @@ export function Register() {
       try {
         console.log('🚀 Iniciando registro...', { email: formData.email, role: selectedRole });
 
+        // SEGURANÇA: Usar valores sanitizados
         const additionalData: any = {
           cpf: formData.cpf.replace(/\D/g, ''),
           phone: `${selectedCountry.code}${formData.phone.replace(/\D/g, '')}`,
@@ -266,7 +229,13 @@ export function Register() {
           additionalData.cnpj = formData.cnpj.replace(/\D/g, '');
         }
 
-        const result = await registerWithEmail(formData.email, formData.password, formData.name, selectedRole, additionalData);
+        const result = await registerWithEmail(
+          sanitizedEmail,
+          formData.password,
+          sanitizedName,
+          selectedRole,
+          additionalData
+        );
 
         console.log('✅ Registro bem-sucedido!', result);
         console.log('📍 Redirecionando para login com credenciais pré-preenchidas');
@@ -288,13 +257,35 @@ export function Register() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
+    // SEGURANÇA: Limitar tamanho dos inputs
+    const maxLengths: Record<string, number> = {
+      name: 100,
+      email: 254,
+      password: 128,
+      confirmPassword: 128,
+      cpf: 14,
+      phone: 20,
+      cnpj: 18,
+      birthDate: 10,
+    };
+
     let formattedValue = value;
+
+    // Limitar tamanho
+    if (maxLengths[name]) {
+      formattedValue = formattedValue.substring(0, maxLengths[name]);
+    }
+
+    // Aplicar formatação
     if (name === 'cpf') {
-      formattedValue = formatCPF(value);
+      formattedValue = formatCPF(formattedValue);
     } else if (name === 'phone') {
-      formattedValue = formatPhone(value, selectedCountry.code);
+      formattedValue = formatPhone(formattedValue, selectedCountry.code);
     } else if (name === 'cnpj') {
-      formattedValue = formatCNPJ(value);
+      formattedValue = formatCNPJ(formattedValue);
+    } else if (name === 'password') {
+      // Atualizar força da senha
+      setPasswordStrength(getPasswordStrength(formattedValue));
     }
 
     setFormData((prev) => ({
@@ -309,16 +300,72 @@ export function Register() {
 
   const handleSelectRole = (role: UserRole) => {
     setSelectedRole(role);
-    setIsFocused(true);
   };
 
-  const handleBack = () => {
-    setIsFocused(false);
+  const handleNextStep = () => {
+    // Validar campos da etapa atual antes de avançar
+    if (currentStep === 1) {
+      // Etapa 1: Tipo de conta já selecionado
+      setCurrentStep(2);
+    } else if (currentStep === 2) {
+      // Validar dados pessoais
+      const newErrors = {
+        name: "",
+        cpf: "",
+        phone: "",
+        gender: "",
+        birthDate: "",
+        cnpj: "",
+      };
+
+      // SEGURANÇA: Validar com funções seguras
+      const sanitizedName = sanitizeString(formData.name);
+
+      if (!sanitizedName) {
+        newErrors.name = "Nome é obrigatório";
+      } else if (detectXSS(sanitizedName) || detectSQLInjection(sanitizedName)) {
+        newErrors.name = "Nome contém caracteres inválidos";
+      }
+
+      if (!formData.cpf) {
+        newErrors.cpf = "CPF é obrigatório";
+      } else if (!isValidCPF(formData.cpf)) {
+        newErrors.cpf = "CPF inválido";
+      }
+
+      const fullPhone = `${selectedCountry.code}${formData.phone.replace(/\D/g, '')}`;
+      if (!formData.phone) {
+        newErrors.phone = "Telefone é obrigatório";
+      } else if (!isValidPhone(fullPhone)) {
+        newErrors.phone = "Telefone inválido";
+      }
+
+      if (!formData.gender) newErrors.gender = "Gênero é obrigatório";
+      if (!formData.birthDate) newErrors.birthDate = "Data de nascimento é obrigatória";
+
+      if ((selectedRole === 'professional' || selectedRole === 'owner') && formData.cnpj && !isValidCNPJ(formData.cnpj)) {
+        newErrors.cnpj = "CNPJ inválido";
+      }
+
+      setErrors(prev => ({ ...prev, ...newErrors }));
+
+      const hasErrors = Object.values(newErrors).some(error => error !== "");
+      if (!hasErrors) {
+        setCurrentStep(3);
+      }
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
   };
 
   const handleEmailBlur = async () => {
-    if (formData.email && validateEmail(formData.email)) {
-      const result = await checkEmailExists(formData.email);
+    const sanitizedEmail = sanitizeString(formData.email);
+    if (sanitizedEmail && isValidEmail(sanitizedEmail)) {
+      const result = await checkEmailExists(sanitizedEmail);
       if (result.exists && result.userData) {
         // Verifica se o usuário já possui o role selecionado
         if (result.userData.roles.includes(selectedRole)) {
@@ -434,6 +481,19 @@ export function Register() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Estilos globais para remover fundo branco do autocomplete */}
+      <style>{`
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+          box-shadow: 0 0 0 1000px transparent inset !important;
+          -webkit-text-fill-color: white !important;
+          transition: background-color 5000s ease-in-out 0s;
+        }
+      `}</style>
+
       {/* Background Effects */}
       <div className="absolute inset-0">
         <motion.div
@@ -477,29 +537,45 @@ export function Register() {
             <ArrowLeft className="w-4 h-4 text-gray-400" />
           </button>
 
-          {/* Botão Voltar - Para desfazer seleção de role */}
-          <AnimatePresence>
-            {isFocused && (
-              <motion.button
-                type="button"
-                onClick={handleBack}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.3 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="absolute top-4 right-4 w-9 h-9 rounded-lg flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white/10 transition-all z-10"
-              >
-                <ArrowLeft className="w-4 h-4 text-gray-400" />
-              </motion.button>
-            )}
-          </AnimatePresence>
-
           {/* Title */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-white mb-1">Criar Conta</h1>
-            <p className="text-gray-400 text-sm">Preencha seus dados para começar</p>
+            <p className="text-gray-400 text-sm">
+              {currentStep === 1 && "Selecione o tipo de conta"}
+              {currentStep === 2 && "Informe seus dados pessoais"}
+              {currentStep === 3 && "Crie suas credenciais de acesso"}
+            </p>
+          </div>
+
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            {[1, 2, 3].map((step) => (
+              <motion.div
+                key={step}
+                className="flex items-center"
+              >
+                <motion.div
+                  animate={{
+                    backgroundColor: currentStep >= step ? colors.glow : 'rgba(255, 255, 255, 0.1)',
+                    scale: currentStep === step ? 1.2 : 1
+                  }}
+                  transition={{ duration: 0.3 }}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                    currentStep >= step ? 'text-white' : 'text-gray-500'
+                  }`}
+                >
+                  {step}
+                </motion.div>
+                {step < 3 && (
+                  <motion.div
+                    animate={{
+                      backgroundColor: currentStep > step ? colors.glow : 'rgba(255, 255, 255, 0.1)'
+                    }}
+                    className="w-12 h-0.5 mx-1"
+                  />
+                )}
+              </motion.div>
+            ))}
           </div>
 
           {/* Aviso de conta existente */}
@@ -531,92 +607,6 @@ export function Register() {
             </motion.div>
           )}
 
-          {/* Role Selection - Com animação de foco suave */}
-          <div className="relative mb-6">
-            <AnimatePresence mode="wait">
-              {!isFocused ? (
-                /* 3 opções lado a lado */
-                <motion.div
-                  key="grid"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.35, ease: "easeInOut" }}
-                >
-                  <Label className="text-sm font-medium text-gray-300 mb-2 block">Tipo de conta</Label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {roleOptions.map((option, index) => {
-                      const Icon = option.icon;
-                      const isSelected = selectedRole === option.value;
-
-                      return (
-                        <motion.button
-                          key={option.value}
-                          type="button"
-                          onClick={() => handleSelectRole(option.value)}
-                          initial={{ opacity: 0, y: 15 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.08 * index, duration: 0.3 }}
-                          whileHover={{ scale: 1.05, y: -3 }}
-                          whileTap={{ scale: 0.95 }}
-                          className={`
-                            p-3 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-2
-                            ${isSelected
-                              ? `${option.colors.bgLight} ${option.colors.border}`
-                              : "border-white/10 bg-white/5 hover:bg-white/10"
-                            }
-                          `}
-                        >
-                          <div className={`
-                            w-12 h-12 rounded-xl flex items-center justify-center transition-all
-                            bg-gradient-to-br ${option.colors.primary} ${option.colors.shadow} shadow-lg
-                          `}>
-                            <Icon className="w-6 h-6 text-white" />
-                          </div>
-                          <p className={`text-xs font-semibold ${isSelected ? "text-white" : "text-gray-400"}`}>
-                            {option.label}
-                          </p>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              ) : (
-                /* Ícone focado grande - centralizado */
-                <motion.div
-                  key="focused"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.35, ease: "easeInOut" }}
-                  className="flex items-center justify-center gap-4"
-                >
-                  <motion.div
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
-                    className={`
-                      w-16 h-16 rounded-2xl flex items-center justify-center
-                      bg-gradient-to-br ${colors.primary} ${colors.shadow} shadow-2xl
-                    `}
-                  >
-                    <currentRoleOption.icon className="w-8 h-8 text-white" />
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, x: 15 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.35, delay: 0.1 }}
-                    className="text-left"
-                  >
-                    <p className="font-bold text-white">{currentRoleOption.label}</p>
-                    <p className={`text-sm ${colors.text}`}>Criar conta</p>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {errors.general && (
@@ -629,300 +619,801 @@ export function Register() {
               </motion.div>
             )}
 
-            {/* Name Field */}
-            <div className="space-y-1.5">
-              <Label htmlFor="name" className="text-sm font-medium text-gray-300">Nome completo</Label>
-              <div className="relative">
-                <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  placeholder="Seu nome"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className={`
-                    w-full h-11 pl-12 pr-4 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                    focus:outline-none focus:ring-2 transition-all
-                    ${errors.name ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                  `}
-                />
-              </div>
-              {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
-            </div>
+            {/* Step Content */}
+            <AnimatePresence mode="wait">
+              {/* STEP 1: Role Selection */}
+              {currentStep === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Role Selection */}
+                  <div className="relative mb-6">
+                    <Label className="text-sm font-medium text-gray-300 mb-2 block">Tipo de conta</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {roleOptions.map((option, index) => {
+                        const Icon = option.icon;
+                        const isSelected = selectedRole === option.value;
 
-            {/* CPF Field */}
-            <div className="space-y-1.5">
-              <Label htmlFor="cpf" className="text-sm font-medium text-gray-300">CPF</Label>
-              <div className="relative">
-                <CreditCard className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                <input
-                  id="cpf"
-                  name="cpf"
-                  type="text"
-                  placeholder="000.000.000-00"
-                  value={formData.cpf}
-                  onChange={handleChange}
-                  maxLength={14}
-                  className={`
-                    w-full h-11 pl-12 pr-4 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                    focus:outline-none focus:ring-2 transition-all
-                    ${errors.cpf ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                  `}
-                />
-              </div>
-              {errors.cpf && <p className="text-xs text-red-400">{errors.cpf}</p>}
-            </div>
+                        return (
+                          <motion.button
+                            key={option.value}
+                            type="button"
+                            onClick={() => handleSelectRole(option.value)}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{
+                              opacity: isSelected ? 1 : 0.6,
+                              y: 0
+                            }}
+                            transition={{
+                              delay: 0.08 * index,
+                              duration: 0.3
+                            }}
+                            whileHover={{
+                              y: -5,
+                              opacity: 1,
+                              transition: { type: "spring", stiffness: 400, damping: 10 }
+                            }}
+                            className={`
+                              p-3 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-2 relative overflow-hidden
+                              ${isSelected
+                                ? `${option.colors.bgLight} ${option.colors.border} shadow-lg ${option.colors.shadow}`
+                                : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                              }
+                            `}
+                          >
+                            {/* Efeito de brilho no hover */}
+                            <motion.div
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                              initial={{ x: "-100%" }}
+                              whileHover={{ x: "100%" }}
+                              transition={{ duration: 0.6 }}
+                            />
 
-            {/* Phone Field */}
-            <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-sm font-medium text-gray-300">Telefone</Label>
-              <div className="relative flex gap-2">
-                {/* Country Code Selector */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                    onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
-                    className="h-11 px-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all flex items-center gap-2"
+                            {/* Brilho contínuo de fundo para o selecionado */}
+                            {isSelected && (
+                              <motion.div
+                                className={`absolute inset-0 bg-gradient-to-r ${option.colors.primary} opacity-0`}
+                                animate={{
+                                  opacity: [0, 0.15, 0],
+                                  x: ["-100%", "100%"]
+                                }}
+                                transition={{
+                                  duration: 2.5,
+                                  repeat: Infinity,
+                                  repeatDelay: 2,
+                                  ease: "easeInOut"
+                                }}
+                              />
+                            )}
+
+                            <motion.div
+                              className={`
+                                rounded-xl flex items-center justify-center transition-all relative
+                                bg-gradient-to-br ${option.colors.primary} ${option.colors.shadow}
+                                w-14 h-14 shadow-xl
+                              `}
+                              whileHover={{
+                                rotate: [0, -10, 10, -10, 0],
+                                transition: { duration: 0.5 }
+                              }}
+                            >
+                              <Icon className={`${isSelected ? 'w-7 h-7' : 'w-6 h-6'} text-white transition-all`} />
+
+                              {/* Pulso de luz */}
+                              {isSelected && (
+                                <motion.div
+                                  className={`absolute inset-0 rounded-xl bg-gradient-to-br ${option.colors.primary} opacity-0`}
+                                  animate={{
+                                    opacity: [0, 0.5, 0],
+                                    scale: [1, 1.2, 1]
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    repeatDelay: 1
+                                  }}
+                                />
+                              )}
+                            </motion.div>
+
+                            <p className={`text-xs font-semibold transition-colors ${isSelected ? "text-white" : "text-gray-400"}`}>
+                              {option.label}
+                            </p>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Navigation Button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
                   >
-                    <span className="text-xl">{selectedCountry.flag}</span>
-                    <span className="text-sm">{selectedCountry.code}</span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  </button>
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="relative"
+                    >
+                      <motion.div
+                        className={`absolute -inset-0.5 bg-gradient-to-r ${colors.primary} rounded-xl opacity-0 blur`}
+                        whileHover={{ opacity: 0.7 }}
+                        transition={{ duration: 0.3 }}
+                      />
 
-                  {/* Dropdown */}
-                  {showCountryDropdown && (
-                    <div className="absolute top-full mt-1 left-0 w-64 bg-gray-800 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
-                      {countryCodes.map((country) => (
-                        <button
-                          key={country.country}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCountry(country);
-                            setShowCountryDropdown(false);
-                          }}
-                          className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/10 transition-colors text-left"
+                      <Button
+                        type="button"
+                        onClick={handleNextStep}
+                        className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all relative overflow-hidden`}
+                      >
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                          animate={{ x: ["-100%", "100%"] }}
+                          transition={{ duration: 2, repeat: Infinity, repeatDelay: 1, ease: "linear" }}
+                        />
+                        <span className="relative z-10">Próximo</span>
+                      </Button>
+                    </motion.div>
+                  </motion.div>
+                </motion.div>
+              )}
+
+              {/* STEP 2: Personal Data */}
+              {currentStep === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                  {/* Name Field */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name" className="text-sm font-medium text-gray-300">Nome completo</Label>
+                    <div className="relative group">
+                      <div className="pointer-events-none">
+                        <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.name ? colors.text : 'text-gray-500'}`} />
+                      </div>
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        placeholder="Seu nome"
+                        value={formData.name}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        style={{
+                          backgroundColor: 'transparent',
+                          WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                        }}
+                        className={`
+                          w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
+                          focus:outline-none focus:ring-2 transition-all duration-300
+                          ${errors.name ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                        `}
+                      />
+                      <motion.div
+                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                        initial={{ width: 0 }}
+                        animate={{ width: formData.name ? "100%" : 0 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    <AnimatePresence>
+                      {errors.name && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="text-xs text-red-400"
                         >
-                          <span className="text-2xl">{country.flag}</span>
-                          <div className="flex-1">
-                            <p className="text-white text-sm font-medium">{country.name}</p>
-                            <p className="text-gray-400 text-xs">{country.code}</p>
-                          </div>
+                          {errors.name}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* CPF Field */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cpf" className="text-sm font-medium text-gray-300">CPF</Label>
+                    <div className="relative group">
+                      <div className="pointer-events-none">
+                        <CreditCard className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.cpf ? colors.text : 'text-gray-500'}`} />
+                      </div>
+                      <input
+                        id="cpf"
+                        name="cpf"
+                        type="text"
+                        placeholder="000.000.000-00"
+                        value={formData.cpf}
+                        onChange={handleChange}
+                        maxLength={14}
+                        autoComplete="off"
+                        style={{
+                          backgroundColor: 'transparent',
+                          WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                        }}
+                        className={`
+                          w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
+                          focus:outline-none focus:ring-2 transition-all duration-300
+                          ${errors.cpf ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                        `}
+                      />
+                      <motion.div
+                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                        initial={{ width: 0 }}
+                        animate={{ width: formData.cpf ? "100%" : 0 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    <AnimatePresence>
+                      {errors.cpf && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="text-xs text-red-400"
+                        >
+                          {errors.cpf}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Phone Field */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="text-sm font-medium text-gray-300">Telefone</Label>
+                    <div className="relative flex gap-2">
+                      {/* Country Code Selector */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                          onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
+                          className="h-11 px-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all flex items-center gap-2"
+                        >
+                          <span className="text-xl">{selectedCountry.flag}</span>
+                          <span className="text-sm">{selectedCountry.code}</span>
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
                         </button>
-                      ))}
+
+                        {/* Dropdown */}
+                        {showCountryDropdown && (
+                          <div className="absolute top-full mt-1 left-0 w-64 bg-gray-800 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+                            {countryCodes.map((country) => (
+                              <button
+                                key={country.country}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCountry(country);
+                                  setShowCountryDropdown(false);
+                                }}
+                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/10 transition-colors text-left"
+                              >
+                                <span className="text-2xl">{country.flag}</span>
+                                <div className="flex-1">
+                                  <p className="text-white text-sm font-medium">{country.name}</p>
+                                  <p className="text-gray-400 text-xs">{country.code}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Phone Input */}
+                      <div className="relative flex-1 group">
+                        <div className="pointer-events-none">
+                          <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.phone ? colors.text : 'text-gray-500'}`} />
+                        </div>
+                        <input
+                          id="phone"
+                          name="phone"
+                          type="text"
+                          placeholder={selectedCountry.country === 'BR' ? '(00) 00000-0000' : 'Número de telefone'}
+                          value={formData.phone}
+                          onChange={handleChange}
+                          maxLength={selectedCountry.maxLength}
+                          autoComplete="off"
+                          style={{
+                            backgroundColor: 'transparent',
+                            WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                          }}
+                          className={`
+                            w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
+                            focus:outline-none focus:ring-2 transition-all duration-300
+                            ${errors.phone ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                          `}
+                        />
+                        <motion.div
+                          className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                          initial={{ width: 0 }}
+                          animate={{ width: formData.phone ? "100%" : 0 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                    </div>
+                    <AnimatePresence>
+                      {errors.phone && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="text-xs text-red-400"
+                        >
+                          {errors.phone}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Gender and Birth Date in a row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Gender Field */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="gender" className="text-sm font-medium text-gray-300">Gênero</Label>
+                      <select
+                        id="gender"
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleChange}
+                        className={`
+                          w-full h-11 px-4 bg-white/5 border rounded-xl text-white
+                          focus:outline-none focus:ring-2 transition-all
+                          ${errors.gender ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                        `}
+                      >
+                        <option value="" className="bg-gray-800">Selecione</option>
+                        <option value="masculino" className="bg-gray-800">Masculino</option>
+                        <option value="feminino" className="bg-gray-800">Feminino</option>
+                        <option value="outro" className="bg-gray-800">Outro</option>
+                      </select>
+                      {errors.gender && <p className="text-xs text-red-400">{errors.gender}</p>}
+                    </div>
+
+                    {/* Birth Date Field */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="birthDate" className="text-sm font-medium text-gray-300">Nascimento</Label>
+                      <div className="relative group">
+                        <div className="pointer-events-none">
+                          <Calendar className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.birthDate ? colors.text : 'text-gray-500'}`} />
+                        </div>
+                        <input
+                          id="birthDate"
+                          name="birthDate"
+                          type="date"
+                          value={formData.birthDate}
+                          onChange={handleChange}
+                          autoComplete="off"
+                          style={{
+                            backgroundColor: 'transparent',
+                            WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                          }}
+                          className={`
+                            w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white
+                            focus:outline-none focus:ring-2 transition-all duration-300
+                            ${errors.birthDate ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                          `}
+                        />
+                        <motion.div
+                          className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                          initial={{ width: 0 }}
+                          animate={{ width: formData.birthDate ? "100%" : 0 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                      <AnimatePresence>
+                        {errors.birthDate && (
+                          <motion.p
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="text-xs text-red-400"
+                          >
+                            {errors.birthDate}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  {/* CNPJ Field - Only for Professional and Owner */}
+                  {(selectedRole === 'professional' || selectedRole === 'owner') && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cnpj" className="text-sm font-medium text-gray-300">
+                        CNPJ <span className="text-gray-500 text-xs">(Opcional)</span>
+                      </Label>
+                      <div className="relative group">
+                        <div className="pointer-events-none">
+                          <CreditCard className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.cnpj ? colors.text : 'text-gray-500'}`} />
+                        </div>
+                        <input
+                          id="cnpj"
+                          name="cnpj"
+                          type="text"
+                          placeholder="00.000.000/0000-00"
+                          value={formData.cnpj}
+                          onChange={handleChange}
+                          maxLength={18}
+                          autoComplete="off"
+                          style={{
+                            backgroundColor: 'transparent',
+                            WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                          }}
+                          className={`
+                            w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
+                            focus:outline-none focus:ring-2 transition-all duration-300
+                            ${errors.cnpj ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                          `}
+                        />
+                        <motion.div
+                          className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                          initial={{ width: 0 }}
+                          animate={{ width: formData.cnpj ? "100%" : 0 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                      <AnimatePresence>
+                        {errors.cnpj && (
+                          <motion.p
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="text-xs text-red-400"
+                          >
+                            {errors.cnpj}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
-                </div>
 
-                {/* Phone Input */}
-                <div className="relative flex-1">
-                  <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="text"
-                    placeholder={selectedCountry.country === 'BR' ? '(00) 00000-0000' : 'Número de telefone'}
-                    value={formData.phone}
-                    onChange={handleChange}
-                    maxLength={selectedCountry.maxLength}
-                    className={`
-                      w-full h-11 pl-12 pr-4 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                      focus:outline-none focus:ring-2 transition-all
-                      ${errors.phone ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                    `}
-                  />
-                </div>
-              </div>
-              {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
-            </div>
-
-            {/* Gender and Birth Date in a row */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Gender Field */}
-              <div className="space-y-1.5">
-                <Label htmlFor="gender" className="text-sm font-medium text-gray-300">Gênero</Label>
-                <select
-                  id="gender"
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  className={`
-                    w-full h-11 px-4 bg-white/5 border rounded-xl text-white
-                    focus:outline-none focus:ring-2 transition-all
-                    ${errors.gender ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                  `}
-                >
-                  <option value="" className="bg-gray-800">Selecione</option>
-                  <option value="masculino" className="bg-gray-800">Masculino</option>
-                  <option value="feminino" className="bg-gray-800">Feminino</option>
-                  <option value="outro" className="bg-gray-800">Outro</option>
-                </select>
-                {errors.gender && <p className="text-xs text-red-400">{errors.gender}</p>}
-              </div>
-
-              {/* Birth Date Field */}
-              <div className="space-y-1.5">
-                <Label htmlFor="birthDate" className="text-sm font-medium text-gray-300">Nascimento</Label>
-                <div className="relative">
-                  <Calendar className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                  <input
-                    id="birthDate"
-                    name="birthDate"
-                    type="date"
-                    value={formData.birthDate}
-                    onChange={handleChange}
-                    className={`
-                      w-full h-11 pl-12 pr-4 bg-white/5 border rounded-xl text-white
-                      focus:outline-none focus:ring-2 transition-all
-                      ${errors.birthDate ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                    `}
-                  />
-                </div>
-                {errors.birthDate && <p className="text-xs text-red-400">{errors.birthDate}</p>}
-              </div>
-            </div>
-
-            {/* CNPJ Field - Only for Professional and Owner */}
-            {(selectedRole === 'professional' || selectedRole === 'owner') && (
-              <div className="space-y-1.5">
-                <Label htmlFor="cnpj" className="text-sm font-medium text-gray-300">
-                  CNPJ <span className="text-gray-500 text-xs">(Opcional)</span>
-                </Label>
-                <div className="relative">
-                  <CreditCard className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                  <input
-                    id="cnpj"
-                    name="cnpj"
-                    type="text"
-                    placeholder="00.000.000/0000-00"
-                    value={formData.cnpj}
-                    onChange={handleChange}
-                    maxLength={18}
-                    className={`
-                      w-full h-11 pl-12 pr-4 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                      focus:outline-none focus:ring-2 transition-all
-                      ${errors.cnpj ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                    `}
-                  />
-                </div>
-                {errors.cnpj && <p className="text-xs text-red-400">{errors.cnpj}</p>}
-              </div>
-            )}
-
-            {/* Email Field */}
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-300">Email</Label>
-              <div className="relative">
-                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  onBlur={handleEmailBlur}
-                  className={`
-                    w-full h-11 pl-12 pr-4 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                    focus:outline-none focus:ring-2 transition-all
-                    ${errors.email ? "border-red-500/50 focus:ring-red-500/30" : emailExists ? `border-green-500/50 ${colors.ring}` : `border-white/10 ${colors.ring}`}
-                  `}
-                />
-              </div>
-              {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
-            </div>
-
-            {/* Password Field */}
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-300">Senha</Label>
-              <div className="relative">
-                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={`
-                    w-full h-11 pl-12 pr-12 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                    focus:outline-none focus:ring-2 transition-all
-                    ${errors.password ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                  `}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-              {errors.password && <p className="text-xs text-red-400">{errors.password}</p>}
-            </div>
-
-            {/* Confirm Password Field */}
-            <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-300">Confirmar senha</Label>
-              <div className="relative">
-                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${colors.text}`} />
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className={`
-                    w-full h-11 pl-12 pr-12 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                    focus:outline-none focus:ring-2 transition-all
-                    ${errors.confirmPassword ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
-                  `}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-              {errors.confirmPassword && <p className="text-xs text-red-400">{errors.confirmPassword}</p>}
-            </div>
-
-            {/* Submit Button */}
-            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-              <Button
-                type="submit"
-                className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all`}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Criando conta...
+                  {/* Navigation Buttons */}
+                  <div className="flex gap-3 pt-2">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-1"
+                    >
+                      <Button
+                        type="button"
+                        onClick={handlePreviousStep}
+                        className="w-full h-11 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 transition-all"
+                      >
+                        Voltar
+                      </Button>
+                    </motion.div>
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-[2] relative"
+                    >
+                      <motion.div
+                        className={`absolute -inset-0.5 bg-gradient-to-r ${colors.primary} rounded-xl opacity-0 blur`}
+                        whileHover={{ opacity: 0.7 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleNextStep}
+                        className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all relative overflow-hidden`}
+                      >
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                          animate={{ x: ["-100%", "100%"] }}
+                          transition={{ duration: 2, repeat: Infinity, repeatDelay: 1, ease: "linear" }}
+                        />
+                        <span className="relative z-10">Próximo</span>
+                      </Button>
+                    </motion.div>
                   </div>
-                ) : (
-                  "Criar conta"
-                )}
-              </Button>
-            </motion.div>
+                </motion.div>
+              )}
+
+              {/* STEP 3: Credentials */}
+              {currentStep === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                  {/* Email Field */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-sm font-medium text-gray-300">Email</Label>
+                    <div className="relative group">
+                      <div className="pointer-events-none">
+                        <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.email ? colors.text : 'text-gray-500'}`} />
+                      </div>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={formData.email}
+                        onChange={handleChange}
+                        onBlur={handleEmailBlur}
+                        autoComplete="off"
+                        style={{
+                          backgroundColor: 'transparent',
+                          WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                        }}
+                        className={`
+                          w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
+                          focus:outline-none focus:ring-2 transition-all duration-300
+                          ${errors.email ? "border-red-500/50 focus:ring-red-500/30" : emailExists ? `border-green-500/50 ${colors.ring}` : `border-white/10 ${colors.ring}`}
+                        `}
+                      />
+                      <motion.div
+                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                        initial={{ width: 0 }}
+                        animate={{ width: formData.email ? "100%" : 0 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    <AnimatePresence>
+                      {errors.email && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="text-xs text-red-400"
+                        >
+                          {errors.email}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Password Field */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password" className="text-sm font-medium text-gray-300">Senha</Label>
+                    <div className="relative group">
+                      <div className="pointer-events-none">
+                        <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.password ? colors.text : 'text-gray-500'}`} />
+                      </div>
+                      <input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        style={{
+                          backgroundColor: 'transparent',
+                          WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                        }}
+                        className={`
+                          w-full h-11 pl-12 pr-12 bg-transparent border rounded-xl text-white placeholder-gray-500
+                          focus:outline-none focus:ring-2 transition-all duration-300
+                          ${errors.password ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                        `}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300 z-20 ${showPassword ? colors.text : 'text-gray-500 hover:text-gray-300'}`}
+                      >
+                        <AnimatePresence mode="wait">
+                          {showPassword ? (
+                            <motion.div
+                              key="eyeoff"
+                              initial={{ rotate: -180, opacity: 0 }}
+                              animate={{ rotate: 0, opacity: 1 }}
+                              exit={{ rotate: 180, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <EyeOff className="w-5 h-5" />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="eye"
+                              initial={{ rotate: -180, opacity: 0 }}
+                              animate={{ rotate: 0, opacity: 1 }}
+                              exit={{ rotate: 180, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <Eye className="w-5 h-5" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </button>
+                      <motion.div
+                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                        initial={{ width: 0 }}
+                        animate={{ width: formData.password ? "100%" : 0 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    <AnimatePresence>
+                      {errors.password && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="text-xs text-red-400"
+                        >
+                          {errors.password}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Confirm Password Field */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-300">Confirmar senha</Label>
+                    <div className="relative group">
+                      <div className="pointer-events-none">
+                        <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.confirmPassword ? colors.text : 'text-gray-500'}`} />
+                      </div>
+                      <input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        style={{
+                          backgroundColor: 'transparent',
+                          WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                        }}
+                        className={`
+                          w-full h-11 pl-12 pr-12 bg-transparent border rounded-xl text-white placeholder-gray-500
+                          focus:outline-none focus:ring-2 transition-all duration-300
+                          ${errors.confirmPassword ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                        `}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300 z-20 ${showConfirmPassword ? colors.text : 'text-gray-500 hover:text-gray-300'}`}
+                      >
+                        <AnimatePresence mode="wait">
+                          {showConfirmPassword ? (
+                            <motion.div
+                              key="eyeoff"
+                              initial={{ rotate: -180, opacity: 0 }}
+                              animate={{ rotate: 0, opacity: 1 }}
+                              exit={{ rotate: 180, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <EyeOff className="w-5 h-5" />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="eye"
+                              initial={{ rotate: -180, opacity: 0 }}
+                              animate={{ rotate: 0, opacity: 1 }}
+                              exit={{ rotate: 180, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <Eye className="w-5 h-5" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </button>
+                      <motion.div
+                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
+                        initial={{ width: 0 }}
+                        animate={{ width: formData.confirmPassword ? "100%" : 0 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    <AnimatePresence>
+                      {errors.confirmPassword && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="text-xs text-red-400"
+                        >
+                          {errors.confirmPassword}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Navigation & Submit Buttons */}
+                  <div className="flex gap-3 pt-2">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-1"
+                    >
+                      <Button
+                        type="button"
+                        onClick={handlePreviousStep}
+                        className="w-full h-11 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 transition-all"
+                      >
+                        Voltar
+                      </Button>
+                    </motion.div>
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-[2] relative"
+                    >
+                      <motion.div
+                        className={`absolute -inset-0.5 bg-gradient-to-r ${colors.primary} rounded-xl opacity-0 blur`}
+                        whileHover={{ opacity: 0.7 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                      <Button
+                        type="submit"
+                        className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all relative overflow-hidden`}
+                        disabled={isLoading}
+                      >
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                          animate={{ x: ["-100%", "100%"] }}
+                          transition={{ duration: 2, repeat: Infinity, repeatDelay: 1, ease: "linear" }}
+                        />
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                          {isLoading ? (
+                            <>
+                              <motion.div
+                                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              />
+                              Criando conta...
+                            </>
+                          ) : (
+                            <>
+                              Criar conta
+                              <motion.div
+                                animate={{ x: [0, 3, 0], y: [0, -2, 0] }}
+                                transition={{ duration: 1, repeat: Infinity, repeatDelay: 1 }}
+                              >
+                                <Send className="w-4 h-4" />
+                              </motion.div>
+                            </>
+                          )}
+                        </span>
+                      </Button>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </form>
 
           {/* Login Link */}
-          <div className="mt-5 text-center">
+          <motion.div
+            className="mt-5 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+          >
             <p className="text-xs text-gray-500">
               Já tem uma conta?{" "}
-              <button
+              <motion.button
                 type="button"
                 onClick={() => navigate('/login')}
-                className={`font-semibold ${colors.text} hover:opacity-80 transition-colors`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`font-semibold ${colors.text} hover:opacity-80 transition-colors relative inline-block`}
               >
                 Faça login
-              </button>
+                <motion.div
+                  className={`absolute -bottom-0.5 left-0 h-0.5 bg-gradient-to-r ${colors.primary}`}
+                  initial={{ width: 0 }}
+                  whileHover={{ width: "100%" }}
+                  transition={{ duration: 0.2 }}
+                />
+              </motion.button>
             </p>
-          </div>
+          </motion.div>
         </motion.div>
       </motion.div>
 

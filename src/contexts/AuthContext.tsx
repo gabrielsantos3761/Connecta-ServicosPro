@@ -169,6 +169,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseLogout()
       setUser(null)
+
+      // SEGURANÇA: Limpar todos os dados locais
+      // Limpa localStorage (exceto configurações do tema)
+      const keysToKeep = ['theme', 'language']
+      const storage = { ...localStorage }
+
+      Object.keys(storage).forEach(key => {
+        if (!keysToKeep.includes(key)) {
+          localStorage.removeItem(key)
+        }
+      })
+
+      // Limpa sessionStorage
+      sessionStorage.clear()
+
       navigate('/login')
     } catch (error) {
       console.error('Erro ao fazer logout:', error)

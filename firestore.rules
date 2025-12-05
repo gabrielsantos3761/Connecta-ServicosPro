@@ -1,0 +1,351 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // FUNÇÕES AUXILIARES DE VALIDAÇÃO
+    // ============================================
+
+    // Verifica se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Verifica se o usuário é o dono do documento
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Valida formato de email
+    function isValidEmail(email) {
+      return email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    // Valida tamanho de string
+    function isValidStringLength(str, min, max) {
+      return str is string && str.size() >= min && str.size() <= max;
+    }
+
+    // Valida CPF (11 dígitos numéricos)
+    function isValidCPF(cpf) {
+      return cpf is string && cpf.matches('^[0-9]{11}$');
+    }
+
+    // Valida CNPJ (14 dígitos numéricos)
+    function isValidCNPJ(cnpj) {
+      return cnpj is string && cnpj.matches('^[0-9]{14}$');
+    }
+
+    // Valida telefone (10-15 dígitos com código de país opcional)
+    function isValidPhone(phone) {
+      return phone is string && phone.matches('^\\+?[0-9]{10,15}$');
+    }
+
+    // Valida role válido
+    function isValidRole(role) {
+      return role in ['client', 'professional', 'owner'];
+    }
+
+    // Valida array de roles
+    function hasValidRoles(roles) {
+      return roles is list
+        && roles.size() > 0
+        && roles.size() <= 3
+        && roles.hasAll(['client', 'professional', 'owner'].hasAny(roles));
+    }
+
+    // Valida URL (básico)
+    function isValidURL(url) {
+      return url is string && url.matches('^https?://.*');
+    }
+
+    // Valida timestamp
+    function isValidTimestamp(ts) {
+      return ts is timestamp;
+    }
+
+    // ============================================
+    // COLEÇÃO: USERS
+    // ============================================
+    match /users/{userId} {
+      // Leitura: apenas o próprio usuário
+      allow read: if isOwner(userId);
+
+      // Criação: apenas durante registro (próprio UID)
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasAll(['uid', 'email', 'displayName', 'roles', 'activeRole', 'createdAt', 'updatedAt'])
+        && request.resource.data.uid == userId
+        && isValidEmail(request.resource.data.email)
+        && isValidStringLength(request.resource.data.displayName, 2, 100)
+        && hasValidRoles(request.resource.data.roles)
+        && isValidRole(request.resource.data.activeRole)
+        && request.resource.data.activeRole in request.resource.data.roles
+        && isValidTimestamp(request.resource.data.createdAt)
+        && isValidTimestamp(request.resource.data.updatedAt)
+        // Validações opcionais
+        && (!request.resource.data.keys().hasAny(['cpf']) || isValidCPF(request.resource.data.cpf))
+        && (!request.resource.data.keys().hasAny(['phone']) || isValidPhone(request.resource.data.phone))
+        && (!request.resource.data.keys().hasAny(['photoURL']) || isValidURL(request.resource.data.photoURL))
+        && (!request.resource.data.keys().hasAny(['coverPhotoURL']) || isValidURL(request.resource.data.coverPhotoURL))
+        && (!request.resource.data.keys().hasAny(['gender']) || request.resource.data.gender in ['masculino', 'feminino', 'outro'])
+        && (!request.resource.data.keys().hasAny(['birthDate']) || isValidStringLength(request.resource.data.birthDate, 8, 10));
+
+      // Atualização: apenas o próprio usuário
+      // Campos sensíveis NÃO podem ser editados diretamente pelo cliente
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == resource.data.uid  // UID imutável
+        && request.resource.data.email == resource.data.email  // Email imutável (use Cloud Function para alterar)
+        && request.resource.data.createdAt == resource.data.createdAt  // createdAt imutável
+        && isValidTimestamp(request.resource.data.updatedAt)
+        // Validações de campos editáveis
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName'])
+            || isValidStringLength(request.resource.data.displayName, 2, 100))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
+            || hasValidRoles(request.resource.data.roles))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['activeRole'])
+            || (isValidRole(request.resource.data.activeRole) && request.resource.data.activeRole in request.resource.data.roles))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone'])
+            || isValidPhone(request.resource.data.phone))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['photoURL'])
+            || isValidURL(request.resource.data.photoURL))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['coverPhotoURL'])
+            || isValidURL(request.resource.data.coverPhotoURL))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['gender'])
+            || request.resource.data.gender in ['masculino', 'feminino', 'outro'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['birthDate'])
+            || isValidStringLength(request.resource.data.birthDate, 8, 10));
+
+      // Deleção: não permitida (use Cloud Function)
+      allow delete: if false;
+    }
+
+    // ============================================
+    // COLEÇÃO: PROFESSIONALS
+    // ============================================
+    match /professionals/{professionalId} {
+      // Leitura: o próprio profissional ou donos de barbearias vinculadas
+      allow read: if isAuthenticated() && (
+        isOwner(professionalId)
+        || exists(/databases/$(database)/documents/professionals/$(professionalId))
+      );
+
+      // Criação: apenas o próprio profissional
+      allow create: if isOwner(professionalId)
+        && request.resource.data.userId == professionalId
+        && request.resource.data.isActive == true
+        && isValidTimestamp(request.resource.data.createdAt)
+        && isValidTimestamp(request.resource.data.updatedAt)
+        && request.resource.data.servicesCompleted == 0
+        && request.resource.data.reviewsCount == 0
+        && request.resource.data.rating == 0
+        && (!request.resource.data.keys().hasAny(['cnpj']) || isValidCNPJ(request.resource.data.cnpj))
+        && (!request.resource.data.keys().hasAny(['specialties']) || request.resource.data.specialties is list);
+
+      // Atualização: apenas o próprio profissional (campos limitados)
+      allow update: if isOwner(professionalId)
+        && request.resource.data.userId == resource.data.userId  // userId imutável
+        && request.resource.data.createdAt == resource.data.createdAt  // createdAt imutável
+        && isValidTimestamp(request.resource.data.updatedAt)
+        // Campos de estatísticas NÃO podem ser editados pelo cliente
+        && request.resource.data.servicesCompleted == resource.data.servicesCompleted
+        && request.resource.data.reviewsCount == resource.data.reviewsCount
+        && request.resource.data.rating == resource.data.rating;
+
+      // Deleção: não permitida
+      allow delete: if false;
+    }
+
+    // ============================================
+    // COLEÇÃO: OWNERS
+    // ============================================
+    match /owners/{ownerId} {
+      // Leitura: apenas o próprio dono
+      allow read: if isOwner(ownerId);
+
+      // Criação: apenas o próprio dono
+      allow create: if isOwner(ownerId)
+        && request.resource.data.userId == ownerId
+        && request.resource.data.businesses is list
+        && request.resource.data.plan in ['free', 'basic', 'premium']
+        && request.resource.data.subscriptionStatus in ['active', 'inactive', 'trial']
+        && isValidTimestamp(request.resource.data.createdAt)
+        && isValidTimestamp(request.resource.data.updatedAt)
+        && (!request.resource.data.keys().hasAny(['cnpj']) || isValidCNPJ(request.resource.data.cnpj));
+
+      // Atualização: apenas o próprio dono (campos limitados)
+      allow update: if isOwner(ownerId)
+        && request.resource.data.userId == resource.data.userId  // userId imutável
+        && request.resource.data.createdAt == resource.data.createdAt  // createdAt imutável
+        && isValidTimestamp(request.resource.data.updatedAt)
+        // Plano e status de assinatura NÃO podem ser editados pelo cliente
+        && request.resource.data.plan == resource.data.plan
+        && request.resource.data.subscriptionStatus == resource.data.subscriptionStatus;
+
+      // Deleção: não permitida
+      allow delete: if false;
+    }
+
+    // ============================================
+    // COLEÇÃO: BUSINESSES (Barbearias)
+    // ============================================
+    match /businesses/{businessId} {
+      // Leitura: público (listagem de barbearias) ou donos
+      allow read: if isAuthenticated();
+
+      // Criação: apenas donos (verificar role owner no users)
+      allow create: if isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles.hasAny(['owner'])
+        && request.resource.data.ownerId == request.auth.uid
+        && isValidStringLength(request.resource.data.name, 2, 100)
+        && isValidStringLength(request.resource.data.description, 0, 500)
+        && request.resource.data.status == 'active'
+        && isValidTimestamp(request.resource.data.createdAt)
+        && isValidTimestamp(request.resource.data.updatedAt)
+        && (!request.resource.data.keys().hasAny(['phone']) || isValidPhone(request.resource.data.phone))
+        && (!request.resource.data.keys().hasAny(['photoURL']) || isValidURL(request.resource.data.photoURL))
+        && request.resource.data.professionals is list
+        && request.resource.data.rating >= 0 && request.resource.data.rating <= 5
+        && request.resource.data.reviewsCount >= 0;
+
+      // Atualização: apenas o dono da barbearia
+      allow update: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId  // ownerId imutável
+        && request.resource.data.createdAt == resource.data.createdAt  // createdAt imutável
+        && isValidTimestamp(request.resource.data.updatedAt)
+        // Campos de estatísticas NÃO podem ser editados pelo cliente
+        && request.resource.data.rating == resource.data.rating
+        && request.resource.data.reviewsCount == resource.data.reviewsCount;
+
+      // Deleção: apenas o dono (usar Cloud Function para limpeza adequada)
+      allow delete: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ============================================
+    // COLEÇÃO: APPOINTMENTS (Agendamentos)
+    // ============================================
+    match /appointments/{appointmentId} {
+      // Leitura: cliente, profissional ou dono da barbearia
+      allow read: if isAuthenticated() && (
+        resource.data.clientId == request.auth.uid
+        || resource.data.professionalId == request.auth.uid
+        || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+      );
+
+      // Criação: apenas clientes autenticados
+      allow create: if isAuthenticated()
+        && request.resource.data.clientId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && isValidTimestamp(request.resource.data.scheduledAt)
+        && isValidTimestamp(request.resource.data.createdAt)
+        && isValidTimestamp(request.resource.data.updatedAt)
+        && request.resource.data.keys().hasAll(['businessId', 'professionalId', 'clientId', 'serviceId', 'status', 'scheduledAt']);
+
+      // Atualização: cliente (cancelar), profissional ou dono (aprovar/rejeitar)
+      allow update: if isAuthenticated() && (
+        // Cliente pode cancelar
+        (resource.data.clientId == request.auth.uid
+          && request.resource.data.status == 'cancelled'
+          && resource.data.status in ['pending', 'confirmed'])
+        // Profissional ou dono pode aprovar/rejeitar
+        || (resource.data.professionalId == request.auth.uid
+          && request.resource.data.status in ['confirmed', 'rejected', 'completed'])
+        || (get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+          && request.resource.data.status in ['confirmed', 'rejected', 'completed'])
+      ) && isValidTimestamp(request.resource.data.updatedAt);
+
+      // Deleção: não permitida
+      allow delete: if false;
+    }
+
+    // ============================================
+    // COLEÇÃO: SERVICES (Serviços)
+    // ============================================
+    match /services/{serviceId} {
+      // Leitura: público
+      allow read: if isAuthenticated();
+
+      // Criação: apenas donos de barbearia
+      allow create: if isAuthenticated()
+        && get(/databases/$(database)/documents/businesses/$(request.resource.data.businessId)).data.ownerId == request.auth.uid
+        && isValidStringLength(request.resource.data.name, 2, 100)
+        && isValidStringLength(request.resource.data.description, 0, 500)
+        && request.resource.data.price > 0
+        && request.resource.data.duration > 0
+        && isValidTimestamp(request.resource.data.createdAt)
+        && isValidTimestamp(request.resource.data.updatedAt);
+
+      // Atualização: apenas dono da barbearia
+      allow update: if isAuthenticated()
+        && get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+        && request.resource.data.businessId == resource.data.businessId  // businessId imutável
+        && request.resource.data.createdAt == resource.data.createdAt  // createdAt imutável
+        && isValidTimestamp(request.resource.data.updatedAt);
+
+      // Deleção: apenas dono da barbearia
+      allow delete: if isAuthenticated()
+        && get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid;
+    }
+
+    // ============================================
+    // COLEÇÃO: REVIEWS (Avaliações)
+    // ============================================
+    match /reviews/{reviewId} {
+      // Leitura: público
+      allow read: if isAuthenticated();
+
+      // Criação: apenas clientes que tiveram agendamento completado
+      allow create: if isAuthenticated()
+        && request.resource.data.clientId == request.auth.uid
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && isValidStringLength(request.resource.data.comment, 0, 500)
+        && isValidTimestamp(request.resource.data.createdAt)
+        && isValidTimestamp(request.resource.data.updatedAt);
+
+      // Atualização: apenas o autor da avaliação (dentro de 24h)
+      allow update: if isAuthenticated()
+        && resource.data.clientId == request.auth.uid
+        && request.resource.data.clientId == resource.data.clientId  // clientId imutável
+        && request.resource.data.businessId == resource.data.businessId  // businessId imutável
+        && request.resource.data.professionalId == resource.data.professionalId  // professionalId imutável
+        && request.resource.data.createdAt == resource.data.createdAt  // createdAt imutável
+        && isValidTimestamp(request.resource.data.updatedAt)
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+
+      // Deleção: não permitida (use Cloud Function)
+      allow delete: if false;
+    }
+
+    // ============================================
+    // COLEÇÃO: BUSINESS_PROFESSIONAL_LINKS
+    // ============================================
+    match /business_professional_links/{linkId} {
+      // Leitura: profissional ou dono da barbearia
+      allow read: if isAuthenticated() && (
+        resource.data.professionalUid == request.auth.uid
+        || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+      );
+
+      // Criação: apenas via Cloud Function (validação de código)
+      allow create: if false;
+
+      // Atualização: apenas via Cloud Function
+      allow update: if false;
+
+      // Deleção: profissional ou dono da barbearia
+      allow delete: if isAuthenticated() && (
+        resource.data.professionalUid == request.auth.uid
+        || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+      );
+    }
+
+    // ============================================
+    // REGRA DEFAULT: NEGAR TUDO
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
