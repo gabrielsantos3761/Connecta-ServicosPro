@@ -459,22 +459,30 @@ export async function loginWithGoogle(role: UserRole = 'client'): Promise<UserPr
       profile = await getUserProfile(user.uid);
     } else {
       // Já tem perfil - permite login e atualiza informações
+      console.log('[loginWithGoogle] Usuário já possui perfil, atualizando informações...');
       const userRef = doc(db, 'users', user.uid);
       const updateData: any = {
         ...additionalUserInfo,
         updatedAt: serverTimestamp(),
       };
 
+      console.log('[loginWithGoogle] Dados a atualizar:', updateData);
       await updateDoc(userRef, updateData);
+      console.log('[loginWithGoogle] updateDoc concluído');
 
       // Se o usuário tem o role solicitado, alterna para ele
       if (profile.roles.includes(role)) {
         if (profile.activeRole !== role) {
+          console.log(`[loginWithGoogle] Alternando role de ${profile.activeRole} para ${role}`);
           await switchActiveRole(user.uid, role);
         }
+      } else {
+        console.log(`[loginWithGoogle] Usuário não possui role ${role}, mantendo ${profile.activeRole}`);
       }
 
+      console.log('[loginWithGoogle] Buscando perfil atualizado...');
       profile = await getUserProfile(user.uid);
+      console.log('[loginWithGoogle] Perfil atualizado:', profile);
     }
 
     if (!profile) {
