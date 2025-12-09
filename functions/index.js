@@ -14,6 +14,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const { setGlobalOptions } = require('firebase-functions/v2');
+const crypto = require('crypto');
 
 // Configurações globais
 setGlobalOptions({
@@ -744,7 +745,7 @@ exports.createInitialUserDocument = onCall(async (request) => {
     console.log('🔍 [createInitialUserDocument] request.data:', request.data);
 
     // VALIDAÇÃO DE PAYLOAD
-    const { uid, email, displayName, role, photoURL } = request.data;
+    const { uid, email, displayName, role, photoURL, cpf, phone, gender, birthDate } = request.data;
 
     // Validar parâmetros obrigatórios
     if (!uid || !email || !displayName || !role) {
@@ -833,6 +834,29 @@ exports.createInitialUserDocument = onCall(async (request) => {
       userData.photoURL = photoURL;
     }
 
+    // Adicionar campos opcionais do perfil (cpf, phone, gender, birthDate)
+    if (cpf) {
+      userData.cpf = cpf;
+    }
+    if (phone) {
+      userData.phone = phone;
+    }
+    if (gender) {
+      userData.gender = gender;
+    }
+    if (birthDate) {
+      userData.birthDate = birthDate;
+    }
+
+    // Calcular completude do perfil
+    const requiredFields = ['phone', 'cpf', 'gender', 'birthDate'];
+    const providedFields = requiredFields.filter(field => userData[field]);
+    const profileCompleteness = Math.round(((providedFields.length + 1) / (requiredFields.length + 1)) * 100); // +1 para displayName que já é obrigatório
+
+    userData.profileComplete = profileCompleteness === 100;
+    userData.profileCompleteness = profileCompleteness;
+    userData.missingFields = requiredFields.filter(field => !userData[field]);
+
     await userRef.set(userData);
 
     // Log de segurança
@@ -862,6 +886,836 @@ exports.createInitialUserDocument = onCall(async (request) => {
     throw new HttpsError(
       'internal',
       'Erro ao processar solicitação. Tente novamente.'
+    );
+  }
+});
+
+/**
+ * Cloud Function: updateUserProfile
+ * Atualiza o perfil do usuário
+ * Validação via Admin SDK - não requer token do cliente
+ */
+exports.updateUserProfile = onCall({
+  region: 'southamerica-east1',
+  cors: true,
+}, async (request) => {
+  const rateLimit = {
+    maxUpdates: 10,
+    windowMs: 60 * 60 * 1000, // 1 hora
+  };
+
+  try {
+    const {
+      uid,
+      displayName,
+      phone,
+      cpf,
+      gender,
+      birthDate,
+    } = request.data;
+
+    // Validação básica
+    if (!uid || typeof uid !== 'string') {
+      throw new HttpsError(
+        'invalid-argument',
+        'UID do usuário é obrigatório'
+      );
+    }
+
+    // Validar se usuário existe via Admin SDK
+    let userRecord;
+    try {
+      userRecord = await admin.auth().getUser(uid);
+      console.log(`[updateUserProfile] Usuário validado via Admin SDK: ${uid}`);
+    } catch (error) {
+      console.error('[updateUserProfile] Erro ao validar usuário:', error);
+      throw new HttpsError(
+        'not-found',
+        'Usuário não encontrado no sistema de autenticação'
+      );
+    }
+
+    // Rate limiting
+    const userRef = admin.firestore().collection('users').doc(uid);
+    const userDoc = await userRef.get();
+
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      const now = Date.now();
+      const recentUpdates = (userData.recentProfileUpdates || [])
+        .filter(timestamp => now - timestamp < rateLimit.windowMs);
+
+      if (recentUpdates.length >= rateLimit.maxUpdates) {
+        console.warn(`[updateUserProfile] Rate limit excedido para usuário ${uid}`);
+        throw new HttpsError(
+          'resource-exhausted',
+          `Limite de atualizações excedido. Tente novamente mais tarde.`
+        );
+      }
+    }
+
+    // Validações de campos
+    const updates = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (displayName !== undefined) {
+      if (typeof displayName !== 'string' || displayName.trim().length < 2 || displayName.length > 100) {
+        throw new HttpsError(
+          'invalid-argument',
+          'Nome deve ter entre 2 e 100 caracteres'
+        );
+      }
+      updates.displayName = displayName.trim();
+    }
+
+    if (phone !== undefined) {
+      if (typeof phone !== 'string' || !phone.match(/^\+?[0-9]{10,15}$/)) {
+        throw new HttpsError(
+          'invalid-argument',
+          'Telefone inválido. Use formato: +5511999999999'
+        );
+      }
+      updates.phone = phone;
+    }
+
+    if (cpf !== undefined) {
+      if (typeof cpf !== 'string' || !cpf.match(/^[0-9]{11}$/)) {
+        throw new HttpsError(
+          'invalid-argument',
+          'CPF inválido. Use apenas números (11 dígitos)'
+        );
+      }
+      updates.cpf = cpf;
+    }
+
+    if (gender !== undefined) {
+      if (!['male', 'female', 'other', 'prefer_not_to_say'].includes(gender)) {
+        throw new HttpsError(
+          'invalid-argument',
+          'Gênero inválido'
+        );
+      }
+      updates.gender = gender;
+    }
+
+    if (birthDate !== undefined) {
+      if (typeof birthDate !== 'string' || !birthDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        throw new HttpsError(
+          'invalid-argument',
+          'Data de nascimento inválida. Use formato: YYYY-MM-DD'
+        );
+      }
+      updates.birthDate = birthDate;
+    }
+
+    // Calcular completude do perfil
+    const currentData = userDoc.exists ? userDoc.data() : {};
+    const mergedData = { ...currentData, ...updates };
+
+    const requiredFields = ['displayName', 'phone', 'cpf', 'gender', 'birthDate'];
+    const missingFields = requiredFields.filter(field => !mergedData[field]);
+    const profileCompleteness = Math.round(
+      ((requiredFields.length - missingFields.length) / requiredFields.length) * 100
+    );
+
+    updates.profileComplete = missingFields.length === 0;
+    updates.missingFields = missingFields;
+    updates.profileCompleteness = profileCompleteness;
+
+    // Atualizar rate limiting
+    const recentUpdates = userDoc.exists
+      ? (userDoc.data().recentProfileUpdates || []).filter(
+          timestamp => Date.now() - timestamp < rateLimit.windowMs
+        )
+      : [];
+    recentUpdates.push(Date.now());
+    updates.recentProfileUpdates = recentUpdates;
+
+    // Atualizar documento
+    await userRef.update(updates);
+
+    console.log(`[updateUserProfile] Perfil atualizado com sucesso para ${uid}`);
+    console.log(`[updateUserProfile] Completude: ${profileCompleteness}%`);
+
+    return {
+      success: true,
+      message: 'Perfil atualizado com sucesso',
+      profileCompleteness,
+      profileComplete: updates.profileComplete,
+      missingFields,
+    };
+
+  } catch (error) {
+    console.error('[updateUserProfile] Erro:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      'internal',
+      'Erro ao atualizar perfil. Tente novamente.'
+    );
+  }
+});
+
+// ============================================
+// SISTEMA DE GESTÃO DE SESSÕES E REFRESH TOKENS
+// ============================================
+
+/**
+ * Configurações de duração de sessão
+ */
+const SESSION_CONFIG = {
+  accessTokenDuration: 60 * 60 * 1000,           // 1 hora
+  refreshTokenDuration: 90 * 24 * 60 * 60 * 1000, // 90 dias
+  useSlidingExpiration: true,
+  autoRefreshThreshold: 5 * 60 * 1000,           // 5 minutos
+  maxSessionsPerUser: 5,                         // Máximo 5 dispositivos
+};
+
+/**
+ * Gera um refresh token seguro (aleatório)
+ */
+function generateRefreshToken() {
+  return crypto.randomBytes(64).toString('base64url');
+}
+
+/**
+ * Cria um hash seguro do refresh token
+ */
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * Compara um token com seu hash
+ */
+function verifyToken(token, hash) {
+  const tokenHash = hashToken(token);
+  return crypto.timingSafeEqual(
+    Buffer.from(tokenHash),
+    Buffer.from(hash)
+  );
+}
+
+/**
+ * Extrai informações do User-Agent
+ */
+function parseUserAgent(userAgent) {
+  if (!userAgent) {
+    return {
+      browser: 'Unknown',
+      browserVersion: '',
+      os: 'Unknown',
+      platform: 'web',
+    };
+  }
+
+  let browser = 'Unknown';
+  let browserVersion = '';
+  let os = 'Unknown';
+  let platform = 'web';
+
+  // Detectar navegador
+  if (userAgent.includes('Chrome')) {
+    browser = 'Chrome';
+    const match = userAgent.match(/Chrome\/(\d+\.\d+)/);
+    browserVersion = match ? match[1] : '';
+  } else if (userAgent.includes('Firefox')) {
+    browser = 'Firefox';
+    const match = userAgent.match(/Firefox\/(\d+\.\d+)/);
+    browserVersion = match ? match[1] : '';
+  } else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
+    browser = 'Safari';
+    const match = userAgent.match(/Version\/(\d+\.\d+)/);
+    browserVersion = match ? match[1] : '';
+  } else if (userAgent.includes('Edge')) {
+    browser = 'Edge';
+    const match = userAgent.match(/Edge\/(\d+\.\d+)/);
+    browserVersion = match ? match[1] : '';
+  }
+
+  // Detectar sistema operacional
+  if (userAgent.includes('Windows')) {
+    os = 'Windows';
+  } else if (userAgent.includes('Mac OS')) {
+    os = 'macOS';
+  } else if (userAgent.includes('Linux')) {
+    os = 'Linux';
+  } else if (userAgent.includes('Android')) {
+    os = 'Android';
+    platform = 'android';
+  } else if (userAgent.includes('iOS') || userAgent.includes('iPhone') || userAgent.includes('iPad')) {
+    os = 'iOS';
+    platform = 'ios';
+  }
+
+  return { browser, browserVersion, os, platform };
+}
+
+/**
+ * Cloud Function: createSession
+ * Cria uma nova sessão após login bem-sucedido
+ *
+ * SEGURANÇA:
+ * - Validação via Admin SDK (não requer context.auth)
+ * - Limita número de sessões ativas por usuário
+ * - Gera refresh token criptograficamente seguro
+ * - Armazena apenas hash do token
+ */
+exports.createSession = onCall({
+  region: 'southamerica-east1',
+  cors: true,
+}, async (request) => {
+  try {
+    const {
+      uid,
+      deviceId,
+      userAgent,
+      ipAddress,
+      activeRole,
+    } = request.data;
+
+    // Validação básica
+    if (!uid || !deviceId || !activeRole) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Dados incompletos fornecidos.'
+      );
+    }
+
+    // Validar se usuário existe via Admin SDK
+    let userRecord;
+    try {
+      userRecord = await admin.auth().getUser(uid);
+      console.log(`[createSession] Usuário validado via Admin SDK: ${uid}`);
+    } catch (error) {
+      console.error('[createSession] Erro ao validar usuário:', error);
+      throw new HttpsError(
+        'not-found',
+        'Usuário não encontrado no sistema de autenticação.'
+      );
+    }
+
+    const db = admin.firestore();
+
+    // Verificar número de sessões ativas
+    const activeSessionsSnapshot = await db
+      .collection('sessions')
+      .where('userId', '==', uid)
+      .where('isActive', '==', true)
+      .where('revokedAt', '==', null)
+      .get();
+
+    // Se excedeu o limite, revogar a sessão mais antiga
+    if (activeSessionsSnapshot.size >= SESSION_CONFIG.maxSessionsPerUser) {
+      console.log(`[createSession] Limite de sessões atingido. Revogando sessão mais antiga...`);
+
+      const oldestSession = activeSessionsSnapshot.docs
+        .sort((a, b) => a.data().createdAt.toMillis() - b.data().createdAt.toMillis())[0];
+
+      await oldestSession.ref.update({
+        revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+        isActive: false,
+      });
+    }
+
+    // Gerar refresh token
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = hashToken(refreshToken);
+
+    // Parse do user agent
+    const deviceMetadata = parseUserAgent(userAgent);
+
+    // Criar sessão
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const expiresAt = new Date(Date.now() + SESSION_CONFIG.refreshTokenDuration);
+
+    const sessionData = {
+      userId: uid,
+      deviceId,
+      userAgent: userAgent || 'Unknown',
+      ipAddress: ipAddress || null,
+      refreshTokenHash,
+      activeRole,
+      deviceMetadata,
+      createdAt: now,
+      expiresAt,
+      lastUsedAt: now,
+      revokedAt: null,
+      isActive: true,
+    };
+
+    const sessionRef = await db.collection('sessions').add(sessionData);
+    const sessionId = sessionRef.id;
+
+    // Gerar custom token para o usuário (válido por 1 hora)
+    const customToken = await admin.auth().createCustomToken(uid);
+
+    // Log de segurança
+    await securityLog('session_created', uid, {
+      sessionId,
+      deviceId,
+      activeRole,
+      browser: deviceMetadata.browser,
+      os: deviceMetadata.os,
+    });
+
+    console.log(`[createSession] Sessão criada com sucesso: ${sessionId}`);
+
+    return {
+      success: true,
+      sessionId,
+      refreshToken,        // Enviar para o cliente guardar
+      accessToken: customToken,
+      expiresAt: expiresAt.toISOString(),
+      message: 'Sessão criada com sucesso',
+    };
+  } catch (error) {
+    console.error('[createSession] Erro:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      'internal',
+      'Erro ao criar sessão. Tente novamente.'
+    );
+  }
+});
+
+/**
+ * Cloud Function: refreshSession
+ * Renova o access token usando o refresh token
+ *
+ * SEGURANÇA:
+ * - Valida que a sessão existe e está ativa
+ * - Valida que o refresh token corresponde ao hash armazenado
+ * - Implementa sliding expiration (renova expiresAt)
+ * - Rate limiting: 60 renovações por hora
+ */
+exports.refreshSession = onCall({
+  region: 'southamerica-east1',
+  cors: true,
+}, async (request) => {
+  try {
+    const { sessionId, refreshToken } = request.data;
+
+    // Validação básica
+    if (!sessionId || !refreshToken) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Dados incompletos fornecidos.'
+      );
+    }
+
+    const db = admin.firestore();
+
+    // Buscar sessão
+    const sessionRef = db.collection('sessions').doc(sessionId);
+    const sessionDoc = await sessionRef.get();
+
+    if (!sessionDoc.exists) {
+      throw new HttpsError(
+        'not-found',
+        'Sessão não encontrada.'
+      );
+    }
+
+    const sessionData = sessionDoc.data();
+
+    // Verificar se a sessão está ativa
+    if (!sessionData.isActive || sessionData.revokedAt) {
+      throw new HttpsError(
+        'permission-denied',
+        'Sessão inválida ou revogada.'
+      );
+    }
+
+    // Verificar se a sessão expirou
+    const now = new Date();
+    const expiresAt = sessionData.expiresAt.toDate();
+    if (now > expiresAt) {
+      // Marcar como inativa
+      await sessionRef.update({
+        isActive: false,
+        revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      throw new HttpsError(
+        'unauthenticated',
+        'Sessão expirada. Faça login novamente.'
+      );
+    }
+
+    // Validar refresh token
+    let isValidToken = false;
+    try {
+      isValidToken = verifyToken(refreshToken, sessionData.refreshTokenHash);
+    } catch (error) {
+      console.error('[refreshSession] Erro ao validar token:', error);
+    }
+
+    if (!isValidToken) {
+      // Log de tentativa com token inválido
+      await securityLog('refresh_invalid_token', sessionData.userId, {
+        sessionId,
+        deviceId: sessionData.deviceId,
+      });
+
+      throw new HttpsError(
+        'permission-denied',
+        'Token de renovação inválido.'
+      );
+    }
+
+    // Rate limiting - 60 renovações por hora
+    await checkRateLimit(sessionData.userId, 'refreshSession', 60, 60 * 60 * 1000);
+
+    // Gerar novo custom token
+    const customToken = await admin.auth().createCustomToken(sessionData.userId);
+
+    // Atualizar sessão (sliding expiration)
+    const updates = {
+      lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (SESSION_CONFIG.useSlidingExpiration) {
+      updates.expiresAt = new Date(Date.now() + SESSION_CONFIG.refreshTokenDuration);
+    }
+
+    await sessionRef.update(updates);
+
+    console.log(`[refreshSession] Sessão renovada: ${sessionId}`);
+
+    return {
+      success: true,
+      accessToken: customToken,
+      expiresAt: updates.expiresAt ? updates.expiresAt.toISOString() : expiresAt.toISOString(),
+      message: 'Token renovado com sucesso',
+    };
+  } catch (error) {
+    console.error('[refreshSession] Erro:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      'internal',
+      'Erro ao renovar sessão. Tente novamente.'
+    );
+  }
+});
+
+/**
+ * Cloud Function: revokeSession
+ * Revoga uma sessão específica (logout)
+ *
+ * SEGURANÇA:
+ * - Requer autenticação via context.auth
+ * - Usuário só pode revogar suas próprias sessões
+ */
+exports.revokeSession = onCall({
+  region: 'southamerica-east1',
+  cors: true,
+}, async (request) => {
+  try {
+    const auth = requireAuth(request);
+    const { sessionId } = request.data;
+
+    if (!sessionId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'ID da sessão é obrigatório.'
+      );
+    }
+
+    const db = admin.firestore();
+    const sessionRef = db.collection('sessions').doc(sessionId);
+    const sessionDoc = await sessionRef.get();
+
+    if (!sessionDoc.exists) {
+      throw new HttpsError(
+        'not-found',
+        'Sessão não encontrada.'
+      );
+    }
+
+    const sessionData = sessionDoc.data();
+
+    // Verificar se a sessão pertence ao usuário autenticado
+    if (sessionData.userId !== auth.uid) {
+      await securityLog('revoke_session_unauthorized', auth.uid, {
+        attemptedSessionId: sessionId,
+        actualOwner: sessionData.userId,
+      });
+
+      throw new HttpsError(
+        'permission-denied',
+        'Você não tem permissão para revogar esta sessão.'
+      );
+    }
+
+    // Revogar sessão
+    await sessionRef.update({
+      revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+      isActive: false,
+    });
+
+    // Log de segurança
+    await securityLog('session_revoked', auth.uid, {
+      sessionId,
+      deviceId: sessionData.deviceId,
+    });
+
+    console.log(`[revokeSession] Sessão revogada: ${sessionId}`);
+
+    return {
+      success: true,
+      message: 'Sessão revogada com sucesso',
+    };
+  } catch (error) {
+    console.error('[revokeSession] Erro:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      'internal',
+      'Erro ao revogar sessão. Tente novamente.'
+    );
+  }
+});
+
+/**
+ * Cloud Function: revokeAllSessions
+ * Revoga todas as sessões do usuário (exceto opcionalmente a atual)
+ *
+ * SEGURANÇA:
+ * - Requer autenticação via context.auth
+ * - Útil para "Logout de todos os dispositivos"
+ * - Útil após trocar senha
+ */
+exports.revokeAllSessions = onCall({
+  region: 'southamerica-east1',
+  cors: true,
+}, async (request) => {
+  try {
+    const auth = requireAuth(request);
+    const { exceptSessionId } = request.data;
+
+    const db = admin.firestore();
+
+    // Buscar todas as sessões ativas do usuário
+    let query = db
+      .collection('sessions')
+      .where('userId', '==', auth.uid)
+      .where('isActive', '==', true);
+
+    const sessionsSnapshot = await query.get();
+
+    if (sessionsSnapshot.empty) {
+      return {
+        success: true,
+        revokedCount: 0,
+        message: 'Nenhuma sessão ativa encontrada',
+      };
+    }
+
+    // Revogar todas (exceto a exceção, se fornecida)
+    const batch = db.batch();
+    let revokedCount = 0;
+
+    sessionsSnapshot.docs.forEach((doc) => {
+      if (!exceptSessionId || doc.id !== exceptSessionId) {
+        batch.update(doc.ref, {
+          revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+          isActive: false,
+        });
+        revokedCount++;
+      }
+    });
+
+    await batch.commit();
+
+    // Log de segurança
+    await securityLog('all_sessions_revoked', auth.uid, {
+      revokedCount,
+      keptSessionId: exceptSessionId || null,
+    });
+
+    console.log(`[revokeAllSessions] ${revokedCount} sessões revogadas para ${auth.uid}`);
+
+    return {
+      success: true,
+      revokedCount,
+      message: `${revokedCount} sessão(ões) revogada(s) com sucesso`,
+    };
+  } catch (error) {
+    console.error('[revokeAllSessions] Erro:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      'internal',
+      'Erro ao revogar sessões. Tente novamente.'
+    );
+  }
+});
+
+/**
+ * Cloud Function: listActiveSessions
+ * Lista todas as sessões ativas do usuário
+ *
+ * SEGURANÇA:
+ * - Requer autenticação via context.auth
+ * - Usuário só vê suas próprias sessões
+ */
+exports.listActiveSessions = onCall({
+  region: 'southamerica-east1',
+  cors: true,
+}, async (request) => {
+  try {
+    const auth = requireAuth(request);
+    const { currentSessionId } = request.data;
+
+    const db = admin.firestore();
+
+    // Buscar sessões ativas
+    const sessionsSnapshot = await db
+      .collection('sessions')
+      .where('userId', '==', auth.uid)
+      .where('isActive', '==', true)
+      .where('revokedAt', '==', null)
+      .orderBy('lastUsedAt', 'desc')
+      .get();
+
+    const sessions = sessionsSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        deviceName: data.deviceMetadata?.deviceName ||
+                   `${data.deviceMetadata?.browser || 'Unknown'} em ${data.deviceMetadata?.os || 'Unknown'}`,
+        browser: data.deviceMetadata?.browser || 'Unknown',
+        browserVersion: data.deviceMetadata?.browserVersion || '',
+        os: data.deviceMetadata?.os || 'Unknown',
+        platform: data.deviceMetadata?.platform || 'web',
+        ipAddress: data.ipAddress || null,
+        createdAt: data.createdAt.toDate().toISOString(),
+        lastUsedAt: data.lastUsedAt.toDate().toISOString(),
+        expiresAt: data.expiresAt.toDate().toISOString(),
+        isCurrent: doc.id === currentSessionId,
+      };
+    });
+
+    console.log(`[listActiveSessions] Listadas ${sessions.length} sessões para ${auth.uid}`);
+
+    return {
+      success: true,
+      sessions,
+      total: sessions.length,
+    };
+  } catch (error) {
+    console.error('[listActiveSessions] Erro:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      'internal',
+      'Erro ao listar sessões. Tente novamente.'
+    );
+  }
+});
+
+/**
+ * Cloud Function: validateSession
+ * Valida se uma sessão ainda é válida
+ * Usado para verificar se o usuário deve ser deslogado
+ */
+exports.validateSession = onCall({
+  region: 'southamerica-east1',
+  cors: true,
+}, async (request) => {
+  try {
+    const auth = requireAuth(request);
+    const { sessionId } = request.data;
+
+    if (!sessionId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'ID da sessão é obrigatório.'
+      );
+    }
+
+    const db = admin.firestore();
+    const sessionRef = db.collection('sessions').doc(sessionId);
+    const sessionDoc = await sessionRef.get();
+
+    if (!sessionDoc.exists) {
+      return {
+        valid: false,
+        reason: 'session_not_found',
+      };
+    }
+
+    const sessionData = sessionDoc.data();
+
+    // Verificar se pertence ao usuário
+    if (sessionData.userId !== auth.uid) {
+      return {
+        valid: false,
+        reason: 'session_unauthorized',
+      };
+    }
+
+    // Verificar se está ativa
+    if (!sessionData.isActive || sessionData.revokedAt) {
+      return {
+        valid: false,
+        reason: 'session_revoked',
+      };
+    }
+
+    // Verificar se expirou
+    const now = new Date();
+    const expiresAt = sessionData.expiresAt.toDate();
+    if (now > expiresAt) {
+      // Marcar como inativa
+      await sessionRef.update({
+        isActive: false,
+        revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return {
+        valid: false,
+        reason: 'session_expired',
+      };
+    }
+
+    return {
+      valid: true,
+      expiresAt: expiresAt.toISOString(),
+      lastUsedAt: sessionData.lastUsedAt.toDate().toISOString(),
+    };
+  } catch (error) {
+    console.error('[validateSession] Erro:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      'internal',
+      'Erro ao validar sessão. Tente novamente.'
     );
   }
 });

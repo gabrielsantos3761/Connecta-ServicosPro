@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { User, Phone, Cake, CreditCard, CheckCircle, AlertCircle, UserCircle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { getProfileCompletenessInfo } from '../utils/profileValidation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -263,71 +262,56 @@ export function CompleteProfile() {
     setError('');
 
     try {
-      console.log('👤 Usuário do contexto:', user);
+      console.log('👤 Atualizando perfil via Cloud Function...');
       console.log('🔑 UID do usuário:', user.uid);
 
-      // Verificar se o usuário está autenticado e aguardar sincronização se necessário
-      let currentUser = auth.currentUser;
-      console.log('🔐 Firebase Auth currentUser (inicial):', currentUser);
+      // Chamar Cloud Function para atualizar perfil
+      const functions = getFunctions(undefined, 'southamerica-east1');
+      const updateUserProfile = httpsCallable(functions, 'updateUserProfile');
 
-      if (!currentUser) {
-        console.log('⏳ currentUser é null, aguardando sincronização...');
-        // Aguardar até 5 segundos pela sincronização
-        await new Promise<void>((resolve) => {
-          const timeoutId = setTimeout(() => {
-            console.warn('⚠️ Timeout aguardando sincronização');
-            unsubscribe();
-            resolve();
-          }, 5000);
-
-          const unsubscribe = auth.onAuthStateChanged((user) => {
-            if (user) {
-              currentUser = user;
-              console.log('✅ Firebase Auth sincronizado!', user.uid);
-              clearTimeout(timeoutId);
-              unsubscribe();
-              resolve();
-            }
-          });
-        });
-      }
-
-      if (currentUser) {
-        try {
-          const token = await currentUser.getIdToken();
-          console.log('🎫 Token obtido (primeiros 50 caracteres):', token.substring(0, 50));
-        } catch (tokenError) {
-          console.error('❌ Erro ao obter token:', tokenError);
-        }
-      } else {
-        throw new Error('Não foi possível autenticar. Por favor, faça login novamente.');
-      }
-
-      const userRef = doc(db, 'users', user.uid);
-      console.log('📄 Referência do documento:', userRef.path);
-
-      const updateData = {
+      const result = await updateUserProfile({
+        uid: user.uid,
         displayName: formData.displayName.trim(),
         phone: formData.phone,
         cpf: formData.cpf.replace(/\D/g, ''),
         gender: formData.gender,
         birthDate: formData.birthDate,
-        profileComplete: true,
-        updatedAt: serverTimestamp(),
-      };
-      console.log('📝 Dados a serem atualizados:', updateData);
+      });
 
-      await updateDoc(userRef, updateData);
-      console.log('✅ Documento atualizado com sucesso');
+      const data = result.data as any;
 
-      // Atualiza os dados do usuário no contexto
-      await refreshUser();
+      if (!data.success) {
+        throw new Error(data.message || 'Erro ao atualizar perfil');
+      }
+
+      console.log('✅ Perfil atualizado com sucesso!');
+      console.log('📊 Completude:', data.profileCompleteness + '%');
 
       setSuccess(true);
 
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
+      // Aguarda e tenta atualizar o contexto várias vezes até conseguir
+      const maxRetries = 3;
+      let retries = 0;
+
+      const tryRefresh = async () => {
+        try {
+          await refreshUser();
+          console.log('✅ Contexto atualizado com sucesso');
+          navigate('/');
+        } catch (error) {
+          retries++;
+          console.warn(`⚠️ Tentativa ${retries} de atualizar contexto falhou:`, error);
+
+          if (retries < maxRetries) {
+            setTimeout(tryRefresh, 1000);
+          } else {
+            console.log('⚠️ Não foi possível atualizar o contexto, navegando mesmo assim');
+            navigate('/');
+          }
+        }
+      };
+
+      setTimeout(tryRefresh, 500);
     } catch (err: any) {
       console.error('❌ Erro ao atualizar perfil:', err);
       console.error('❌ Código do erro:', err.code);

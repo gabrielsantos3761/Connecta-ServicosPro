@@ -99,7 +99,7 @@ facebookProvider.addScope('user_gender');
 
 /**
  * Cria um perfil de usuário no Firestore (coleção users)
- * Cria diretamente no Firestore em vez de usar Cloud Function para evitar perda de sessão
+ * Usa Cloud Function que valida o usuário sem precisar de token do cliente
  */
 async function createUserProfile(
   user: FirebaseUser,
@@ -107,32 +107,42 @@ async function createUserProfile(
   additionalData?: any
 ): Promise<void> {
   try {
-    console.log('[createUserProfile] Criando perfil diretamente no Firestore...');
+    console.log('[createUserProfile] Criando perfil via Cloud Function...');
     const displayName = user.displayName || user.email!.split('@')[0];
     const photoURL = additionalData?.photoURL || user.photoURL || undefined;
 
-    // Criar o documento diretamente no Firestore em vez de usar Cloud Function
-    const userRef = doc(db, 'users', user.uid);
-    const userData = {
+    // Usar Cloud Function simplificada que não precisa de token
+    const { getFunctions, httpsCallable } = await import('firebase/functions');
+    const functions = getFunctions(undefined, 'southamerica-east1');
+    const createInitialUser = httpsCallable(functions, 'createInitialUserDocument');
+
+    console.log('[createUserProfile] Chamando Cloud Function com dados:', {
+      uid: user.uid,
+      email: user.email,
+      displayName,
+      role,
+      additionalData
+    });
+
+    const result = await createInitialUser({
       uid: user.uid,
       email: user.email!,
       displayName,
+      role,
       photoURL,
-      roles: [role],
-      activeRole: role,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      profileComplete: false,
-      missingFields: ['phone', 'cpf', 'gender', 'birthDate'],
-      profileCompleteness: 25,
-      ...additionalData
-    };
+      // Passar todos os campos do additionalData
+      ...(additionalData || {})
+    });
 
-    console.log('[createUserProfile] Dados do usuário:', userData);
-    await setDoc(userRef, userData);
-    console.log('[createUserProfile] Documento criado com sucesso!');
+    console.log('[createUserProfile] Cloud Function retornou:', result.data);
+
+    if (!(result.data as any).success) {
+      throw new Error((result.data as any).message || 'Erro ao criar documento do usuário');
+    }
+
+    console.log('[createUserProfile] Perfil criado com sucesso!');
   } catch (error: any) {
-    console.error('[createUserProfile] Erro ao criar documento:', error.message);
+    console.error('[createUserProfile] Erro ao criar documento:', error);
     throw error;
   }
 }
@@ -199,15 +209,59 @@ async function createOwnerProfile(
 
 /**
  * Obtém o perfil do usuário do Firestore
+ * @param uid - ID do usuário
+ * @param options - Opções de retry para lidar com race conditions durante registro
  */
-export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const userRef = doc(db, 'users', uid);
-  const userSnap = await getDoc(userRef);
+export async function getUserProfile(
+  uid: string,
+  options?: {
+    retries?: number;
+    initialDelay?: number;
+    maxDelay?: number;
+  }
+): Promise<UserProfile | null> {
+  const { retries = 0, initialDelay = 1000, maxDelay = 5000 } = options || {};
 
-  if (userSnap.exists()) {
-    return userSnap.data() as UserProfile;
+  console.log('[getUserProfile] Buscando perfil para UID:', uid);
+  console.log('[getUserProfile] auth.currentUser:', auth.currentUser ? auth.currentUser.uid : 'NULL');
+
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        console.log('[getUserProfile] Perfil encontrado', attempt > 0 ? `(após ${attempt} tentativas)` : '');
+        return userSnap.data() as UserProfile;
+      }
+
+      // Se não existe e ainda temos retries, aguarda antes de tentar novamente
+      if (attempt < retries) {
+        const delay = Math.min(initialDelay * Math.pow(2, attempt), maxDelay);
+        console.log(`[getUserProfile] Perfil não encontrado, tentando novamente em ${delay}ms (tentativa ${attempt + 1}/${retries})...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (error) {
+      lastError = error;
+      console.error(`[getUserProfile] Erro na tentativa ${attempt + 1}:`, error);
+
+      // Se ainda temos retries, aguarda antes de tentar novamente
+      if (attempt < retries) {
+        const delay = Math.min(initialDelay * Math.pow(2, attempt), maxDelay);
+        console.log(`[getUserProfile] Aguardando ${delay}ms antes de tentar novamente...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
 
+  if (lastError) {
+    console.error('[getUserProfile] Falhou após todas as tentativas:', lastError);
+    throw lastError;
+  }
+
+  console.log('[getUserProfile] Perfil não encontrado após todas as tentativas');
   return null;
 }
 
@@ -791,9 +845,9 @@ export async function updateUserProfile(uid: string, data: {
 export async function checkEmailExists(email: string): Promise<{ exists: boolean; userData?: UserProfile }> {
   try {
     // Tenta fazer uma query no Firestore para ver se existe um usuário com esse email
-    const { collection, query, where, getDocs } = await import('firebase/firestore');
+    const { collection, query, where, limit, getDocs } = await import('firebase/firestore');
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('email', '==', email));
+    const q = query(usersRef, where('email', '==', email), limit(1));
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {

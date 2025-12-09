@@ -68,8 +68,16 @@ service cloud.firestore {
     // COLEÇÃO: USERS
     // ============================================
     match /users/{userId} {
-      // Permite leitura e escrita para qualquer usuário autenticado
-      allow read, write: if request.auth != null;
+      // Leitura de documento específico: apenas usuários autenticados e o próprio usuário
+      allow get: if request.auth != null && request.auth.uid == userId;
+
+      // Lista/Query: permite queries limitadas para verificação de email (sem autenticação)
+      // ou usuários autenticados podem ler
+      allow list: if request.auth != null
+        || (request.query.limit <= 1);  // Permite verificação de email existente
+
+      // Escrita: apenas usuários autenticados
+      allow write: if request.auth != null;
     }
 
     // ============================================
@@ -291,6 +299,40 @@ service cloud.firestore {
         resource.data.professionalUid == request.auth.uid
         || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
       );
+    }
+
+    // ============================================
+    // COLEÇÃO: SESSIONS (Gestão de Sessões)
+    // ============================================
+    match /sessions/{sessionId} {
+      // Leitura: apenas o próprio usuário pode ver suas sessões
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
+      // Criação: apenas via Cloud Function (createSession)
+      // IMPORTANTE: Cloud Functions usam credenciais Admin e ignoram estas regras
+      allow create: if false;
+
+      // Atualização: apenas via Cloud Function (refreshSession, revokeSession)
+      allow update: if false;
+
+      // Deleção: apenas via Cloud Function ou o próprio usuário pode deletar sua sessão
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // ============================================
+    // COLEÇÃO: _RATE_LIMITS (Rate Limiting Interno)
+    // ============================================
+    match /_rate_limits/{docId} {
+      // Leitura/Escrita: apenas via Cloud Function
+      allow read, write: if false;
+    }
+
+    // ============================================
+    // COLEÇÃO: _SECURITY_LOGS (Logs de Segurança)
+    // ============================================
+    match /_security_logs/{logId} {
+      // Leitura/Escrita: apenas via Cloud Function
+      allow read, write: if false;
     }
 
     // ============================================

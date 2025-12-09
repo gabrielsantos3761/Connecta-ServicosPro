@@ -1,16 +1,26 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  loginWithEmail,
-  loginWithGoogle,
-  loginWithFacebook,
-  logout as firebaseLogout,
-  onAuthStateChange,
   getUserProfile,
   switchActiveRole,
   addRoleToUser,
+  onAuthStateChange,
   type UserProfile
 } from '@/services/authService'
+import {
+  loginWithEmail,
+  loginWithGoogle,
+  loginWithFacebook,
+  logout as sessionLogout,
+  startSessionMonitoring,
+} from '@/services/authSessionIntegration'
+import {
+  hasRolePermission,
+  getAccessibleRoles,
+  canAccessRoute,
+  getHighestRole,
+  getRolePermissionDescription,
+} from '@/utils/roleHierarchy'
 
 export type UserRole = 'owner' | 'client' | 'professional'
 
@@ -50,6 +60,11 @@ interface AuthContextType {
   hasRole: (role: UserRole) => boolean
   refreshUser: () => Promise<void>
   isLoading: boolean
+  // Funções de hierarquia de roles
+  hasPermission: (requiredRole: UserRole) => boolean
+  canAccess: (requiredRole: UserRole) => boolean
+  getAccessibleRoles: () => UserRole[]
+  getPermissionDescription: () => string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -89,22 +104,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
         // Usuário autenticado - buscar perfil completo
+        console.log('[AuthContext] Usuário autenticado:', firebaseUser.uid)
+
         try {
-          const profile = await getUserProfile(firebaseUser.uid)
+          // Aguardar um pouco para garantir que o token está disponível
+          await new Promise(resolve => setTimeout(resolve, 500))
+
+          // Tentar buscar o perfil com retry (para lidar com race condition durante registro)
+          // Retries: 5 tentativas, delay inicial: 1s, delay máximo: 5s
+          // Isso dá tempo para a Cloud Function criar o perfil durante o registro
+          const profile = await getUserProfile(firebaseUser.uid, {
+            retries: 5,
+            initialDelay: 1000,
+            maxDelay: 5000
+          })
+
           if (profile) {
+            console.log('[AuthContext] Perfil carregado com sucesso')
             setUser(profileToUser(profile))
           } else {
+            console.warn('[AuthContext] Perfil não encontrado após todas as tentativas')
             // Perfil não encontrado - fazer logout
-            await firebaseLogout()
+            await sessionLogout()
             setUser(null)
           }
         } catch (error) {
-          console.error('Erro ao buscar perfil do usuário:', error)
+          console.error('[AuthContext] Erro ao buscar perfil do usuário:', error)
           // Se erro ao buscar perfil, fazer logout
-          await firebaseLogout()
+          await sessionLogout()
           setUser(null)
         }
       } else {
+        console.log('[AuthContext] Usuário não autenticado')
         // Usuário não autenticado
         setUser(null)
       }
@@ -113,6 +144,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe()
   }, [])
+
+  // Iniciar monitoramento de renovação automática de tokens
+  useEffect(() => {
+    if (user) {
+      console.log('[AuthContext] Iniciando monitoramento de sessão para:', user.id)
+
+      const stopMonitoring = startSessionMonitoring((error) => {
+        console.error('[AuthContext] Erro na renovação automática de token:', error)
+
+        // Se o erro indica que a sessão expirou, fazer logout
+        if (error.message.includes('Sessão') || error.message.includes('expirada')) {
+          console.warn('[AuthContext] Sessão expirada, fazendo logout...')
+          logout()
+        }
+      })
+
+      // Limpar ao desmontar ou quando usuário mudar
+      return () => {
+        console.log('[AuthContext] Parando monitoramento de sessão')
+        stopMonitoring()
+      }
+    }
+  }, [user])
 
   const login = async (email: string, password: string, role: UserRole) => {
     setIsLoading(true)
@@ -221,12 +275,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await firebaseLogout()
+      // Usar o logout integrado que revoga a sessão
+      await sessionLogout()
       setUser(null)
 
       // SEGURANÇA: Limpar todos os dados locais
-      // Limpa localStorage (exceto configurações do tema)
-      const keysToKeep = ['theme', 'language']
+      // Limpa localStorage (exceto configurações do tema e device ID)
+      const keysToKeep = ['theme', 'language', 'barber_device_id']
       const storage = { ...localStorage }
 
       Object.keys(storage).forEach(key => {
@@ -327,6 +382,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         refreshUser,
         isLoading,
+        // Funções de hierarquia de roles
+        hasPermission: (requiredRole: UserRole) => {
+          if (!user) return false;
+          return hasRolePermission(user.activeRole, requiredRole);
+        },
+        canAccess: (requiredRole: UserRole) => {
+          if (!user) return false;
+          return canAccessRoute(user.activeRole, requiredRole);
+        },
+        getAccessibleRoles: () => {
+          if (!user) return [];
+          return getAccessibleRoles(user.activeRole);
+        },
+        getPermissionDescription: () => {
+          if (!user) return 'Não autenticado';
+          return getRolePermissionDescription(user.activeRole);
+        },
       }}
     >
       {children}

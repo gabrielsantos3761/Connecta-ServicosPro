@@ -200,6 +200,9 @@ export function Perfil() {
   const displayCover = previewCover || user.coverPhoto
   const completenessInfo = getProfileCompletenessInfo(user as any)
 
+  console.log('[Perfil] user.avatar:', user.avatar)
+  console.log('[Perfil] displayAvatar:', displayAvatar)
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
