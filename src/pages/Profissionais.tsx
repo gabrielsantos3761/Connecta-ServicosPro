@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useOutletContext } from 'react-router-dom'
 import { Star, Calendar, Plus, Mail, Phone, Users, DollarSign, Percent, X, QrCode, Copy, Check } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,7 +19,6 @@ interface PaymentConfig {
 }
 
 export function Profissionais() {
-  const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [isAddProfModalOpen, setIsAddProfModalOpen] = useState(false)
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null)
@@ -66,14 +63,13 @@ export function Profissionais() {
   }
 
   return (
-    <div className={pageClasses.container()}>
-      <Header
-        title="Profissionais"
-        subtitle="Gerencie sua equipe"
-        onMobileMenuClick={() => setIsMobileMenuOpen(true)}
-      />
-
+    <div className="min-h-screen text-white">
       <div className={pageClasses.content()}>
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gold mb-2">Profissionais</h1>
+          <p className="text-sm text-gray-400">Gerencie sua equipe</p>
+        </div>
+
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <div>

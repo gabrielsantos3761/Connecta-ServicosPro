@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   MapPin,
   Phone,
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { storage } from '@/lib/firebase'
-import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -58,7 +57,6 @@ const CATEGORIES = [
 export function ConfiguracoesEstabelecimento() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [business, setBusiness] = useState<Business | null>(null)
@@ -447,12 +445,13 @@ export function ConfiguracoesEstabelecimento() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <Header
-        title="Configurações do Estabelecimento"
-        subtitle="Gerencie as informações do seu estabelecimento"
-        onMobileMenuClick={() => setIsMobileMenuOpen(true)}
-        action={
+    <div className="min-h-screen text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gold mb-2">Configurações do Estabelecimento</h1>
+            <p className="text-sm text-gray-400">Gerencie as informações do seu estabelecimento</p>
+          </div>
           <Button
             onClick={handleSave}
             disabled={isSaving}
@@ -461,10 +460,8 @@ export function ConfiguracoesEstabelecimento() {
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
-        }
-      />
+        </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start mb-8 grid grid-cols-5 sm:inline-flex gap-1 sm:gap-0 h-auto">
             <TabsTrigger value="info" className="flex items-center gap-2">

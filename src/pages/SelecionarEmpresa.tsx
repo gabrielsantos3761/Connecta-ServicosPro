@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Building2, MapPin, Star, TrendingUp, Plus, ArrowRight, Loader2 } from 'lucide-react'
+import { Building2, MapPin, Star, TrendingUp, Plus, ArrowRight, Loader2, Menu } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { getBusinessesByOwner, type Business } from '@/services/businessService'
 import { useToast } from '@/hooks/use-toast'
+import { Sidebar } from '@/components/Sidebar'
 
 export function SelecionarEmpresa() {
   const navigate = useNavigate()
@@ -15,6 +16,7 @@ export function SelecionarEmpresa() {
   const { toast } = useToast()
   const [userBusinesses, setUserBusinesses] = useState<Business[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Buscar empresas do proprietário logado
   useEffect(() => {
@@ -47,49 +49,55 @@ export function SelecionarEmpresa() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-black/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div
-              className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => navigate('/')}
-            >
-              <div className="w-12 h-12 bg-gradient-to-br from-gold to-yellow-600 rounded-full flex items-center justify-center">
-                <img
-                  src="/assets/images/Logo.png"
-                  alt="Logo"
-                  className="w-full h-full object-cover rounded-full scale-110"
-                />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Connecta ServiçosPro</h1>
-                <p className="text-sm text-gray-400">Área do Proprietário</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-white">{user?.name}</p>
-                <p className="text-xs text-gray-400">{user?.email}</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={logout}
-                className="border-white/10 hover:bg-white/5 text-white"
-              >
-                Sair
-              </Button>
-            </div>
-          </div>
-        </div>
-      </motion.header>
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black relative overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Menu Button - Fixed Position */}
+      <AnimatePresence>
+        {!sidebarOpen && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            onClick={() => setSidebarOpen(true)}
+            className="fixed top-4 left-4 md:top-6 md:left-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-gold to-yellow-600 backdrop-blur-xl border-2 border-white/20 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl hover:shadow-gold/50"
+          >
+            <Menu className="w-6 h-6 md:w-7 md:h-7 text-white" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Animated Gradient Orbs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-gold/20 to-transparent rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1.2, 1, 1.2],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-purple-500/20 to-transparent rounded-full blur-3xl"
+        />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Page Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

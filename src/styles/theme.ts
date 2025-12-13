@@ -9,8 +9,8 @@ export const theme = {
   colors: {
     // Background
     background: {
-      primary: 'bg-black',
-      page: 'min-h-screen bg-black text-white',
+      primary: '',
+      page: 'min-h-screen text-white',
     },
 
     // Cards

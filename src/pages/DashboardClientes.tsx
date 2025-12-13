@@ -1,8 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { useOutletContext } from 'react-router-dom'
 import { Users, DollarSign, TrendingUp, Calendar, UserPlus, Award } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DateRangePicker } from '@/components/DateRangePicker'
@@ -26,7 +24,6 @@ interface ClientStats {
 }
 
 export function DashboardClientes() {
-  const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
   const today = new Date()
 
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -171,14 +168,13 @@ export function DashboardClientes() {
   }, [activeClientsInPeriod, newClients, clientStats, filteredAppointments, inactiveClients])
 
   return (
-    <div className={pageClasses.container()}>
-      <Header
-        title="Dashboard de Clientes"
-        subtitle="Análise de comportamento e estatísticas dos clientes"
-        onMobileMenuClick={() => setIsMobileMenuOpen(true)}
-      />
-
+    <div className="min-h-screen text-white">
       <div className={pageClasses.content()}>
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gold mb-2">Dashboard de Clientes</h1>
+          <p className="text-sm text-gray-400">Análise de comportamento e estatísticas dos clientes</p>
+        </div>
+
         {/* Filtros */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3">
           <DateRangePicker

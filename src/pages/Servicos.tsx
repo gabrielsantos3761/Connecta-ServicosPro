@@ -1,8 +1,6 @@
 import { motion } from 'framer-motion'
-import { useOutletContext } from 'react-router-dom'
 import { useState } from 'react'
 import { Scissors, Clock, DollarSign, Plus, Edit, Trash2, Percent, X, Power, Ticket } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -75,7 +73,6 @@ interface Coupon {
 }
 
 export function Servicos() {
-  const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
   const [searchQuery, setSearchQuery] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
@@ -319,16 +316,24 @@ export function Servicos() {
   })
 
   return (
-    <div className={pageClasses.container()}>
-      <Header
-        title="Serviços"
-        subtitle="Gerencie seu catálogo de serviços"
-        onMobileMenuClick={() => setIsMobileMenuOpen(true)}
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-      />
-
+    <div className="min-h-screen text-white">
       <div className={pageClasses.content()}>
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gold mb-2">Serviços</h1>
+          <p className="text-sm text-gray-400">Gerencie seu catálogo de serviços</p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-6">
+          <Input
+            type="search"
+            placeholder="Buscar serviço..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-80"
+          />
+        </div>
+
         {/* Actions Bar */}
         {!selectionMode ? (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">

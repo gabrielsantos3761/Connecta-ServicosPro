@@ -1,8 +1,6 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { useOutletContext } from 'react-router-dom'
 import { Calendar, DollarSign, Users, Clock, TrendingUp, UserCheck, Scissors } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { mockAppointments } from '@/data/mockData'
@@ -10,7 +8,6 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { theme, cardClasses, iconClasses, pageClasses } from '@/styles/theme'
 
 export function Dashboard() {
-  const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -127,14 +124,13 @@ export function Dashboard() {
   }
 
   return (
-    <div className={pageClasses.container()}>
-      <Header
-        title="Dashboard Geral"
-        subtitle={`Visão geral do dia - ${formatDate(new Date())}`}
-        onMobileMenuClick={() => setIsMobileMenuOpen(true)}
-      />
-
+    <div className="min-h-screen text-white">
       <div className={pageClasses.content()}>
+        {/* Page Title */}
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gold mb-2">Dashboard Geral</h1>
+          <p className="text-sm text-gray-400">{`Visão geral do dia - ${formatDate(new Date())}`}</p>
+        </div>
         {/* Stats Grid - Cards de resumo do dia */}
         <motion.div
           variants={theme.animations.container}

@@ -130,10 +130,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     bgColor: 'bg-emerald-500/10',
   };
 
-  // Combinar itens do menu com item profissional se aplicável
-  const allMenuItems = user?.activeRole === 'professional'
-    ? [...menuItems.slice(0, 2), professionalItem, ...menuItems.slice(2)]
-    : menuItems;
+  // Item adicional apenas para proprietários
+  const ownerItem = {
+    icon: Building2,
+    label: 'Meus Estabelecimentos',
+    path: '/selecionar-empresa',
+    color: 'text-gold',
+    bgColor: 'bg-gold/10',
+  };
+
+  // Combinar itens do menu com item profissional ou proprietário se aplicável
+  const allMenuItems =
+    user?.activeRole === 'professional'
+      ? [...menuItems.slice(0, 2), professionalItem, ...menuItems.slice(2)]
+      : user?.activeRole === 'owner'
+      ? [menuItems[0], ownerItem, ...menuItems.slice(1)]
+      : menuItems;
 
   const handleNavigate = (path: string) => {
     console.log('Navegando para:', path);

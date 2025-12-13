@@ -2,96 +2,59 @@ import { Appointment, Service, Professional, DashboardStats, PaymentMethod, Expe
 
 // Função auxiliar para gerar agendamentos
 const generateAppointments = (): Appointment[] => {
-  const appointments: Appointment[] = []
-  const names = [
-    'Ana Paula', 'Lucas Ferreira', 'Pedro Alves', 'Marina Santos', 'Roberto Silva',
-    'Fernanda Costa', 'João Pedro', 'Carla Mendes', 'Rafael Souza', 'Juliana Oliveira',
-    'Bruno Lima', 'Patricia Rocha', 'Diego Santos', 'Amanda Silva', 'Thiago Martins',
-    'Camila Alves', 'Leonardo Costa', 'Beatriz Ferreira', 'Gustavo Pereira', 'Larissa Santos',
-    'Felipe Oliveira', 'Natália Lima', 'Eduardo Costa', 'Gabriela Souza', 'Rodrigo Martins',
-    'Vanessa Almeida', 'Marcelo Ribeiro', 'Isabella Rocha', 'Gabriel Fernandes', 'Renata Castro'
-  ]
-
-  const services = [
-    { name: 'Corte Masculino', price: 35, duration: 30 },
-    { name: 'Corte Feminino', price: 50, duration: 45 },
-    { name: 'Barba Completa', price: 25, duration: 20 },
-    { name: 'Corte + Barba', price: 55, duration: 45 },
-    { name: 'Coloração', price: 80, duration: 60 },
-    { name: 'Luzes', price: 150, duration: 120 },
-    { name: 'Hidratação Capilar', price: 120, duration: 90 },
-    { name: 'Progressiva', price: 200, duration: 180 },
-  ]
-
-  const professionals = [
-    'João Santos', 'Mariana Costa', 'Carlos Silva', 'Juliana Lima', 'Ricardo Mendes'
-  ]
-
-  // Distribuição realista de formas de pagamento
-  // PIX: 40%, Crédito: 30%, Débito: 15%, Dinheiro: 10%, Boleto: 5%
-  const getRandomPaymentMethod = (): PaymentMethod => {
-    const rand = Math.random()
-    if (rand < 0.40) return 'pix'
-    if (rand < 0.70) return 'credit'
-    if (rand < 0.85) return 'debit'
-    if (rand < 0.95) return 'cash'
-    return 'boleto'
-  }
-
-  let id = 1
-
-  // Gerar agendamentos dos últimos 3 meses até +30 dias no futuro
   const today = new Date()
-  const startDate = new Date(today)
-  startDate.setMonth(startDate.getMonth() - 3)
 
-  const endDate = new Date(today)
-  endDate.setDate(endDate.getDate() + 30)
-
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    // Gerar entre 3 a 8 agendamentos por dia (mais realista)
-    const appointmentsPerDay = Math.floor(Math.random() * 6) + 3
-
-    for (let i = 0; i < appointmentsPerDay; i++) {
-      const service = services[Math.floor(Math.random() * services.length)]
-      const hour = 9 + Math.floor(Math.random() * 9) // 9h às 18h
-      const minute = Math.random() > 0.5 ? 0 : 30
-
-      // Para datas passadas, mais agendamentos concluídos
-      // Para datas futuras, mais confirmados/pendentes
-      let status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
-      if (d < today) {
-        const rand = Math.random()
-        if (rand < 0.75) status = 'completed'
-        else if (rand < 0.90) status = 'cancelled'
-        else status = 'confirmed'
-      } else {
-        const rand = Math.random()
-        if (rand < 0.60) status = 'confirmed'
-        else if (rand < 0.85) status = 'pending'
-        else status = 'completed'
-      }
-
-      appointments.push({
-        id: String(id++),
-        businessId: 'biz-1', // BarberPro Premium
-        clientId: String(Math.floor(Math.random() * 100) + 1),
-        clientName: names[Math.floor(Math.random() * names.length)],
-        serviceId: String(Math.floor(Math.random() * 12) + 1),
-        service: service.name,
-        professionalId: String(Math.floor(Math.random() * 6) + 1),
-        professional: professionals[Math.floor(Math.random() * professionals.length)],
-        date: new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, minute),
-        time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-        price: service.price,
-        status: status,
-        duration: service.duration,
-        paymentMethod: status === 'completed' ? getRandomPaymentMethod() : undefined,
-      })
-    }
-  }
-
-  return appointments
+  // Apenas 3 agendamentos de exemplo, um de cada status principal
+  return [
+    {
+      id: '1',
+      businessId: 'biz-1',
+      clientId: '1',
+      clientName: 'Ana Paula Silva',
+      serviceId: '1',
+      service: 'Corte Masculino',
+      professionalId: '1',
+      professional: 'João Santos',
+      date: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0),
+      time: '14:00',
+      price: 35,
+      status: 'confirmed',
+      duration: 30,
+      paymentMethod: undefined,
+    },
+    {
+      id: '2',
+      businessId: 'biz-1',
+      clientId: '2',
+      clientName: 'Lucas Ferreira',
+      serviceId: '3',
+      service: 'Corte + Barba',
+      professionalId: '2',
+      professional: 'Mariana Costa',
+      date: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30),
+      time: '15:30',
+      price: 55,
+      status: 'pending',
+      duration: 45,
+      paymentMethod: undefined,
+    },
+    {
+      id: '3',
+      businessId: 'biz-1',
+      clientId: '3',
+      clientName: 'Pedro Alves',
+      serviceId: '2',
+      service: 'Barba Completa',
+      professionalId: '1',
+      professional: 'João Santos',
+      date: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 10, 0),
+      time: '10:00',
+      price: 25,
+      status: 'completed',
+      duration: 20,
+      paymentMethod: 'pix',
+    },
+  ]
 }
 
 export const mockAppointments: Appointment[] = generateAppointments()

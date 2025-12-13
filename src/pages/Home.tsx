@@ -1,4 +1,9 @@
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  AnimatePresence,
+} from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
   Scissors,
@@ -24,7 +29,11 @@ import { businessCategories } from "@/data/mockData";
 import { BusinessCategory } from "@/types";
 import { useState, useRef, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { getAllActiveBusinesses, getBusinessStats, Business } from "@/services/businessService";
+import {
+  getAllActiveBusinesses,
+  getBusinessStats,
+  Business,
+} from "@/services/businessService";
 import { trackAnonymousVisit } from "@/services/visitorService";
 
 const iconMap = {
@@ -93,7 +102,7 @@ export function Home() {
         setLoading(true);
 
         // Registrar visita anônima
-        await trackAnonymousVisit('/');
+        await trackAnonymousVisit("/");
 
         // Buscar estabelecimentos
         const allBusinesses = await getAllActiveBusinesses();
@@ -109,7 +118,7 @@ export function Home() {
         const statistics = await getBusinessStats();
         setStats(statistics);
       } catch (error) {
-        console.error('[Home] Erro ao carregar dados:', error);
+        console.error("[Home] Erro ao carregar dados:", error);
       } finally {
         setLoading(false);
       }
@@ -247,22 +256,22 @@ export function Home() {
                 {
                   icon: MapPin,
                   value: loading ? "..." : `${stats.totalBusinesses}`,
-                  label: "Estabelecimentos"
+                  label: "Estabelecimentos",
                 },
                 {
                   icon: Star,
                   value: loading ? "..." : stats.averageRating.toFixed(1),
-                  label: "Avaliação Média"
+                  label: "Avaliação Média",
                 },
                 {
                   icon: Award,
                   value: loading ? "..." : `${stats.totalReviews}`,
-                  label: "Avaliações Totais"
+                  label: "Avaliações Totais",
                 },
                 {
                   icon: Users,
                   value: loading ? "..." : `${featuredBusinesses.length * 3}+`,
-                  label: "Profissionais"
+                  label: "Profissionais",
                 },
               ].map((stat, index) => (
                 <motion.div
@@ -309,7 +318,7 @@ export function Home() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Profissionais em Destaque
+              Estabelecimentos em Destaque
             </h2>
             <p className="text-xl text-gray-400">
               Escolhidos pela excelência em atendimento e qualidade
@@ -320,7 +329,10 @@ export function Home() {
             {loading ? (
               // Loading skeleton
               [1, 2, 3].map((i) => (
-                <div key={i} className="relative overflow-hidden rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 animate-pulse">
+                <div
+                  key={i}
+                  className="relative overflow-hidden rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 animate-pulse"
+                >
                   <div className="aspect-square bg-gray-800"></div>
                   <div className="p-6">
                     <div className="h-4 bg-gray-800 rounded mb-2"></div>
@@ -331,7 +343,9 @@ export function Home() {
               ))
             ) : featuredBusinesses.length === 0 ? (
               <div className="col-span-3 text-center py-12">
-                <p className="text-gray-400 text-lg">Nenhum estabelecimento encontrado</p>
+                <p className="text-gray-400 text-lg">
+                  Nenhum estabelecimento encontrado
+                </p>
               </div>
             ) : (
               featuredBusinesses.map((business, index) => (
@@ -351,8 +365,10 @@ export function Home() {
                         src={
                           business.image ||
                           business.coverImage ||
-                          (business.gallery && business.gallery.length > 0 ? business.gallery[0] : '') ||
-                          'https://images.unsplash.com/photo-1521898284481-a5ec348cb555?w=400&h=400&fit=crop'
+                          (business.gallery && business.gallery.length > 0
+                            ? business.gallery[0]
+                            : "") ||
+                          "https://images.unsplash.com/photo-1521898284481-a5ec348cb555?w=400&h=400&fit=crop"
                         }
                         alt={business.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -376,7 +392,9 @@ export function Home() {
                       <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-gold transition-colors">
                         {business.name}
                       </h3>
-                      <p className="text-gray-400 line-clamp-2">{business.description}</p>
+                      <p className="text-gray-400 line-clamp-2">
+                        {business.description}
+                      </p>
                     </div>
                   </div>
                 </motion.div>

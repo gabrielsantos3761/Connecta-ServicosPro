@@ -30,7 +30,7 @@ export function Header({
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   return (
-    <header className={`${theme.colors.card.base} ${theme.colors.border.light} border-b px-4 md:px-8 py-4 md:py-6`}>
+    <header className="bg-black/80 backdrop-blur-xl border-b border-gold/20 px-4 md:px-8 py-4 md:py-6 sticky top-0 z-30">
       <div className="flex items-center justify-between gap-4">
         {/* Mobile Menu Button + Title */}
         <div className="flex items-center gap-3 flex-1 min-w-0">

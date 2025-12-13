@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useOutletContext } from 'react-router-dom'
 import { Calendar, Clock, User, Scissors, Filter, Plus } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,7 +10,6 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { theme, pageClasses } from '@/styles/theme'
 
 export function Agendamentos() {
-  const { setIsMobileMenuOpen } = useOutletContext<{ setIsMobileMenuOpen: (value: boolean) => void }>()
   const [filter, setFilter] = useState<string>('all')
 
   const filteredAppointments = mockAppointments.filter(apt => {
@@ -51,14 +48,13 @@ export function Agendamentos() {
   }
 
   return (
-    <div className={pageClasses.container()}>
-      <Header
-        title="Agendamentos"
-        subtitle="Gerencie todos os agendamentos"
-        onMobileMenuClick={() => setIsMobileMenuOpen(true)}
-      />
-
+    <div className="min-h-screen text-white">
       <div className={pageClasses.content()}>
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gold mb-2">Agendamentos</h1>
+          <p className="text-sm text-gray-400">Gerencie todos os agendamentos</p>
+        </div>
+
         {/* Actions Bar */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between mb-6 gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-1">
