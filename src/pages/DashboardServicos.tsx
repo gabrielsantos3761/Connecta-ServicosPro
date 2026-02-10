@@ -1,13 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Scissors, DollarSign, TrendingUp, Clock, BarChart3, PieChart } from 'lucide-react'
+import { Scissors, DollarSign, TrendingUp, Clock, BarChart3, PieChart, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DateRangePicker } from '@/components/DateRangePicker'
-import { mockAppointments, mockServices } from '@/data/mockData'
 import { formatCurrency } from '@/lib/utils'
 import { theme, cardClasses, iconClasses } from '@/styles/theme'
 import { OwnerPageLayout } from "@/components/layout/OwnerPageLayout"
+import { getServicos, getCategorias, type ServicoData, type CategoriaData } from '@/services/gerenciarServicosService'
 
 type DateRange = { from?: Date; to?: Date }
 
@@ -32,61 +32,53 @@ export function DashboardServicos() {
     to: today
   })
 
-  // Filtrar agendamentos por data
-  const filteredAppointments = useMemo(() => {
-    if (!dateRange.from) return []
+  const [servicos, setServicos] = useState<ServicoData[]>([])
+  const [categorias, setCategorias] = useState<CategoriaData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-    return mockAppointments.filter(apt => {
-      const aptDate = new Date(apt.date)
-      aptDate.setHours(0, 0, 0, 0)
+  const loadData = useCallback(async () => {
+    const businessId = localStorage.getItem('selected_business_id')
+    if (!businessId) {
+      setIsLoading(false)
+      return
+    }
 
-      const fromDate = new Date(dateRange.from!)
-      fromDate.setHours(0, 0, 0, 0)
+    try {
+      const [servicosData, categoriasData] = await Promise.all([
+        getServicos(businessId),
+        getCategorias(businessId),
+      ])
+      setServicos(servicosData)
+      setCategorias(categoriasData)
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-      if (dateRange.to) {
-        const toDate = new Date(dateRange.to)
-        toDate.setHours(23, 59, 59, 999)
-        return aptDate >= fromDate && aptDate <= toDate
-      }
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
-      return aptDate.toDateString() === fromDate.toDateString()
-    })
-  }, [dateRange])
+  // Sem agendamentos reais ainda - tudo zerado
+  const filteredAppointments: never[] = []
 
-  // Calcular estatísticas por serviço
+  // Calcular estatísticas por serviço (zeradas pois não há agendamentos reais)
   const serviceStats = useMemo((): ServiceStats[] => {
-    const statsMap = new Map<string, ServiceStats>()
-
-    mockServices.forEach(service => {
-      const serviceAppointments = filteredAppointments.filter(apt => apt.service === service.name)
-      const completed = serviceAppointments.filter(apt => apt.status === 'completed')
-      const cancelled = serviceAppointments.filter(apt => apt.status === 'cancelled')
-
-      const totalRevenue = completed.reduce((sum, apt) => sum + apt.price, 0)
-      const totalDuration = completed.reduce((sum, apt) => sum + (apt.duration || 0), 0)
-      const completionRate = serviceAppointments.length > 0
-        ? (completed.length / serviceAppointments.length) * 100
-        : 0
-      const cancellationRate = serviceAppointments.length > 0
-        ? (cancelled.length / serviceAppointments.length) * 100
-        : 0
-
-      statsMap.set(service.name, {
-        name: service.name,
-        category: service.category,
-        totalRevenue,
-        appointmentsCount: serviceAppointments.length,
-        completedCount: completed.length,
-        cancelledCount: cancelled.length,
-        averagePrice: completed.length > 0 ? totalRevenue / completed.length : service.price,
-        completionRate,
-        cancellationRate,
-        totalDuration
-      })
-    })
-
-    return Array.from(statsMap.values())
-  }, [filteredAppointments])
+    return servicos.map(service => ({
+      name: service.name,
+      category: service.category,
+      totalRevenue: 0,
+      appointmentsCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      averagePrice: service.price,
+      completionRate: 0,
+      cancellationRate: 0,
+      totalDuration: 0
+    }))
+  }, [servicos])
 
   // Ordenar por receita
   const topServices = useMemo(() => {
@@ -141,24 +133,32 @@ export function DashboardServicos() {
     }
   }, [serviceStats])
 
-  const getCategoryColor = (category: string) => {
-    const colors: { [key: string]: string } = {
-      hair: 'bg-blue-500',
-      beard: 'bg-amber-600',
-      color: 'bg-purple-500',
-      treatment: 'bg-green-500'
-    }
-    return colors[category] || 'bg-gray-500'
+  const getCategoryLabel = (category: string) => {
+    // Buscar nome da categoria real do Firestore
+    const cat = categorias.find(c => c.id === category || c.name === category)
+    if (cat) return cat.name
+    return category || 'Sem categoria'
   }
 
-  const getCategoryLabel = (category: string) => {
-    const labels: { [key: string]: string } = {
-      hair: 'Cabelo',
-      beard: 'Barba',
-      color: 'Coloração',
-      treatment: 'Tratamentos'
-    }
-    return labels[category] || category
+  const getCategoryColor = (category: string) => {
+    // Cores dinâmicas baseadas no índice da categoria
+    const colors = ['bg-blue-500', 'bg-amber-600', 'bg-purple-500', 'bg-green-500', 'bg-pink-500', 'bg-cyan-500', 'bg-red-500', 'bg-indigo-500']
+    const index = categorias.findIndex(c => c.id === category || c.name === category)
+    return colors[index >= 0 ? index % colors.length : 0]
+  }
+
+  if (isLoading) {
+    return (
+      <OwnerPageLayout
+        title="Dashboard de Serviços"
+        subtitle="Análise de desempenho e estatísticas dos serviços"
+      >
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-gold" />
+          <span className="ml-3 text-gray-400">Carregando dados...</span>
+        </div>
+      </OwnerPageLayout>
+    )
   }
 
   return (
@@ -240,7 +240,7 @@ export function DashboardServicos() {
                       {totalStats.appointments}
                     </h3>
                     <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                      {mockServices.length} tipos disponíveis
+                      {servicos.length} tipos disponíveis
                     </p>
                   </div>
                   <div className={iconClasses.container('blue')}>
@@ -290,6 +290,13 @@ export function DashboardServicos() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
+                {topServices.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <p className={`text-sm ${theme.colors.text.tertiary}`}>
+                      Nenhum serviço cadastrado ainda
+                    </p>
+                  </div>
+                ) : (
                 <div className={theme.colors.divider.light}>
                   {topServices.map((service, index) => (
                     <div
@@ -338,6 +345,7 @@ export function DashboardServicos() {
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -356,6 +364,13 @@ export function DashboardServicos() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
+                {categoryStats.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className={`text-sm ${theme.colors.text.tertiary}`}>
+                      Nenhuma categoria encontrada
+                    </p>
+                  </div>
+                ) : (
                 <div className="space-y-6">
                   {categoryStats.map((category) => {
                     const percentage = totalStats.revenue > 0
@@ -395,6 +410,7 @@ export function DashboardServicos() {
                     )
                   })}
                 </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -439,7 +455,16 @@ export function DashboardServicos() {
                     </tr>
                   </thead>
                   <tbody className={theme.components.table.body}>
-                    {topServices.map((service) => (
+                    {topServices.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-8">
+                          <p className={`text-sm ${theme.colors.text.tertiary}`}>
+                            Nenhum serviço cadastrado
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                    topServices.map((service) => (
                       <tr key={service.name} className={theme.components.table.row}>
                         <td className={`${theme.components.table.cell} whitespace-nowrap`}>
                           <div className={`font-medium ${theme.colors.text.primary}`}>{service.name}</div>
@@ -473,7 +498,8 @@ export function DashboardServicos() {
                           </span>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
               </div>

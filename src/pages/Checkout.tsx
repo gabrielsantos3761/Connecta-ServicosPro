@@ -2,16 +2,13 @@ import { motion } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import {
-  ArrowLeft,
   CreditCard,
   Smartphone,
   Banknote,
   Building2,
   Calendar,
   Clock,
-  User,
   Scissors,
-  MapPin,
   Check,
   Lock,
 } from 'lucide-react'
@@ -20,13 +17,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { mockBusinesses, mockServices, mockProfessionals } from '@/data/mockData'
 import { formatCurrency } from '@/lib/utils'
 
 interface BookingData {
   businessId: string
+  businessName: string
   serviceId: string
-  professionalId: string
+  serviceName: string
+  servicePrice: number
+  serviceDuration: number
+  serviceDescription: string
   date: string
   time: string
 }
@@ -62,11 +62,7 @@ export function Checkout() {
     )
   }
 
-  const business = mockBusinesses.find((b) => b.id === bookingData.businessId)
-  const service = mockServices.find((s) => s.id === bookingData.serviceId)
-  const professional = mockProfessionals.find((p) => p.id === bookingData.professionalId)
-
-  if (!business || !service || !professional) {
+  if (!bookingData.serviceName || !bookingData.businessName) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
@@ -105,9 +101,6 @@ export function Checkout() {
       state: {
         ...bookingData,
         paymentMethod: selectedPaymentMethod,
-        business,
-        service,
-        professional,
       },
     })
   }
@@ -159,11 +152,7 @@ export function Checkout() {
                   <div className="flex items-start gap-3 pb-4 border-b border-white/10">
                     <Building2 className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="font-semibold text-white">{business.name}</p>
-                      <p className="text-sm text-gray-400 flex items-center gap-1 mt-1">
-                        <MapPin className="w-3 h-3" />
-                        {business.address.street}, {business.address.number} - {business.address.neighborhood}
-                      </p>
+                      <p className="font-semibold text-white">{bookingData.businessName}</p>
                     </div>
                   </div>
 
@@ -171,23 +160,16 @@ export function Checkout() {
                   <div className="flex items-start gap-3 pb-4 border-b border-white/10">
                     <Scissors className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="font-semibold text-white">{service.name}</p>
-                      <p className="text-sm text-gray-400 mt-1">{service.description}</p>
+                      <p className="font-semibold text-white">{bookingData.serviceName}</p>
+                      {bookingData.serviceDescription && (
+                        <p className="text-sm text-gray-400 mt-1">{bookingData.serviceDescription}</p>
+                      )}
                       <div className="flex items-center gap-3 mt-2">
                         <Badge variant="outline" className="text-xs border-white/20 text-gray-400">
                           <Clock className="w-3 h-3 mr-1" />
-                          {service.duration} min
+                          {bookingData.serviceDuration} min
                         </Badge>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Professional */}
-                  <div className="flex items-start gap-3 pb-4 border-b border-white/10">
-                    <User className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{professional.name}</p>
-                      <p className="text-sm text-gray-400">{professional.role}</p>
                     </div>
                   </div>
 
@@ -374,8 +356,8 @@ export function Checkout() {
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400">{service.name}</span>
-                      <span className="font-semibold text-white">{formatCurrency(service.price)}</span>
+                      <span className="text-gray-400">{bookingData.serviceName}</span>
+                      <span className="font-semibold text-white">{formatCurrency(bookingData.servicePrice)}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-400">Taxa de serviço</span>
@@ -386,7 +368,7 @@ export function Checkout() {
                   <div className="border-t border-white/10 pt-4">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-lg font-bold text-white">Total</span>
-                      <span className="text-2xl font-bold bg-gradient-to-r from-gold to-yellow-600 bg-clip-text text-transparent">{formatCurrency(service.price)}</span>
+                      <span className="text-2xl font-bold bg-gradient-to-r from-gold to-yellow-600 bg-clip-text text-transparent">{formatCurrency(bookingData.servicePrice)}</span>
                     </div>
 
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
