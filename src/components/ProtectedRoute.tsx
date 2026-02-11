@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth, UserRole } from '@/contexts/AuthContext'
+import { hasRolePermission } from '@/utils/roleHierarchy'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -24,12 +25,19 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" replace />
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.activeRole)) {
-    // Redirecionar para página apropriada baseado no activeRole
-    if (user.activeRole === 'client') {
-      return <Navigate to="/cliente" replace />
+  if (allowedRoles && user) {
+    // Verificação hierárquica: owner acessa tudo, professional acessa professional + client
+    const hasAccess = allowedRoles.some(role => hasRolePermission(user.activeRole, role))
+
+    if (!hasAccess) {
+      if (user.activeRole === 'client') {
+        return <Navigate to="/cliente" replace />
+      }
+      if (user.activeRole === 'professional') {
+        return <Navigate to="/profissional" replace />
+      }
+      return <Navigate to="/" replace />
     }
-    return <Navigate to="/" replace />
   }
 
   return <>{children}</>

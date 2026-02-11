@@ -6,15 +6,14 @@ import {
   Home,
   Calendar,
   User,
-  Settings,
   LogOut,
   X,
-  Bell,
   Heart,
   Clock,
   Wallet,
   ChevronRight,
-  Building2
+  Building2,
+  Scissors
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -62,7 +61,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     };
   }, [isOpen]);
 
-  const menuItems = [
+  // Itens base compartilhados por todos os roles
+  const baseItems = [
     {
       icon: Home,
       label: 'Início',
@@ -70,6 +70,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10',
     },
+  ];
+
+  // Item exclusivo do proprietário
+  const ownerItem = {
+    icon: Building2,
+    label: 'Meus Estabelecimentos',
+    path: '/selecionar-empresa',
+    color: 'text-gold',
+    bgColor: 'bg-gold/10',
+  };
+
+  // Item do profissional (acessível por professional e owner)
+  const professionalItem = {
+    icon: Scissors,
+    label: 'Área do Profissional',
+    path: '/profissional',
+    color: 'text-emerald-400',
+    bgColor: 'bg-emerald-500/10',
+  };
+
+  // Itens comuns a todos os roles (cliente, profissional, proprietário)
+  const commonItems = [
     {
       icon: Calendar,
       label: 'Agendamentos',
@@ -99,53 +121,27 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       bgColor: 'bg-yellow-500/10',
     },
     {
-      icon: Bell,
-      label: 'Notificações',
-      path: '/notificacoes',
-      color: 'text-orange-400',
-      bgColor: 'bg-orange-500/10',
-    },
-    {
       icon: User,
       label: 'Perfil',
       path: '/perfil',
       color: 'text-gold',
       bgColor: 'bg-gold/10',
     },
-    {
-      icon: Settings,
-      label: 'Configurações',
-      path: '/configuracoes',
-      color: 'text-gray-400',
-      bgColor: 'bg-gray-500/10',
-    },
   ];
 
-  // Item adicional apenas para profissionais
-  const professionalItem = {
-    icon: Building2,
-    label: 'Locais de trabalho',
-    path: '/profissional/associar-barbearia',
-    color: 'text-emerald-400',
-    bgColor: 'bg-emerald-500/10',
-  };
-
-  // Item adicional apenas para proprietários
-  const ownerItem = {
-    icon: Building2,
-    label: 'Meus Estabelecimentos',
-    path: '/selecionar-empresa',
-    color: 'text-gold',
-    bgColor: 'bg-gold/10',
-  };
-
-  // Combinar itens do menu com item profissional ou proprietário se aplicável
-  const allMenuItems =
-    user?.activeRole === 'professional'
-      ? [...menuItems.slice(0, 2), professionalItem, ...menuItems.slice(2)]
-      : user?.activeRole === 'owner'
-      ? [menuItems[0], ownerItem, ...menuItems.slice(1)]
-      : menuItems;
+  // Montar menu baseado no role ativo (hierarquia de acesso)
+  const allMenuItems = (() => {
+    if (user?.activeRole === 'owner') {
+      // Proprietário: Início > Meus Estabelecimentos > Área do Profissional > itens comuns
+      return [...baseItems, ownerItem, professionalItem, ...commonItems];
+    }
+    if (user?.activeRole === 'professional') {
+      // Profissional: Início > Área do Profissional > itens comuns
+      return [...baseItems, professionalItem, ...commonItems];
+    }
+    // Cliente: Início > itens comuns
+    return [...baseItems, ...commonItems];
+  })();
 
   const handleNavigate = (path: string) => {
     console.log('Navegando para:', path);
@@ -294,7 +290,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
               >
                 <LogOut className="w-5 h-5" />
-                <span className="font-medium text-sm">Sair</span>
+                <span className="font-medium text-sm">Logout</span>
               </motion.button>
             </div>
           </motion.div>

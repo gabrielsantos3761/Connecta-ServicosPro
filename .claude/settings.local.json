@@ -38,7 +38,10 @@
       "Bash(firebase login:list:*)",
       "Bash(git checkout:*)",
       "Bash(python apply_dark_theme.py:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx firebase deploy:*)",
+      "Bash(where:*)",
+      "Bash(del \"c:\\\\Users\\\\NicolasBarros\\\\OneDrive - ZIG Tecnologia S A\\\\Documents\\\\Barbearia do 0\\\\Connecta-ServicosPro\\\\src\\\\pages\\\\ProfissionalPerfil.tsx\")"
     ],
     "deny": [],
     "ask": []

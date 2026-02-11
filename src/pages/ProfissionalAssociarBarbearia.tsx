@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Building2, MapPin, Star, ArrowRight, Check, QrCode, Hash, X, Link as LinkIcon, Menu } from 'lucide-react'
+import { Building2, MapPin, Star, ArrowRight, Check, QrCode, Hash, X, Link as LinkIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,18 +8,17 @@ import { mockBusinesses } from '@/data/mockData'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
-import { Sidebar } from '@/components/Sidebar'
+import { ProfissionalPageLayout } from '@/components/layout/ProfissionalPageLayout'
 import { linkProfessionalToBusiness } from '@/services/functionsService'
 
 type LinkMethod = 'qrcode' | 'code' | null
 
 export function ProfissionalAssociarBarbearia() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [linkMethod, setLinkMethod] = useState<LinkMethod>(null)
   const [businessCode, setBusinessCode] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // IDs das barbearias que o profissional já está vinculado
   const linkedBusinessIds = user?.businesses || []
@@ -74,40 +73,15 @@ export function ProfissionalAssociarBarbearia() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      {/* Menu Button - Fixed Position - Mobile & Desktop */}
-      <AnimatePresence>
-        {!sidebarOpen && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            onClick={() => setSidebarOpen(true)}
-            className="fixed top-4 left-4 md:top-6 md:left-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-gold to-yellow-600 backdrop-blur-xl border-2 border-white/20 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl hover:shadow-gold/50"
-          >
-            <Menu className="w-6 h-6 md:w-7 md:h-7 text-white" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Page Header */}
+    <ProfissionalPageLayout title="Meus Estabelecimentos" subtitle="Gerencie seus vínculos com estabelecimentos">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Botão Vincular */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-gray-100 to-white bg-clip-text text-transparent mb-4">
-            Meus Estabelecimentos
-          </h2>
-          <p className="text-lg text-gray-400 mb-8">
-            Gerencie seus vínculos com estabelecimentos
-          </p>
 
           {/* Botão Vincular a um estabelecimento */}
           <motion.div
@@ -433,6 +407,6 @@ export function ProfissionalAssociarBarbearia() {
           </>
         )}
       </AnimatePresence>
-    </div>
+    </ProfissionalPageLayout>
   )
 }

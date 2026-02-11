@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/layout/Layout'
+import { ProfissionalLayout } from './components/layout/ProfissionalLayout'
 import { AppLayout } from './components/layout/AppLayout'
 import { Dashboard } from './pages/Dashboard'
 import DashboardFinanceiro from './pages/DashboardFinanceiro'
@@ -23,7 +24,6 @@ import { SelecionarEmpresa } from './pages/SelecionarEmpresa'
 import { Checkout } from './pages/Checkout'
 import { ConfirmacaoAgendamento } from './pages/ConfirmacaoAgendamento'
 import { ProfissionalDashboard } from './pages/ProfissionalDashboard'
-import { ProfissionalPerfil } from './pages/ProfissionalPerfil'
 import { ProfissionalAssociarBarbearia } from './pages/ProfissionalAssociarBarbearia'
 import { Perfil } from './pages/Perfil'
 import { CompleteProfile } from './pages/CompleteProfile'
@@ -52,15 +52,6 @@ function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/confirmacao-agendamento" element={<ConfirmacaoAgendamento />} />
 
-            {/* Rota do Profissional dentro do AppLayout */}
-            <Route
-              path="/profissional/associar-barbearia"
-              element={
-                <ProtectedRoute allowedRoles={['professional']}>
-                  <ProfissionalAssociarBarbearia />
-                </ProtectedRoute>
-              }
-            />
           </Route>
 
           {/* Rotas do Cliente */}
@@ -72,22 +63,19 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Rotas do Profissional - com ProfissionalLayout (sidebar próprio) */}
           <Route
             path="/profissional"
             element={
               <ProtectedRoute allowedRoles={['professional']}>
-                <ProfissionalDashboard />
+                <ProfissionalLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/profissional/perfil"
-            element={
-              <ProtectedRoute allowedRoles={['professional']}>
-                <ProfissionalPerfil />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route index element={<ProfissionalDashboard />} />
+            <Route path="associar-barbearia" element={<ProfissionalAssociarBarbearia />} />
+          </Route>
 
           {/* Rota de Seleção de Empresa (Proprietário) */}
           <Route
