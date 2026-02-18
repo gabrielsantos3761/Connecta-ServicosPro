@@ -211,6 +211,40 @@ export async function deleteBusiness(businessId: string): Promise<void> {
 }
 
 /**
+ * Gera ou obtém o código de vinculação do estabelecimento
+ */
+export async function getOrCreateLinkCode(businessId: string): Promise<string> {
+  const businessRef = doc(db, 'businesses', businessId)
+  const businessSnap = await getDoc(businessRef)
+
+  if (!businessSnap.exists()) {
+    throw new Error('Estabelecimento não encontrado')
+  }
+
+  const data = businessSnap.data()
+
+  // Se já tem um linkCode, retorna
+  if (data.linkCode) {
+    return data.linkCode
+  }
+
+  // Gera um código único de 8 caracteres
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+
+  // Salva no documento do business
+  await updateDoc(businessRef, {
+    linkCode: code,
+    updatedAt: serverTimestamp(),
+  })
+
+  return code
+}
+
+/**
  * Valida e formata CNPJ
  */
 export function formatCNPJ(cnpj: string): string {

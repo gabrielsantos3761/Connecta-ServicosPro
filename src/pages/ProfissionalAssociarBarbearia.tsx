@@ -1,15 +1,20 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Building2, MapPin, Star, ArrowRight, Check, QrCode, Hash, X, Link as LinkIcon } from 'lucide-react'
+import { Building2, MapPin, Star, ArrowRight, Check, QrCode, Hash, X, Link as LinkIcon, Clock, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { mockBusinesses } from '@/data/mockData'
 import { useAuth } from '@/contexts/AuthContext'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { ProfissionalPageLayout } from '@/components/layout/ProfissionalPageLayout'
-import { linkProfessionalToBusiness } from '@/services/functionsService'
+import {
+  createProfessionalLink,
+  getLinksByProfessional,
+  getBusinessByLinkCode,
+  type ProfessionalLink,
+} from '@/services/professionalLinkService'
+import { getBusinessById } from '@/services/businessService'
 
 type LinkMethod = 'qrcode' | 'code' | null
 
@@ -19,17 +24,51 @@ export function ProfissionalAssociarBarbearia() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [linkMethod, setLinkMethod] = useState<LinkMethod>(null)
   const [businessCode, setBusinessCode] = useState('')
+  const [linking, setLinking] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  // IDs das barbearias que o profissional já está vinculado
-  const linkedBusinessIds = user?.businesses || []
+  // Links do profissional (vindos do Firestore)
+  const [links, setLinks] = useState<ProfessionalLink[]>([])
+  const [businessDetails, setBusinessDetails] = useState<Record<string, any>>({})
 
-  // Filtrar barbearias vinculadas
-  const linkedBusinesses = mockBusinesses.filter((business) =>
-    linkedBusinessIds.includes(business.id)
-  )
+  // Carregar vínculos do Firestore
+  useEffect(() => {
+    async function loadLinks() {
+      if (!user) return
+
+      try {
+        const professionalLinks = await getLinksByProfessional(user.uid)
+        setLinks(professionalLinks)
+
+        // Carregar detalhes dos estabelecimentos vinculados
+        const details: Record<string, any> = {}
+        for (const link of professionalLinks) {
+          if (link.status === 'active' || link.status === 'pending') {
+            try {
+              const business = await getBusinessById(link.businessId)
+              if (business) {
+                details[link.businessId] = business
+              }
+            } catch {
+              // Business pode não existir mais
+            }
+          }
+        }
+        setBusinessDetails(details)
+      } catch (error) {
+        console.error('Erro ao carregar vínculos:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadLinks()
+  }, [user])
+
+  const activeLinks = links.filter(l => l.status === 'active')
+  const pendingLinks = links.filter(l => l.status === 'pending')
 
   const handleSelectBusiness = (businessId: string) => {
-    // Salvar a empresa selecionada no contexto/localStorage
     localStorage.setItem('selected_business_id', businessId)
     navigate('/profissional')
   }
@@ -51,25 +90,57 @@ export function ProfissionalAssociarBarbearia() {
   }
 
   const handleSubmitCode = async () => {
-    if (!businessCode.trim() || !user) return;
+    if (!businessCode.trim() || !user) return
+    setLinking(true)
 
     try {
-      const result = await linkProfessionalToBusiness(user.uid, businessCode.trim());
+      // Buscar o estabelecimento pelo código
+      const business = await getBusinessByLinkCode(businessCode.trim())
 
-      if (result.success) {
-        alert(`✅ ${result.message}`);
-        handleCloseModal();
-        // Recarregar a página para mostrar o novo vínculo
-        window.location.reload();
+      if (!business) {
+        alert('Código inválido. Verifique com o proprietário do estabelecimento.')
+        setLinking(false)
+        return
       }
+
+      // Criar o vínculo com status pending
+      await createProfessionalLink({
+        professionalId: user.uid,
+        professionalName: user.name,
+        professionalEmail: user.email,
+        professionalAvatar: user.avatar,
+        businessId: business.id,
+        businessName: business.name,
+        linkedBy: 'code',
+      })
+
+      alert('Solicitação enviada! Aguarde a aprovação do proprietário.')
+      handleCloseModal()
+
+      // Recarregar os vínculos
+      const updatedLinks = await getLinksByProfessional(user.uid)
+      setLinks(updatedLinks)
     } catch (error: any) {
-      alert(`❌ Erro ao vincular: ${error.message}`);
+      alert(error.message || 'Erro ao vincular. Tente novamente.')
+    } finally {
+      setLinking(false)
     }
   }
 
   const handleScanQRCode = () => {
     // TODO: Implementar leitor de QR Code
     alert('Abrindo leitor de QR Code...')
+  }
+
+  if (loading) {
+    return (
+      <ProfissionalPageLayout title="Meus Estabelecimentos" subtitle="Gerencie seus vínculos com estabelecimentos">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          <span className="ml-3 text-gray-400">Carregando vínculos...</span>
+        </div>
+      </ProfissionalPageLayout>
+    )
   }
 
   return (
@@ -82,8 +153,6 @@ export function ProfissionalAssociarBarbearia() {
           transition={{ delay: 0.1 }}
           className="text-center mb-12"
         >
-
-          {/* Botão Vincular a um estabelecimento */}
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -103,16 +172,26 @@ export function ProfissionalAssociarBarbearia() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 max-w-2xl mx-auto"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-3xl mx-auto"
         >
           <motion.div
             whileHover={{ scale: 1.05, y: -5 }}
             className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-emerald-500/50 transition-all"
           >
             <Building2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-            <p className="text-3xl font-bold text-white">{linkedBusinesses.length}</p>
+            <p className="text-3xl font-bold text-white">{activeLinks.length}</p>
             <p className="text-sm text-gray-400">
-              {linkedBusinesses.length === 1 ? 'Estabelecimento Vinculado' : 'Estabelecimentos Vinculados'}
+              {activeLinks.length === 1 ? 'Vinculado' : 'Vinculados'}
+            </p>
+          </motion.div>
+          <motion.div
+            whileHover={{ scale: 1.05, y: -5 }}
+            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-yellow-500/50 transition-all"
+          >
+            <Clock className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+            <p className="text-3xl font-bold text-white">{pendingLinks.length}</p>
+            <p className="text-sm text-gray-400">
+              {pendingLinks.length === 1 ? 'Pendente' : 'Pendentes'}
             </p>
           </motion.div>
           <motion.div
@@ -121,9 +200,12 @@ export function ProfissionalAssociarBarbearia() {
           >
             <Star className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
             <p className="text-3xl font-bold text-white">
-              {linkedBusinesses.length > 0
+              {activeLinks.length > 0
                 ? (
-                    linkedBusinesses.reduce((acc, b) => acc + b.rating, 0) / linkedBusinesses.length
+                    activeLinks.reduce((acc, l) => {
+                      const biz = businessDetails[l.businessId]
+                      return acc + (biz?.rating || 0)
+                    }, 0) / activeLinks.length
                   ).toFixed(1)
                 : '0.0'}
             </p>
@@ -131,8 +213,61 @@ export function ProfissionalAssociarBarbearia() {
           </motion.div>
         </motion.div>
 
-        {/* Estabelecimentos Vinculados */}
-        {linkedBusinesses.length > 0 ? (
+        {/* Solicitações Pendentes */}
+        {pendingLinks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="mb-12"
+          >
+            <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Aguardando Aprovação
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pendingLinks.map((link, index) => {
+                const business = businessDetails[link.businessId]
+                return (
+                  <motion.div
+                    key={link.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="h-full border-2 border-yellow-500/30 bg-white/5 backdrop-blur-sm overflow-hidden">
+                      <div className="relative h-32 bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 overflow-hidden">
+                        {business?.image && (
+                          <img
+                            src={business.image}
+                            alt={link.businessName}
+                            className="w-full h-full object-cover opacity-60"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                        <div className="absolute top-3 right-3">
+                          <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Pendente
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardContent className="p-5">
+                        <h4 className="text-lg font-bold text-white mb-1">{link.businessName}</h4>
+                        <p className="text-sm text-gray-400">
+                          Aguardando aprovação do proprietário
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Estabelecimentos Vinculados (Ativos) */}
+        {activeLinks.length > 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -143,87 +278,87 @@ export function ProfissionalAssociarBarbearia() {
               Estabelecimentos Vinculados
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {linkedBusinesses.map((business, index) => (
-                <motion.div
-                  key={business.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ y: -8 }}
-                  onClick={() => handleSelectBusiness(business.id)}
-                >
-                  <Card className="h-full cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 border-2 border-emerald-500/30 hover:border-emerald-500/50 group overflow-hidden bg-white/5 backdrop-blur-sm">
-                    {/* Image/Banner */}
-                    <div className="relative h-40 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 overflow-hidden">
-                      {business.image && (
-                        <img
-                          src={business.image}
-                          alt={business.name}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                      <div className="absolute top-3 right-3">
-                        <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0">
-                          <Check className="w-3 h-3 mr-1" />
-                          Vinculado
-                        </Badge>
-                      </div>
-                      <div className="absolute top-3 left-3">
-                        <Badge className="bg-gradient-to-r from-gold to-yellow-600 text-black border-0">
-                          <Star className="w-3 h-3 mr-1 fill-black" />
-                          {business.rating.toFixed(1)}
-                        </Badge>
-                      </div>
-                      <div className="absolute bottom-3 left-3 right-3">
-                        <Badge
-                          variant="outline"
-                          className="bg-white/10 backdrop-blur-sm text-white border-white/20"
-                        >
-                          {business.category}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <CardContent className="p-6">
-                      {/* Business Name */}
-                      <h3 className="text-xl font-bold text-white mb-2 group-hover:bg-gradient-to-r group-hover:from-emerald-500 group-hover:to-green-600 group-hover:bg-clip-text group-hover:text-transparent transition-all">
-                        {business.name}
-                      </h3>
-
-                      {/* Description */}
-                      <p className="text-sm text-gray-400 mb-4 line-clamp-2">
-                        {business.description}
-                      </p>
-
-                      {/* Address */}
-                      <div className="flex items-start gap-2 text-sm text-gray-400 mb-4">
-                        <MapPin className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <p className="line-clamp-2">
-                          {business.address.neighborhood}, {business.address.city} - {business.address.state}
-                        </p>
+              {activeLinks.map((link, index) => {
+                const business = businessDetails[link.businessId]
+                return (
+                  <motion.div
+                    key={link.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ y: -8 }}
+                    onClick={() => handleSelectBusiness(link.businessId)}
+                  >
+                    <Card className="h-full cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 border-2 border-emerald-500/30 hover:border-emerald-500/50 group overflow-hidden bg-white/5 backdrop-blur-sm">
+                      {/* Image/Banner */}
+                      <div className="relative h-40 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 overflow-hidden">
+                        {business?.image && (
+                          <img
+                            src={business.image}
+                            alt={link.businessName}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                        <div className="absolute top-3 right-3">
+                          <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0">
+                            <Check className="w-3 h-3 mr-1" />
+                            Vinculado
+                          </Badge>
+                        </div>
+                        {business?.rating && (
+                          <div className="absolute top-3 left-3">
+                            <Badge className="bg-gradient-to-r from-gold to-yellow-600 text-black border-0">
+                              <Star className="w-3 h-3 mr-1 fill-black" />
+                              {business.rating.toFixed(1)}
+                            </Badge>
+                          </div>
+                        )}
+                        {business?.category && (
+                          <div className="absolute bottom-3 left-3 right-3">
+                            <Badge
+                              variant="outline"
+                              className="bg-white/10 backdrop-blur-sm text-white border-white/20"
+                            >
+                              {business.category}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Reviews */}
-                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-                        <Star className="w-4 h-4 text-gold fill-gold" />
-                        <p>
-                          {business.totalReviews} avalia{business.totalReviews !== 1 ? 'ções' : 'ção'}
-                        </p>
-                      </div>
+                      <CardContent className="p-6">
+                        <h3 className="text-xl font-bold text-white mb-2 group-hover:bg-gradient-to-r group-hover:from-emerald-500 group-hover:to-green-600 group-hover:bg-clip-text group-hover:text-transparent transition-all">
+                          {link.businessName}
+                        </h3>
 
-                      {/* Action Button */}
-                      <div className="flex items-center justify-center gap-2 text-emerald-400 font-semibold">
-                        <span>Acessar Painel</span>
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+                        {business?.description && (
+                          <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                            {business.description}
+                          </p>
+                        )}
+
+                        {business?.address && (
+                          <div className="flex items-start gap-2 text-sm text-gray-400 mb-4">
+                            <MapPin className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                            <p className="line-clamp-2">
+                              {business.address.neighborhood}, {business.address.city} - {business.address.state}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Action Button */}
+                        <div className="flex items-center justify-center gap-2 text-emerald-400 font-semibold">
+                          <span>Acessar Painel</span>
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )
+              })}
             </div>
           </motion.div>
-        ) : (
+        ) : pendingLinks.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -247,7 +382,7 @@ export function ProfissionalAssociarBarbearia() {
               </Button>
             </motion.div>
           </motion.div>
-        )}
+        ) : null}
       </div>
 
       {/* Modal de Vinculação */}
@@ -386,17 +521,22 @@ export function ProfissionalAssociarBarbearia() {
                         <Button
                           variant="outline"
                           onClick={() => setLinkMethod(null)}
+                          disabled={linking}
                           className="flex-1 border-white/10 text-white hover:bg-white/5"
                         >
                           Voltar
                         </Button>
                         <Button
                           onClick={handleSubmitCode}
-                          disabled={!businessCode.trim()}
+                          disabled={!businessCode.trim() || linking}
                           className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-green-600 hover:to-emerald-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Check className="w-4 h-4 mr-2" />
-                          Vincular
+                          {linking ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Check className="w-4 h-4 mr-2" />
+                          )}
+                          {linking ? 'Vinculando...' : 'Vincular'}
                         </Button>
                       </div>
                     </div>

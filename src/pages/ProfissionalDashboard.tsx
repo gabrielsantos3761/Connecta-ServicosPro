@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { User, MapPin, Scissors, Camera, Save, Plus, X } from 'lucide-react'
+import { User, MapPin, Scissors, Camera, Save, Plus, X, Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { ProfissionalPageLayout } from '@/components/layout/ProfissionalPageLayout'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,15 +9,21 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { getProfessionalProfile, updateProfessionalProfile } from '@/services/authService'
+import { uploadProfilePhoto } from '@/services/storageService'
 
 type TabType = 'informacoes' | 'endereco' | 'especialidades'
 
 export function ProfissionalDashboard() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('informacoes')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Estado do formulário de informações pessoais
   const [avatarPreview, setAvatarPreview] = useState<string | undefined>(user?.avatar)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -36,6 +42,37 @@ export function ProfissionalDashboard() {
   // Estado de especialidades
   const [specialties, setSpecialties] = useState<string[]>([])
   const [newSpecialty, setNewSpecialty] = useState('')
+
+  // Carregar dados do Firestore ao montar
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user) return
+
+      try {
+        const profile = await getProfessionalProfile(user.uid)
+        if (profile) {
+          setFormData(prev => ({
+            ...prev,
+            phone: profile.phone || prev.phone,
+            pix: profile.pix || '',
+          }))
+          setAddressData({
+            cep: profile.address?.cep || '',
+            endereco: profile.address?.endereco || '',
+            numero: profile.address?.numero || '',
+            complemento: profile.address?.complemento || '',
+          })
+          setSpecialties(profile.specialties || [])
+        }
+      } catch (error) {
+        console.error('Erro ao carregar perfil:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProfile()
+  }, [user])
 
   if (!user) {
     return null
@@ -64,6 +101,7 @@ export function ProfissionalDashboard() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setAvatarFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string)
@@ -84,13 +122,72 @@ export function ProfissionalDashboard() {
     setSpecialties(specialties.filter(s => s !== specialty))
   }
 
-  const handleSave = () => {
-    console.log('Salvando perfil:', { formData, addressData, specialties, avatar: avatarPreview })
-    // TODO: Implementar salvamento no Firestore
+  const showMessage = (type: 'success' | 'error', text: string) => {
+    setSaveMessage({ type, text })
+    setTimeout(() => setSaveMessage(null), 3000)
+  }
+
+  const handleSave = async () => {
+    if (!user) return
+    setSaving(true)
+
+    try {
+      // Upload do avatar se mudou
+      if (avatarFile && avatarPreview) {
+        await uploadProfilePhoto(user.uid, avatarPreview)
+      }
+
+      // Atualizar perfil do profissional no Firestore
+      await updateProfessionalProfile(user.uid, {
+        phone: formData.phone,
+        pix: formData.pix,
+        specialties,
+        address: {
+          cep: addressData.cep,
+          endereco: addressData.endereco,
+          numero: addressData.numero,
+          complemento: addressData.complemento,
+        },
+      })
+
+      showMessage('success', 'Perfil salvo com sucesso!')
+    } catch (error: any) {
+      console.error('Erro ao salvar perfil:', error)
+      showMessage('error', 'Erro ao salvar perfil. Tente novamente.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <ProfissionalPageLayout title="Meu Perfil" subtitle="Configure suas informações profissionais">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          <span className="ml-3 text-gray-400">Carregando perfil...</span>
+        </div>
+      </ProfissionalPageLayout>
+    )
   }
 
   return (
     <ProfissionalPageLayout title="Meu Perfil" subtitle="Configure suas informações profissionais">
+      {/* Mensagem de feedback */}
+      {saveMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className={`mb-4 p-3 rounded-lg text-sm font-medium ${
+            saveMessage.type === 'success'
+              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+              : 'bg-red-500/20 text-red-400 border border-red-500/30'
+          }`}
+        >
+          {saveMessage.text}
+        </motion.div>
+      )}
+
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full">
         <TabsList className="w-full justify-start mb-8 grid grid-cols-3 sm:inline-flex gap-1 sm:gap-0 h-auto bg-white/5 border border-white/10">
           <TabsTrigger value="informacoes" className="flex items-center gap-2">
@@ -171,8 +268,8 @@ export function ProfissionalDashboard() {
                     <Input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500"
+                      disabled
+                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 opacity-60"
                       placeholder="seu@email.com"
                     />
                   </div>
@@ -199,11 +296,16 @@ export function ProfissionalDashboard() {
                 <div className="flex justify-end pt-4">
                   <Button
                     onClick={handleSave}
+                    disabled={saving}
                     className="text-white font-semibold"
                     style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar Informações
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    {saving ? 'Salvando...' : 'Salvar Informações'}
                   </Button>
                 </div>
               </CardContent>
@@ -259,11 +361,16 @@ export function ProfissionalDashboard() {
                 <div className="flex justify-end pt-4">
                   <Button
                     onClick={handleSave}
+                    disabled={saving}
                     className="text-white font-semibold"
                     style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar Endereço
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    {saving ? 'Salvando...' : 'Salvar Endereço'}
                   </Button>
                 </div>
               </CardContent>
@@ -305,9 +412,27 @@ export function ProfissionalDashboard() {
             {/* Lista de especialidades */}
             <Card className="bg-white/5 border-white/10">
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Suas Especialidades
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">
+                    Suas Especialidades
+                  </h3>
+                  {specialties.length > 0 && (
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving}
+                      size="sm"
+                      className="text-white font-semibold"
+                      style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
+                    >
+                      {saving ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <Save className="w-3 h-3 mr-1" />
+                      )}
+                      Salvar
+                    </Button>
+                  )}
+                </div>
 
                 {specialties.length === 0 ? (
                   <div className="text-center py-12">

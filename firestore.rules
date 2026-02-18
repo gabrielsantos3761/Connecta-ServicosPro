@@ -105,12 +105,7 @@ service cloud.firestore {
       // Atualização: apenas o próprio profissional (campos limitados)
       allow update: if isOwner(professionalId)
         && request.resource.data.userId == resource.data.userId  // userId imutável
-        && request.resource.data.createdAt == resource.data.createdAt  // createdAt imutável
-        && isValidTimestamp(request.resource.data.updatedAt)
-        // Campos de estatísticas NÃO podem ser editados pelo cliente
-        && request.resource.data.servicesCompleted == resource.data.servicesCompleted
-        && request.resource.data.reviewsCount == resource.data.reviewsCount
-        && request.resource.data.rating == resource.data.rating;
+        && request.resource.data.createdAt == resource.data.createdAt;  // createdAt imutável
 
       // Deleção: não permitida
       allow delete: if false;
@@ -299,22 +294,54 @@ service cloud.firestore {
     }
 
     // ============================================
-    // COLEÇÃO: BUSINESS_PROFESSIONAL_LINKS
+    // COLEÇÃO: PROFESSIONAL_LINKS (Vínculos Profissional ↔ Estabelecimento)
+    // ============================================
+    match /professional_links/{linkId} {
+      // Leitura: profissional vinculado ou dono do estabelecimento
+      allow read: if isAuthenticated() && (
+        resource.data.professionalId == request.auth.uid
+        || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+      );
+
+      // Criação: profissional autenticado pode solicitar vínculo
+      allow create: if isAuthenticated()
+        && request.resource.data.professionalId == request.auth.uid
+        && request.resource.data.businessId is string
+        && request.resource.data.businessName is string
+        && request.resource.data.professionalName is string
+        && request.resource.data.professionalEmail is string
+        && request.resource.data.linkedBy in ['code', 'qrcode', 'invite']
+        && (
+          // Profissional solicita com status pending
+          request.resource.data.status == 'pending'
+          // OU owner do próprio business já cria como active
+          || (request.resource.data.status == 'active'
+            && get(/databases/$(database)/documents/businesses/$(request.resource.data.businessId)).data.ownerId == request.auth.uid)
+        );
+
+      // Atualização: dono do estabelecimento pode aprovar/rejeitar
+      allow update: if isAuthenticated()
+        && get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+        && request.resource.data.professionalId == resource.data.professionalId
+        && request.resource.data.businessId == resource.data.businessId;
+
+      // Deleção: profissional ou dono do estabelecimento
+      allow delete: if isAuthenticated() && (
+        resource.data.professionalId == request.auth.uid
+        || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+      );
+    }
+
+    // ============================================
+    // COLEÇÃO: BUSINESS_PROFESSIONAL_LINKS (legado)
     // ============================================
     match /business_professional_links/{linkId} {
-      // Leitura: profissional ou dono da barbearia
       allow read: if isAuthenticated() && (
         resource.data.professionalUid == request.auth.uid
         || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
       );
-
-      // Criação: apenas via Cloud Function (validação de código)
       allow create: if false;
-
-      // Atualização: apenas via Cloud Function
       allow update: if false;
-
-      // Deleção: profissional ou dono da barbearia
       allow delete: if isAuthenticated() && (
         resource.data.professionalUid == request.auth.uid
         || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid

@@ -1,15 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Calendar, Plus, Mail, Phone, Users, DollarSign, Percent, X, QrCode, Copy, Check } from 'lucide-react'
+import { Plus, Mail, Users, DollarSign, Percent, X, QrCode, Copy, Check, Clock, UserCheck, UserX, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { mockProfessionals } from '@/data/mockData'
 import { cn } from '@/lib/utils'
 import { theme } from '@/styles/theme'
 import { OwnerPageLayout } from '@/components/layout/OwnerPageLayout'
+import { useAuth } from '@/contexts/AuthContext'
+import { getOrCreateLinkCode, getBusinessById } from '@/services/businessService'
+import { updateProfessionalProfile } from '@/services/authService'
+import {
+  getLinksByBusiness,
+  approveProfessionalLink,
+  rejectProfessionalLink,
+  createProfessionalLink,
+  cleanDuplicateLinks,
+  type ProfessionalLink,
+} from '@/services/professionalLinkService'
 
 type PaymentType = 'fixed' | 'percentage'
 
@@ -20,14 +30,84 @@ interface PaymentConfig {
 }
 
 export function Profissionais() {
+  const { user } = useAuth()
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [isAddProfModalOpen, setIsAddProfModalOpen] = useState(false)
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null)
   const [paymentType, setPaymentType] = useState<PaymentType>('percentage')
   const [fixedValue, setFixedValue] = useState('')
   const [percentageValue, setPercentageValue] = useState('40')
-  const [linkCode] = useState('ABC123XYZ')
+  const [linkCode, setLinkCode] = useState('')
   const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Links do Firestore
+  const [links, setLinks] = useState<ProfessionalLink[]>([])
+
+  const businessId = localStorage.getItem('selected_business_id')
+
+  // Carregar vínculos do Firestore e garantir que o owner está vinculado
+  useEffect(() => {
+    async function loadLinks() {
+      if (!businessId || !user) return
+
+      try {
+        // Limpar duplicatas existentes no Firestore
+        await cleanDuplicateLinks(businessId)
+
+        let businessLinks = await getLinksByBusiness(businessId)
+
+        // Verificar se o owner já está vinculado ao próprio negócio
+        const ownerLinked = businessLinks.some(l => l.professionalId === user.uid)
+
+        if (!ownerLinked) {
+          // Buscar dados do business para o nome
+          const business = await getBusinessById(businessId)
+          if (business && business.ownerId === user.uid) {
+            // Criar perfil profissional do owner se não existir
+            try {
+              await updateProfessionalProfile(user.uid, {
+                specialties: [],
+              })
+            } catch { /* pode falhar se já existir */ }
+
+            // Criar vínculo ativo automático
+            try {
+              await createProfessionalLink({
+                professionalId: user.uid,
+                professionalName: user.name,
+                professionalEmail: user.email,
+                professionalAvatar: user.avatar,
+                businessId: business.id,
+                businessName: business.name,
+                linkedBy: 'invite',
+                status: 'active',
+              })
+              // Recarregar links
+              businessLinks = await getLinksByBusiness(businessId)
+            } catch (e: any) {
+              // Ignorar se já existe (não é erro real)
+              if (!e.message?.includes('já está vinculado') && !e.message?.includes('solicitação pendente')) {
+                console.error('Erro ao auto-vincular owner:', e)
+              }
+            }
+          }
+        }
+
+        setLinks(businessLinks)
+      } catch (error) {
+        console.error('Erro ao carregar profissionais:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadLinks()
+  }, [businessId, user])
+
+  const pendingLinks = links.filter(l => l.status === 'pending')
+  const activeLinks = links.filter(l => l.status === 'active')
 
   const handleOpenPaymentModal = (professionalId: string) => {
     setSelectedProfessional(professionalId)
@@ -57,10 +137,71 @@ export function Profissionais() {
     handleClosePaymentModal()
   }
 
+  const handleOpenAddModal = async () => {
+    setIsAddProfModalOpen(true)
+
+    // Gerar/obter o código de vinculação
+    if (businessId) {
+      try {
+        const code = await getOrCreateLinkCode(businessId)
+        setLinkCode(code)
+      } catch (error) {
+        console.error('Erro ao gerar código:', error)
+      }
+    }
+  }
+
   const handleCopyCode = () => {
     navigator.clipboard.writeText(linkCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleApproveLink = async (linkId: string) => {
+    if (!user) return
+    setActionLoading(linkId)
+
+    try {
+      await approveProfessionalLink(linkId, user.uid)
+
+      // Atualizar a lista local
+      setLinks(prev => prev.map(l =>
+        l.id === linkId ? { ...l, status: 'active' as const } : l
+      ))
+    } catch (error) {
+      console.error('Erro ao aprovar:', error)
+      alert('Erro ao aprovar profissional. Tente novamente.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleRejectLink = async (linkId: string) => {
+    if (!user) return
+    setActionLoading(linkId)
+
+    try {
+      await rejectProfessionalLink(linkId, user.uid)
+
+      // Remover da lista local
+      setLinks(prev => prev.filter(l => l.id !== linkId))
+    } catch (error) {
+      console.error('Erro ao rejeitar:', error)
+      alert('Erro ao rejeitar profissional. Tente novamente.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <OwnerPageLayout title="Profissionais" subtitle="Gerencie sua equipe">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-gold" />
+          <span className="ml-3 text-gray-400">Carregando equipe...</span>
+        </div>
+      </OwnerPageLayout>
+    )
   }
 
   return (
@@ -69,124 +210,248 @@ export function Profissionais() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className={`text-lg md:text-xl font-semibold ${theme.colors.text.primary}`}>
-              {mockProfessionals.length} Profissionais
-            </h2>
-            <p className={`text-xs md:text-sm ${theme.colors.text.secondary} mt-1`}>
-              {mockProfessionals.filter(p => p.available).length} disponíveis para agendamento
+            {activeLinks.length} {activeLinks.length === 1 ? 'Profissional' : 'Profissionais'}
+          </h2>
+          <p className={`text-xs md:text-sm ${theme.colors.text.secondary} mt-1`}>
+            {pendingLinks.length > 0 && (
+              <span className="text-yellow-400 font-medium">
+                {pendingLinks.length} {pendingLinks.length === 1 ? 'solicitação pendente' : 'solicitações pendentes'}
+              </span>
+            )}
+            {pendingLinks.length === 0 && 'Todos os profissionais estão ativos'}
           </p>
         </div>
 
-        <Button
+        <div className="flex gap-2 w-full sm:w-auto">
+          {/* Botão Aprovações Pendentes */}
+          {pendingLinks.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="relative flex-1 sm:flex-none border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+              onClick={() => {
+                document.getElementById('pending-section')?.scrollIntoView({ behavior: 'smooth' })
+              }}
+            >
+              <Clock className="w-4 h-4 mr-2" />
+              Aprovações
+              {/* Badge com contagem */}
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                {pendingLinks.length}
+              </span>
+            </Button>
+          )}
+
+          <Button
             variant="gold"
             size="sm"
-            className="w-full sm:w-auto"
-            onClick={() => setIsAddProfModalOpen(true)}
+            className="flex-1 sm:flex-none"
+            onClick={handleOpenAddModal}
           >
             <Plus className="w-4 h-4 mr-2" />
-          Adicionar Profissional
-        </Button>
+            Adicionar Profissional
+          </Button>
+        </div>
       </div>
 
-      {/* Professionals Grid */}
-      <motion.div
+      {/* Solicitações Pendentes */}
+      {pendingLinks.length > 0 && (
+        <motion.div
+          id="pending-section"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h3 className="text-lg font-semibold text-yellow-400 mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Solicitações Pendentes ({pendingLinks.length})
+          </h3>
+
+          <div className="space-y-3">
+            {pendingLinks.map((link, index) => (
+              <motion.div
+                key={link.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card className={`${theme.colors.card.base} border-l-4 border-l-yellow-500`}>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      {/* Info do profissional */}
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-white font-bold bg-gradient-to-br from-yellow-500 to-yellow-600">
+                          {link.professionalAvatar ? (
+                            <img src={link.professionalAvatar} alt={link.professionalName} className="w-full h-full object-cover" />
+                          ) : (
+                            link.professionalName.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div>
+                          <h4 className={`font-semibold ${theme.colors.text.primary}`}>
+                            {link.professionalName}
+                          </h4>
+                          <p className={`text-sm ${theme.colors.text.secondary}`}>
+                            {link.professionalEmail}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs text-yellow-400 border-yellow-500/30">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Aguardando aprovação
+                            </Badge>
+                            <span className={`text-xs ${theme.colors.text.tertiary}`}>
+                              via {link.linkedBy === 'code' ? 'código' : link.linkedBy === 'qrcode' ? 'QR Code' : 'convite'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ações */}
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <Button
+                          size="sm"
+                          onClick={() => handleRejectLink(link.id)}
+                          disabled={actionLoading === link.id}
+                          variant="outline"
+                          className="flex-1 sm:flex-none border-red-500/30 text-red-400 hover:bg-red-500/10"
+                        >
+                          {actionLoading === link.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <UserX className="w-4 h-4 mr-1" />
+                              Recusar
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveLink(link.id)}
+                          disabled={actionLoading === link.id}
+                          variant="gold"
+                          className="flex-1 sm:flex-none"
+                        >
+                          {actionLoading === link.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <UserCheck className="w-4 h-4 mr-1" />
+                              Aprovar
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Profissionais Ativos (Grid) */}
+      {activeLinks.length > 0 ? (
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-      >
-        {mockProfessionals.map((professional, index) => (
-          <motion.div
-              key={professional.id}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        >
+          {activeLinks.map((link, index) => (
+            <motion.div
+              key={link.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ y: -5 }}
-          >
-            <Card className={`h-full ${theme.colors.card.base} hover:shadow-xl transition-all duration-300 group border-l-4 border-l-gold`}>
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between mb-3">
-                    <div className="bg-gradient-to-br from-gold to-gold-dark p-3 rounded-lg">
-                      <Users className="w-6 h-6 text-white" />
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ y: -5 }}
+            >
+              <Card className={`h-full ${theme.colors.card.base} hover:shadow-xl transition-all duration-300 group border-l-4 border-l-gold`}>
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-white font-bold bg-gradient-to-br from-gold to-gold-dark">
+                      {link.professionalAvatar ? (
+                        <img src={link.professionalAvatar} alt={link.professionalName} className="w-full h-full object-cover" />
+                      ) : (
+                        link.professionalName.charAt(0).toUpperCase()
+                      )}
                     </div>
-                    <Badge variant={professional.available ? "success" : "destructive"}>
-                      {professional.available ? "Disponível" : "Indisponível"}
-                  </Badge>
-                </div>
-                <CardTitle className="text-lg group-hover:text-gold transition-colors">
-                    {professional.name}
-                </CardTitle>
-              </CardHeader>
+                    <Badge variant="success">
+                      Ativo
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-lg group-hover:text-gold transition-colors">
+                    {link.professionalName}
+                  </CardTitle>
+                </CardHeader>
 
-              <CardContent>
+                <CardContent>
                   <p className={`text-sm ${theme.colors.text.secondary} mb-4`}>
-                    {professional.role}
+                    {link.role || 'Profissional'}
                   </p>
 
-                  {/* Rating */}
+                  {/* Info */}
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center justify-between text-sm">
                       <span className={`flex items-center gap-2 ${theme.colors.text.secondary}`}>
-                        <Star className="w-4 h-4 text-gold fill-gold" />
-                        Avaliação
+                        <Mail className="w-4 h-4 text-gold" />
+                        Email
                       </span>
-                      <span className={`font-semibold ${theme.colors.text.primary}`}>
-                        {professional.rating.toFixed(1)} / 5.0
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className={`flex items-center gap-2 ${theme.colors.text.secondary}`}>
-                        <Calendar className="w-4 h-4 text-gold" />
-                        Agendamentos
-                      </span>
-                      <span className={`font-semibold ${theme.colors.text.primary}`}>
-                        {professional.totalAppointments}
+                      <span className={`text-xs ${theme.colors.text.primary} truncate max-w-[120px]`}>
+                        {link.professionalEmail}
                       </span>
                     </div>
-                  </div>
-
-                  {/* Specialties */}
-                  <div className="mb-4">
-                    <p className={`text-xs ${theme.colors.text.tertiary} mb-2`}>
-                      Especialidades:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {professional.specialties.map((specialty, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {specialty}
-                        </Badge>
-                      ))}
-                    </div>
+                    {link.commission && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className={`flex items-center gap-2 ${theme.colors.text.secondary}`}>
+                          <Percent className="w-4 h-4 text-gold" />
+                          Comissão
+                        </span>
+                        <span className={`font-semibold ${theme.colors.text.primary}`}>
+                          {link.commission}%
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
                   <div className={`space-y-2 pt-4 border-t ${theme.colors.border.light}`}>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm">
-                        <Mail className="w-3 h-3 mr-1" />
-                        Email
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Phone className="w-3 h-3 mr-1" />
-                        Ligar
-                      </Button>
-                    </div>
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full border-gold text-gold hover:bg-gold/10"
-                      onClick={() => handleOpenPaymentModal(professional.id)}
+                      onClick={() => handleOpenPaymentModal(link.id)}
                     >
                       <DollarSign className="w-3 h-3 mr-1" />
                       Configurar Pagamento
                     </Button>
                     <Button variant="ghost" size="sm" className="w-full text-gold hover:text-gold-dark hover:bg-white/5">
                       Ver Perfil Completo
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
+      ) : pendingLinks.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-16 bg-white/5 rounded-xl border border-white/10"
+        >
+          <Users className="w-20 h-20 mx-auto text-gray-600 mb-6" />
+          <h3 className={`text-2xl font-bold ${theme.colors.text.primary} mb-2`}>
+            Nenhum profissional na equipe
+          </h3>
+          <p className={`${theme.colors.text.secondary} mb-8`}>
+            Adicione profissionais compartilhando o código de vinculação
+          </p>
+          <Button variant="gold" onClick={handleOpenAddModal}>
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Profissional
+          </Button>
+        </motion.div>
+      ) : null}
 
       {/* Modal de Adicionar Profissional */}
       <AnimatePresence>
@@ -254,13 +519,14 @@ export function Profissionais() {
                     <Label className={`${theme.colors.text.secondary} mb-2 block`}>Código de Vinculação</Label>
                     <div className="flex gap-2">
                       <Input
-                        value={linkCode}
+                        value={linkCode || 'Gerando...'}
                         readOnly
                         className="font-mono text-center text-lg tracking-wider"
                       />
                       <Button
                         variant="outline"
                         onClick={handleCopyCode}
+                        disabled={!linkCode}
                         className="px-4"
                       >
                         {copied ? (
@@ -271,8 +537,19 @@ export function Profissionais() {
                       </Button>
                     </div>
                     <p className={`text-xs ${theme.colors.text.tertiary} mt-2`}>
-                      O profissional pode inserir este código manualmente
+                      O profissional pode inserir este código manualmente na área dele
                     </p>
+                  </div>
+
+                  {/* Info */}
+                  <div className="bg-gold/10 border border-gold/20 rounded-lg p-4">
+                    <p className="text-sm text-gold font-medium mb-1">Como funciona?</p>
+                    <ol className={`text-xs ${theme.colors.text.secondary} space-y-1 list-decimal list-inside`}>
+                      <li>Compartilhe o código ou QR Code com o profissional</li>
+                      <li>Ele insere o código na área "Associar Estabelecimento"</li>
+                      <li>A solicitação aparece aqui para você aprovar</li>
+                      <li>Após aprovado, ele já faz parte da sua equipe!</li>
+                    </ol>
                   </div>
                 </div>
               </div>

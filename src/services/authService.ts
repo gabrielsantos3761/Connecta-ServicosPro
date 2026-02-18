@@ -60,8 +60,16 @@ export interface ProfessionalProfile {
   userId: string;
   cnpj?: string;
   specialties?: string[];
-  barbershopId?: string;
-  workSchedule?: any;
+  bio?: string;
+  experienceYears?: number;
+  phone?: string;
+  pix?: string;
+  address?: {
+    cep: string;
+    endereco: string;
+    numero: string;
+    complemento?: string;
+  };
   rating?: number;
   reviewsCount?: number;
   servicesCompleted?: number;
@@ -339,6 +347,38 @@ export async function getProfessionalProfile(uid: string): Promise<ProfessionalP
   }
 
   return null;
+}
+
+/**
+ * Atualiza o perfil de profissional (cria se não existir)
+ */
+export async function updateProfessionalProfile(
+  uid: string,
+  data: Partial<Omit<ProfessionalProfile, 'userId' | 'createdAt'>>
+): Promise<void> {
+  const professionalRef = doc(db, 'professionals', uid);
+  const professionalSnap = await getDoc(professionalRef);
+
+  if (professionalSnap.exists()) {
+    // Documento existe, só atualiza
+    await updateDoc(professionalRef, {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    // Documento não existe, cria com dados base + dados novos
+    await setDoc(professionalRef, {
+      userId: uid,
+      specialties: [],
+      isActive: true,
+      servicesCompleted: 0,
+      reviewsCount: 0,
+      rating: 0,
+      ...data,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
 }
 
 /**

@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/contexts/AuthContext'
 import { createBusiness, formatCNPJ, validateCNPJ, type CreateBusinessData, type BusinessHours } from '@/services/businessService'
+import { updateProfessionalProfile } from '@/services/authService'
+import { createProfessionalLink } from '@/services/professionalLinkService'
 import { useToast } from '@/hooks/use-toast'
 
 const DEFAULT_BUSINESS_HOURS: BusinessHours[] = [
@@ -151,7 +153,33 @@ export function CadastrarEstabelecimento() {
         businessHours,
       }
 
-      await createBusiness(user.id, businessData)
+      const newBusiness = await createBusiness(user.id, businessData)
+
+      // Criar perfil de profissional do proprietário (se não existir)
+      try {
+        await updateProfessionalProfile(user.id, {
+          phone: formData.phone,
+          specialties: [],
+        })
+      } catch (error) {
+        console.error('Erro ao criar perfil profissional do owner:', error)
+      }
+
+      // Vincular o proprietário como profissional ativo no próprio estabelecimento
+      try {
+        await createProfessionalLink({
+          professionalId: user.id,
+          professionalName: user.name,
+          professionalEmail: user.email,
+          professionalAvatar: user.avatar,
+          businessId: newBusiness.id,
+          businessName: formData.name,
+          linkedBy: 'invite',
+          status: 'active',
+        })
+      } catch (error) {
+        console.error('Erro ao vincular owner como profissional:', error)
+      }
 
       toast({
         title: 'Sucesso!',
