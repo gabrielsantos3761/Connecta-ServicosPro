@@ -5,6 +5,7 @@ import { ProfissionalSidebar } from './ProfissionalSidebar'
 
 export function ProfissionalLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black relative overflow-hidden">
@@ -39,10 +40,12 @@ export function ProfissionalLayout() {
       <ProfissionalSidebar
         isMobileOpen={isMobileMenuOpen}
         setIsMobileOpen={setIsMobileMenuOpen}
+        isDirty={isDirty}
+        setIsDirty={setIsDirty}
       />
 
       <main className="min-h-screen relative">
-        <Outlet context={{ setIsMobileMenuOpen }} />
+        <Outlet context={{ setIsMobileMenuOpen, isDirty, setIsDirty }} />
       </main>
     </div>
   )

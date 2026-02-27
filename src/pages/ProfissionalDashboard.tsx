@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useOutletContext } from 'react-router-dom'
 import { User, MapPin, Scissors, Camera, Save, Plus, X, Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { ProfissionalPageLayout } from '@/components/layout/ProfissionalPageLayout'
@@ -9,13 +10,27 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { getProfessionalProfile, updateProfessionalProfile } from '@/services/authService'
 import { uploadProfilePhoto } from '@/services/storageService'
+import {
+  getProfissionalInfoPessoais,
+  getProfissionalEndereco,
+  getProfissionalEspecialidades,
+  saveProfissionalInfoPessoais,
+  saveProfissionalEndereco,
+  saveProfissionalEspecialidades,
+} from '@/services/professionalProfileService'
 
 type TabType = 'informacoes' | 'endereco' | 'especialidades'
 
+type LayoutContext = {
+  setIsMobileMenuOpen: (value: boolean) => void
+  isDirty: boolean
+  setIsDirty: (value: boolean) => void
+}
+
 export function ProfissionalDashboard() {
   const { user } = useAuth()
+  const { isDirty, setIsDirty } = useOutletContext<LayoutContext>()
   const [activeTab, setActiveTab] = useState<TabType>('informacoes')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -43,26 +58,52 @@ export function ProfissionalDashboard() {
   const [specialties, setSpecialties] = useState<string[]>([])
   const [newSpecialty, setNewSpecialty] = useState('')
 
+  // Avisar o browser ao fechar/recarregar aba com mudanças não salvas
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
   // Carregar dados do Firestore ao montar
   useEffect(() => {
     async function loadProfile() {
       if (!user) return
 
       try {
-        const profile = await getProfessionalProfile(user.uid)
-        if (profile) {
+        const [infoPessoais, endereco, especialidades] = await Promise.all([
+          getProfissionalInfoPessoais(user.uid),
+          getProfissionalEndereco(user.uid),
+          getProfissionalEspecialidades(user.uid),
+        ])
+
+        if (infoPessoais) {
           setFormData(prev => ({
             ...prev,
-            phone: profile.phone || prev.phone,
-            pix: profile.pix || '',
+            phone: infoPessoais.phone || prev.phone,
+            pix: infoPessoais.pix || '',
           }))
+          if (infoPessoais.avatarUrl) {
+            setAvatarPreview(infoPessoais.avatarUrl)
+          }
+        }
+
+        if (endereco) {
           setAddressData({
-            cep: profile.address?.cep || '',
-            endereco: profile.address?.endereco || '',
-            numero: profile.address?.numero || '',
-            complemento: profile.address?.complemento || '',
+            cep: endereco.cep || '',
+            endereco: endereco.endereco || '',
+            numero: endereco.numero || '',
+            complemento: endereco.complemento || '',
           })
-          setSpecialties(profile.specialties || [])
+        }
+
+        if (especialidades) {
+          setSpecialties(especialidades.items || [])
         }
       } catch (error) {
         console.error('Erro ao carregar perfil:', error)
@@ -105,6 +146,7 @@ export function ProfissionalDashboard() {
       const reader = new FileReader()
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string)
+        setIsDirty(true)
       }
       reader.readAsDataURL(file)
     }
@@ -115,11 +157,13 @@ export function ProfissionalDashboard() {
     if (trimmed && !specialties.includes(trimmed)) {
       setSpecialties([...specialties, trimmed])
       setNewSpecialty('')
+      setIsDirty(true)
     }
   }
 
   const handleRemoveSpecialty = (specialty: string) => {
     setSpecialties(specialties.filter(s => s !== specialty))
+    setIsDirty(true)
   }
 
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -127,33 +171,40 @@ export function ProfissionalDashboard() {
     setTimeout(() => setSaveMessage(null), 3000)
   }
 
-  const handleSave = async () => {
+  const handleSaveAll = async () => {
     if (!user) return
     setSaving(true)
 
     try {
-      // Upload do avatar se mudou
+      // Upload do avatar primeiro para capturar a URL antes do Promise.all
+      let avatarUrl: string | undefined
       if (avatarFile && avatarPreview) {
-        await uploadProfilePhoto(user.uid, avatarPreview)
+        avatarUrl = await uploadProfilePhoto(user.uid, avatarPreview)
+        setAvatarPreview(avatarUrl)
+        setAvatarFile(null)
       }
 
-      // Atualizar perfil do profissional no Firestore
-      await updateProfessionalProfile(user.uid, {
-        phone: formData.phone,
-        pix: formData.pix,
-        specialties,
-        address: {
+      await Promise.all([
+        saveProfissionalInfoPessoais(user.uid, {
+          name: formData.name,
+          phone: formData.phone,
+          pix: formData.pix,
+          ...(avatarUrl ? { avatarUrl } : {}),
+        }),
+        saveProfissionalEndereco(user.uid, {
           cep: addressData.cep,
           endereco: addressData.endereco,
           numero: addressData.numero,
           complemento: addressData.complemento,
-        },
-      })
+        }),
+        saveProfissionalEspecialidades(user.uid, { items: specialties }),
+      ])
 
+      setIsDirty(false)
       showMessage('success', 'Perfil salvo com sucesso!')
     } catch (error: any) {
       console.error('Erro ao salvar perfil:', error)
-      showMessage('error', 'Erro ao salvar perfil. Tente novamente.')
+      showMessage('error', 'Erro ao salvar. Tente novamente.')
     } finally {
       setSaving(false)
     }
@@ -173,39 +224,61 @@ export function ProfissionalDashboard() {
   return (
     <ProfissionalPageLayout title="Meu Perfil" subtitle="Configure suas informações profissionais">
       {/* Mensagem de feedback */}
-      {saveMessage && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className={`mb-4 p-3 rounded-lg text-sm font-medium ${
-            saveMessage.type === 'success'
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : 'bg-red-500/20 text-red-400 border border-red-500/30'
-          }`}
-        >
-          {saveMessage.text}
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {saveMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className={`mb-4 p-3 rounded-lg text-sm font-medium ${
+              saveMessage.type === 'success'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+            }`}
+          >
+            {saveMessage.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full">
-        <TabsList className="w-full justify-start mb-8 grid grid-cols-3 sm:inline-flex gap-1 sm:gap-0 h-auto bg-white/5 border border-white/10">
-          <TabsTrigger value="informacoes" className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Informações Pessoais</span>
-            <span className="sm:hidden">Pessoal</span>
-          </TabsTrigger>
-          <TabsTrigger value="endereco" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            <span className="hidden sm:inline">Endereço</span>
-            <span className="sm:hidden">Endereço</span>
-          </TabsTrigger>
-          <TabsTrigger value="especialidades" className="flex items-center gap-2">
-            <Scissors className="w-4 h-4" />
-            <span className="hidden sm:inline">Especialidades</span>
-            <span className="sm:hidden">Skills</span>
-          </TabsTrigger>
-        </TabsList>
+        {/* Header das abas + botão salvar */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8">
+          <TabsList className="flex-1 grid grid-cols-3 sm:inline-flex gap-1 sm:gap-0 h-auto bg-white/5 border border-white/10">
+            <TabsTrigger value="informacoes" className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Informações Pessoais</span>
+              <span className="sm:hidden">Pessoal</span>
+            </TabsTrigger>
+            <TabsTrigger value="endereco" className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              <span>Endereço</span>
+            </TabsTrigger>
+            <TabsTrigger value="especialidades" className="flex items-center gap-2">
+              <Scissors className="w-4 h-4" />
+              <span className="hidden sm:inline">Especialidades</span>
+              <span className="sm:hidden">Skills</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <Button
+            onClick={handleSaveAll}
+            disabled={saving}
+            className="relative text-white font-semibold shrink-0"
+            style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {saving ? 'Salvando...' : 'Salvar Perfil'}
+            {/* Indicador de mudanças não salvas */}
+            {isDirty && !saving && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full border-2 border-black" />
+            )}
+          </Button>
+        </div>
 
         {/* Aba: Informações Pessoais */}
         <TabsContent value="informacoes">
@@ -258,7 +331,7 @@ export function ProfissionalDashboard() {
                     <Label className="text-gray-300 mb-2 block">Nome Social</Label>
                     <Input
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setIsDirty(true) }}
                       className="bg-white/5 border-white/10 text-white placeholder-gray-500"
                       placeholder="Seu nome"
                     />
@@ -277,7 +350,7 @@ export function ProfissionalDashboard() {
                     <Label className="text-gray-300 mb-2 block">Telefone</Label>
                     <Input
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setIsDirty(true) }}
                       className="bg-white/5 border-white/10 text-white placeholder-gray-500"
                       placeholder="(11) 98765-4321"
                     />
@@ -286,27 +359,11 @@ export function ProfissionalDashboard() {
                     <Label className="text-gray-300 mb-2 block">Chave PIX</Label>
                     <Input
                       value={formData.pix}
-                      onChange={(e) => setFormData({ ...formData, pix: e.target.value })}
+                      onChange={(e) => { setFormData({ ...formData, pix: e.target.value }); setIsDirty(true) }}
                       className="bg-white/5 border-white/10 text-white placeholder-gray-500"
                       placeholder="Email, CPF ou telefone"
                     />
                   </div>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="text-white font-semibold"
-                    style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
-                  >
-                    {saving ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    {saving ? 'Salvando...' : 'Salvar Informações'}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -323,7 +380,7 @@ export function ProfissionalDashboard() {
                     <Label className="text-gray-300 mb-2 block">CEP</Label>
                     <Input
                       value={addressData.cep}
-                      onChange={(e) => setAddressData({ ...addressData, cep: e.target.value })}
+                      onChange={(e) => { setAddressData({ ...addressData, cep: e.target.value }); setIsDirty(true) }}
                       className="bg-white/5 border-white/10 text-white placeholder-gray-500"
                       placeholder="00000-000"
                       maxLength={9}
@@ -333,7 +390,7 @@ export function ProfissionalDashboard() {
                     <Label className="text-gray-300 mb-2 block">Endereço</Label>
                     <Input
                       value={addressData.endereco}
-                      onChange={(e) => setAddressData({ ...addressData, endereco: e.target.value })}
+                      onChange={(e) => { setAddressData({ ...addressData, endereco: e.target.value }); setIsDirty(true) }}
                       className="bg-white/5 border-white/10 text-white placeholder-gray-500"
                       placeholder="Rua, Avenida..."
                     />
@@ -342,7 +399,7 @@ export function ProfissionalDashboard() {
                     <Label className="text-gray-300 mb-2 block">Número</Label>
                     <Input
                       value={addressData.numero}
-                      onChange={(e) => setAddressData({ ...addressData, numero: e.target.value })}
+                      onChange={(e) => { setAddressData({ ...addressData, numero: e.target.value }); setIsDirty(true) }}
                       className="bg-white/5 border-white/10 text-white placeholder-gray-500"
                       placeholder="123"
                     />
@@ -351,27 +408,11 @@ export function ProfissionalDashboard() {
                     <Label className="text-gray-300 mb-2 block">Complemento</Label>
                     <Input
                       value={addressData.complemento}
-                      onChange={(e) => setAddressData({ ...addressData, complemento: e.target.value })}
+                      onChange={(e) => { setAddressData({ ...addressData, complemento: e.target.value }); setIsDirty(true) }}
                       className="bg-white/5 border-white/10 text-white placeholder-gray-500"
                       placeholder="Apto, Bloco..."
                     />
                   </div>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="text-white font-semibold"
-                    style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
-                  >
-                    {saving ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    {saving ? 'Salvando...' : 'Salvar Endereço'}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -412,27 +453,9 @@ export function ProfissionalDashboard() {
             {/* Lista de especialidades */}
             <Card className="bg-white/5 border-white/10">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">
-                    Suas Especialidades
-                  </h3>
-                  {specialties.length > 0 && (
-                    <Button
-                      onClick={handleSave}
-                      disabled={saving}
-                      size="sm"
-                      className="text-white font-semibold"
-                      style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
-                    >
-                      {saving ? (
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      ) : (
-                        <Save className="w-3 h-3 mr-1" />
-                      )}
-                      Salvar
-                    </Button>
-                  )}
-                </div>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Suas Especialidades
+                </h3>
 
                 {specialties.length === 0 ? (
                   <div className="text-center py-12">

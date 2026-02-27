@@ -1,17 +1,19 @@
-import { useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Building2,
   Home,
   LogOut,
   X,
   Scissors,
-  UserCog
+  UserCog,
+  AlertTriangle,
+  Save,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 
 const ACCENT_COLOR = '#1a333a'
 
@@ -30,12 +32,20 @@ const navItems: NavItem[] = [
 interface ProfissionalSidebarProps {
   isMobileOpen: boolean
   setIsMobileOpen: (value: boolean) => void
+  isDirty: boolean
+  setIsDirty: (value: boolean) => void
 }
 
-export function ProfissionalSidebar({ isMobileOpen, setIsMobileOpen }: ProfissionalSidebarProps) {
+export function ProfissionalSidebar({
+  isMobileOpen,
+  setIsMobileOpen,
+  isDirty,
+  setIsDirty,
+}: ProfissionalSidebarProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [pendingPath, setPendingPath] = useState<string | null>(null)
 
   // Bloquear scroll quando sidebar estiver aberto
   useEffect(() => {
@@ -50,14 +60,41 @@ export function ProfissionalSidebar({ isMobileOpen, setIsMobileOpen }: Profissio
     }
   }, [isMobileOpen])
 
-  const handleLinkClick = () => {
+  const handleLinkClick = (e: React.MouseEvent, to: string) => {
+    if (isDirty && location.pathname !== to) {
+      e.preventDefault()
+      setPendingPath(to)
+      setIsMobileOpen(false)
+      return
+    }
     setIsMobileOpen(false)
   }
 
   const handleLogout = async () => {
+    if (isDirty) {
+      setPendingPath('__logout__')
+      setIsMobileOpen(false)
+      return
+    }
     setIsMobileOpen(false)
     await logout()
     navigate('/login')
+  }
+
+  const handleProceed = async () => {
+    if (!pendingPath) return
+    setIsDirty(false)
+    setPendingPath(null)
+    if (pendingPath === '__logout__') {
+      await logout()
+      navigate('/login')
+    } else {
+      navigate(pendingPath)
+    }
+  }
+
+  const handleCancelNavigation = () => {
+    setPendingPath(null)
   }
 
   // Função para pegar iniciais do nome
@@ -83,6 +120,65 @@ export function ProfissionalSidebar({ isMobileOpen, setIsMobileOpen }: Profissio
 
   return (
     <>
+      {/* Modal de mudanças não salvas */}
+      <AnimatePresence>
+        {pendingPath !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl"
+              style={{ background: 'linear-gradient(135deg, #0f1f24, #1a333a)' }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: '#f59e0b22', border: '1px solid #f59e0b44' }}
+                >
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Alterações não salvas</h3>
+              </div>
+
+              <p className="text-gray-300 text-sm mb-2">
+                Você fez alterações no seu perfil que ainda não foram salvas.
+              </p>
+              <p className="text-gray-400 text-sm mb-6">
+                Volte e clique no botão{' '}
+                <span className="inline-flex items-center gap-1 text-white font-semibold">
+                  <Save className="w-3 h-3" /> Salvar Perfil
+                </span>{' '}
+                para não perder suas mudanças.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={handleCancelNavigation}
+                  className="flex-1 text-white font-semibold"
+                  style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}
+                >
+                  Continuar editando
+                </Button>
+                <Button
+                  onClick={handleProceed}
+                  variant="ghost"
+                  className="flex-1 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                >
+                  Sair sem salvar
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Backdrop */}
       <AnimatePresence>
         {isMobileOpen && (
@@ -173,7 +269,7 @@ export function ProfissionalSidebar({ isMobileOpen, setIsMobileOpen }: Profissio
                   <NavLink
                     to={item.to}
                     end
-                    onClick={handleLinkClick}
+                    onClick={(e) => handleLinkClick(e, item.to)}
                     className={({ isActive }) =>
                       cn(
                         "flex items-center gap-3 px-4 py-3 rounded-xl transition-all",

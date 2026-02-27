@@ -109,6 +109,14 @@ service cloud.firestore {
 
       // Deleção: não permitida
       allow delete: if false;
+
+      // ============================================
+      // SUBCOLEÇÃO: CONFIGURACAO PERFIL (abas do perfil do profissional)
+      // ============================================
+      match /ConfiguracaoPerfil/{tabName} {
+        allow read: if isOwner(professionalId);
+        allow write: if isOwner(professionalId);
+      }
     }
 
     // ============================================
