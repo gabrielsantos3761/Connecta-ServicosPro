@@ -23,13 +23,18 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import {
-  getBusinessById,
-  updateBusiness,
   formatCNPJ,
   validateCNPJ,
-  type Business,
-  type BusinessHours
+  type BusinessHours,
 } from '@/services/businessService'
+import {
+  getAllBusinessConfigs,
+  saveConfigInformacoes,
+  saveConfigFotos,
+  saveConfigContato,
+  saveConfigEndereco,
+  saveConfigHorarios,
+} from '@/services/businessConfigService'
 import { OwnerPageLayout } from '@/components/layout/OwnerPageLayout'
 
 const DAY_LABELS: Record<string, string> = {
@@ -60,7 +65,7 @@ export function ConfiguracoesEstabelecimento() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [business, setBusiness] = useState<Business | null>(null)
+  const [businessId, setBusinessId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -85,7 +90,7 @@ export function ConfiguracoesEstabelecimento() {
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [activeTab, setActiveTab] = useState<string>('info')
 
-  // Carregar dados do estabelecimento
+  // Carregar dados das subcoleções (com fallback ao doc principal)
   useEffect(() => {
     const loadBusiness = async () => {
       const selectedBusinessId = localStorage.getItem('selected_business_id')
@@ -99,43 +104,34 @@ export function ConfiguracoesEstabelecimento() {
         return
       }
 
+      setBusinessId(selectedBusinessId)
+
       try {
         setIsLoading(true)
-        const businessData = await getBusinessById(selectedBusinessId)
+        const configs = await getAllBusinessConfigs(selectedBusinessId)
 
-        if (!businessData) {
-          toast({
-            title: 'Erro',
-            description: 'Estabelecimento não encontrado',
-            variant: 'destructive',
-          })
-          navigate('/selecionar-empresa')
-          return
-        }
+        const { informacoes, fotos, contato, endereco, horarios } = configs
 
-        setBusiness(businessData)
-
-        // Preencher formulário
         setFormData({
-          name: businessData.name,
-          cnpj: businessData.cnpj,
-          description: businessData.description,
-          category: businessData.category,
-          phone: businessData.phone,
-          email: businessData.email || '',
-          website: businessData.website || '',
-          street: businessData.address.street,
-          number: businessData.address.number,
-          complement: businessData.address.complement || '',
-          neighborhood: businessData.address.neighborhood,
-          city: businessData.address.city,
-          state: businessData.address.state,
-          zipCode: businessData.address.zipCode,
+          name: informacoes.name ?? '',
+          cnpj: informacoes.cnpj ?? '',
+          description: informacoes.description ?? '',
+          category: informacoes.category ?? 'Barbearia',
+          phone: contato.phone ?? '',
+          email: contato.email ?? '',
+          website: contato.website ?? '',
+          street: endereco.street ?? '',
+          number: endereco.number ?? '',
+          complement: endereco.complement ?? '',
+          neighborhood: endereco.neighborhood ?? '',
+          city: endereco.city ?? '',
+          state: endereco.state ?? '',
+          zipCode: endereco.zipCode ?? '',
         })
 
-        setBusinessHours(businessData.businessHours)
-        setMainImage(businessData.image || '')
-        setGalleryImages(businessData.gallery || [])
+        setBusinessHours(horarios.businessHours ?? [])
+        setMainImage(fotos.image ?? '')
+        setGalleryImages(fotos.gallery ?? [])
       } catch (error: any) {
         console.error('Erro ao carregar estabelecimento:', error)
         toast({
@@ -152,7 +148,6 @@ export function ConfiguracoesEstabelecimento() {
   }, [navigate, toast])
 
   const handleInputChange = (field: string, value: string) => {
-    // Aplicar máscaras
     if (field === 'cnpj') {
       value = formatCNPJ(value)
     } else if (field === 'phone') {
@@ -172,7 +167,6 @@ export function ConfiguracoesEstabelecimento() {
     setBusinessHours(newBusinessHours)
   }
 
-  // Funções de validação por tab
   const validateInfoTab = () => {
     return !!(
       formData.name?.trim() &&
@@ -211,50 +205,30 @@ export function ConfiguracoesEstabelecimento() {
 
   const handleMainImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file || !business) return
+    if (!file || !businessId) return
 
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Erro',
-        description: 'Por favor, selecione apenas imagens',
-        variant: 'destructive',
-      })
+      toast({ title: 'Erro', description: 'Por favor, selecione apenas imagens', variant: 'destructive' })
       return
     }
-
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'Erro',
-        description: 'A imagem deve ter no máximo 5MB',
-        variant: 'destructive',
-      })
+      toast({ title: 'Erro', description: 'A imagem deve ter no máximo 5MB', variant: 'destructive' })
       return
     }
 
     setIsUploadingImage(true)
-
     try {
-      const storageRef = ref(storage, `businesses/${business.id}/main-${Date.now()}.jpg`)
+      const storageRef = ref(storage, `businesses/${businessId}/main-${Date.now()}.jpg`)
       await uploadBytes(storageRef, file)
       const downloadURL = await getDownloadURL(storageRef)
 
       setMainImage(downloadURL)
+      await saveConfigFotos(businessId, { image: downloadURL, gallery: galleryImages })
 
-      await updateBusiness(business.id, {
-        image: downloadURL,
-      } as any)
-
-      toast({
-        title: 'Sucesso!',
-        description: 'Imagem principal atualizada',
-      })
+      toast({ title: 'Sucesso!', description: 'Imagem principal atualizada' })
     } catch (error) {
       console.error('Erro ao fazer upload da imagem:', error)
-      toast({
-        title: 'Erro',
-        description: 'Erro ao fazer upload da imagem',
-        variant: 'destructive',
-      })
+      toast({ title: 'Erro', description: 'Erro ao fazer upload da imagem', variant: 'destructive' })
     } finally {
       setIsUploadingImage(false)
     }
@@ -262,23 +236,15 @@ export function ConfiguracoesEstabelecimento() {
 
   const handleGalleryImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    if (!files || files.length === 0 || !business) return
+    if (!files || files.length === 0 || !businessId) return
 
     const validFiles = Array.from(files).filter(file => {
       if (!file.type.startsWith('image/')) {
-        toast({
-          title: 'Aviso',
-          description: `${file.name} não é uma imagem válida`,
-          variant: 'destructive',
-        })
+        toast({ title: 'Aviso', description: `${file.name} não é uma imagem válida`, variant: 'destructive' })
         return false
       }
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: 'Aviso',
-          description: `${file.name} excede o tamanho máximo de 5MB`,
-          variant: 'destructive',
-        })
+        toast({ title: 'Aviso', description: `${file.name} excede o tamanho máximo de 5MB`, variant: 'destructive' })
         return false
       }
       return true
@@ -286,127 +252,86 @@ export function ConfiguracoesEstabelecimento() {
 
     if (validFiles.length === 0) return
     if (galleryImages.length + validFiles.length > 10) {
-      toast({
-        title: 'Erro',
-        description: 'Você pode ter no máximo 10 imagens na galeria',
-        variant: 'destructive',
-      })
+      toast({ title: 'Erro', description: 'Você pode ter no máximo 10 imagens na galeria', variant: 'destructive' })
       return
     }
 
     setIsUploadingImage(true)
-
     try {
       const uploadPromises = validFiles.map(async (file) => {
-        const storageRef = ref(storage, `businesses/${business.id}/gallery-${Date.now()}-${Math.random()}.jpg`)
+        const storageRef = ref(storage, `businesses/${businessId}/gallery-${Date.now()}-${Math.random()}.jpg`)
         await uploadBytes(storageRef, file)
         return getDownloadURL(storageRef)
       })
 
       const downloadURLs = await Promise.all(uploadPromises)
       const newGallery = [...galleryImages, ...downloadURLs]
-
       setGalleryImages(newGallery)
 
-      await updateBusiness(business.id, {
-        gallery: newGallery,
-      } as any)
+      await saveConfigFotos(businessId, { image: mainImage || undefined, gallery: newGallery })
 
-      toast({
-        title: 'Sucesso!',
-        description: `${downloadURLs.length} imagem(ns) adicionada(s) à galeria`,
-      })
+      toast({ title: 'Sucesso!', description: `${downloadURLs.length} imagem(ns) adicionada(s) à galeria` })
     } catch (error) {
       console.error('Erro ao fazer upload das imagens:', error)
-      toast({
-        title: 'Erro',
-        description: 'Erro ao fazer upload das imagens',
-        variant: 'destructive',
-      })
+      toast({ title: 'Erro', description: 'Erro ao fazer upload das imagens', variant: 'destructive' })
     } finally {
       setIsUploadingImage(false)
     }
   }
 
   const handleRemoveGalleryImage = async (imageUrl: string) => {
-    if (!business) return
-
+    if (!businessId) return
     try {
       const newGallery = galleryImages.filter(url => url !== imageUrl)
       setGalleryImages(newGallery)
 
-      await updateBusiness(business.id, {
-        gallery: newGallery,
-      } as any)
+      await saveConfigFotos(businessId, { image: mainImage || undefined, gallery: newGallery })
 
-      // Tentar deletar do storage
       try {
-        const imageRef = ref(storage, imageUrl)
-        await deleteObject(imageRef)
-      } catch (error) {
-        console.error('Erro ao deletar imagem do storage:', error)
-      }
+        await deleteObject(ref(storage, imageUrl))
+      } catch { /* ignora erro de storage */ }
 
-      toast({
-        title: 'Sucesso!',
-        description: 'Imagem removida da galeria',
-      })
+      toast({ title: 'Sucesso!', description: 'Imagem removida da galeria' })
     } catch (error) {
       console.error('Erro ao remover imagem:', error)
-      toast({
-        title: 'Erro',
-        description: 'Erro ao remover imagem',
-        variant: 'destructive',
-      })
+      toast({ title: 'Erro', description: 'Erro ao remover imagem', variant: 'destructive' })
     }
   }
 
   const handleSave = async () => {
-    if (!business) return
+    if (!businessId) return
 
-    // Validar todas as tabs e navegar para a primeira com erro
     if (!validateInfoTab()) {
       setActiveTab('info')
-      toast({
-        title: 'Campos obrigatórios faltando',
-        description: `Por favor, complete a seção ${getTabName('info')}`,
-        variant: 'destructive',
-      })
+      toast({ title: 'Campos obrigatórios faltando', description: `Por favor, complete a seção ${getTabName('info')}`, variant: 'destructive' })
       return
     }
-
     if (!validateContactTab()) {
       setActiveTab('contact')
-      toast({
-        title: 'Campos obrigatórios faltando',
-        description: `Por favor, complete a seção ${getTabName('contact')}`,
-        variant: 'destructive',
-      })
+      toast({ title: 'Campos obrigatórios faltando', description: `Por favor, complete a seção ${getTabName('contact')}`, variant: 'destructive' })
       return
     }
-
     if (!validateAddressTab()) {
       setActiveTab('address')
-      toast({
-        title: 'Campos obrigatórios faltando',
-        description: `Por favor, complete a seção ${getTabName('address')}`,
-        variant: 'destructive',
-      })
+      toast({ title: 'Campos obrigatórios faltando', description: `Por favor, complete a seção ${getTabName('address')}`, variant: 'destructive' })
       return
     }
 
     setIsSaving(true)
-
     try {
-      await updateBusiness(business.id, {
-        name: formData.name,
-        cnpj: formData.cnpj,
-        description: formData.description,
-        category: formData.category,
-        phone: formData.phone,
-        email: formData.email || undefined,
-        website: formData.website || undefined,
-        address: {
+      await Promise.all([
+        saveConfigInformacoes(businessId, {
+          name: formData.name,
+          cnpj: formData.cnpj,
+          description: formData.description,
+          category: formData.category,
+        }),
+        saveConfigContato(businessId, {
+          phone: formData.phone,
+          email: formData.email || undefined,
+          website: formData.website || undefined,
+        }),
+        saveConfigEndereco(businessId, {
           street: formData.street,
           number: formData.number,
           complement: formData.complement || undefined,
@@ -414,21 +339,14 @@ export function ConfiguracoesEstabelecimento() {
           city: formData.city,
           state: formData.state,
           zipCode: formData.zipCode,
-        },
-        businessHours,
-      })
+        }),
+        saveConfigHorarios(businessId, { businessHours }),
+      ])
 
-      toast({
-        title: 'Sucesso!',
-        description: 'Estabelecimento atualizado com sucesso',
-      })
+      toast({ title: 'Sucesso!', description: 'Estabelecimento atualizado com sucesso' })
     } catch (error: any) {
       console.error('Erro ao atualizar estabelecimento:', error)
-      toast({
-        title: 'Erro',
-        description: error.message || 'Erro ao atualizar estabelecimento',
-        variant: 'destructive',
-      })
+      toast({ title: 'Erro', description: error.message || 'Erro ao atualizar estabelecimento', variant: 'destructive' })
     } finally {
       setIsSaving(false)
     }
@@ -461,43 +379,39 @@ export function ConfiguracoesEstabelecimento() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start mb-8 grid grid-cols-5 sm:inline-flex gap-1 sm:gap-0 h-auto">
           <TabsTrigger value="info" className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Informações</span>
-              {!validateInfoTab() && (
-                <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="photos" className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Fotos</span>
-            </TabsTrigger>
-            <TabsTrigger value="contact" className="flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              <span className="hidden sm:inline">Contato</span>
-              {!validateContactTab() && (
-                <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="address" className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              <span className="hidden sm:inline">Endereço</span>
-              {!validateAddressTab() && (
-                <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="hours" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span className="hidden sm:inline">Horários</span>
+            <Building2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Informações</span>
+            {!validateInfoTab() && (
+              <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="photos" className="flex items-center gap-2">
+            <ImageIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Fotos</span>
+          </TabsTrigger>
+          <TabsTrigger value="contact" className="flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            <span className="hidden sm:inline">Contato</span>
+            {!validateContactTab() && (
+              <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="address" className="flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            <span className="hidden sm:inline">Endereço</span>
+            {!validateAddressTab() && (
+              <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="hours" className="flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            <span className="hidden sm:inline">Horários</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Informações Básicas */}
         <TabsContent value="info">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -539,9 +453,7 @@ export function ConfiguracoesEstabelecimento() {
                     className="w-full bg-white/5 border border-white/10 text-white rounded-md px-3 py-2 focus:border-gold/50"
                   >
                     {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat} className="bg-black">
-                        {cat}
-                      </option>
+                      <option key={cat} value={cat} className="bg-black">{cat}</option>
                     ))}
                   </select>
                 </div>
@@ -558,16 +470,12 @@ export function ConfiguracoesEstabelecimento() {
                 </div>
               </CardContent>
             </Card>
-        </motion.div>
+          </motion.div>
         </TabsContent>
 
         {/* Fotos */}
         <TabsContent value="photos">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -582,11 +490,7 @@ export function ConfiguracoesEstabelecimento() {
                   <div className="flex flex-col gap-4">
                     {mainImage && (
                       <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gold/30">
-                        <img
-                          src={mainImage}
-                          alt="Imagem principal"
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={mainImage} alt="Imagem principal" className="w-full h-full object-cover" />
                       </div>
                     )}
                     <div className="flex items-center gap-3">
@@ -616,7 +520,7 @@ export function ConfiguracoesEstabelecimento() {
                   </div>
                 </div>
 
-                {/* Galeria de Imagens */}
+                {/* Galeria */}
                 <div>
                   <Label className="text-gray-300 mb-3 block">
                     Galeria de Fotos ({galleryImages.length}/10)
@@ -626,15 +530,10 @@ export function ConfiguracoesEstabelecimento() {
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
                       {galleryImages.map((imageUrl, index) => (
                         <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10">
-                          <img
-                            src={imageUrl}
-                            alt={`Galeria ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={imageUrl} alt={`Galeria ${index + 1}`} className="w-full h-full object-cover" />
                           <button
                             onClick={() => handleRemoveGalleryImage(imageUrl)}
                             className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Remover imagem"
                           >
                             <X className="w-4 h-4 text-white" />
                           </button>
@@ -651,9 +550,7 @@ export function ConfiguracoesEstabelecimento() {
                       >
                         <div className="flex items-center justify-center gap-2 px-4 py-8 bg-white/5 border-2 border-dashed border-white/20 rounded-lg hover:border-gold/50 hover:bg-white/10 transition-all">
                           <Upload className="w-6 h-6 text-gold" />
-                          <span className="text-sm text-gray-300">
-                            Adicionar Fotos à Galeria
-                          </span>
+                          <span className="text-sm text-gray-300">Adicionar Fotos à Galeria</span>
                         </div>
                         <input
                           id="gallery-image-upload"
@@ -673,16 +570,12 @@ export function ConfiguracoesEstabelecimento() {
                 </div>
               </CardContent>
             </Card>
-        </motion.div>
+          </motion.div>
         </TabsContent>
 
         {/* Contato */}
         <TabsContent value="contact">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -734,16 +627,12 @@ export function ConfiguracoesEstabelecimento() {
                 </div>
               </CardContent>
             </Card>
-        </motion.div>
+          </motion.div>
         </TabsContent>
 
         {/* Endereço */}
         <TabsContent value="address">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -834,16 +723,12 @@ export function ConfiguracoesEstabelecimento() {
                 </div>
               </CardContent>
             </Card>
-        </motion.div>
+          </motion.div>
         </TabsContent>
 
         {/* Horário de Funcionamento */}
         <TabsContent value="hours">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -899,7 +784,7 @@ export function ConfiguracoesEstabelecimento() {
                 })}
               </CardContent>
             </Card>
-        </motion.div>
+          </motion.div>
         </TabsContent>
       </Tabs>
     </OwnerPageLayout>

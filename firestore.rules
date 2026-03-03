@@ -114,7 +114,9 @@ service cloud.firestore {
       // SUBCOLEÇÃO: CONFIGURACAO PERFIL (abas do perfil do profissional)
       // ============================================
       match /ConfiguracaoPerfil/{tabName} {
-        allow read: if isOwner(professionalId);
+        // Leitura: o próprio profissional OU qualquer usuário autenticado vinculado
+        // (donos de estabelecimento precisam ler dados dos profissionais vinculados)
+        allow read: if isAuthenticated();
         allow write: if isOwner(professionalId);
       }
     }
@@ -178,6 +180,17 @@ service cloud.firestore {
       // Deleção: apenas o dono (usar Cloud Function para limpeza adequada)
       allow delete: if isAuthenticated()
         && resource.data.ownerId == request.auth.uid;
+
+      // ============================================
+      // SUBCOLEÇÃO: CONFIGURACOES (abas de configuração do estabelecimento)
+      // Leitura pública — mesmos dados do doc principal, visível em EmpresaDetalhes
+      // Escrita restrita ao dono do estabelecimento
+      // ============================================
+      match /Configuracoes/{tabName} {
+        allow read: if true;
+        allow write: if isAuthenticated()
+          && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+      }
 
       // ============================================
       // SUBCOLEÇÃO: GERENCIAR SERVICOS (documentos de aba)

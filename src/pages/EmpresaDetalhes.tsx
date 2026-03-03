@@ -29,6 +29,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { formatCurrency } from '@/lib/utils'
 import { getBusinessById, type Business } from '@/services/businessService'
 import { getServicos, getCombos, type ServicoData, type ComboData } from '@/services/gerenciarServicosService'
+import { getAllBusinessConfigs, type AllBusinessConfigs } from '@/services/businessConfigService'
 import { Package } from 'lucide-react'
 
 export function EmpresaDetalhes() {
@@ -55,9 +56,33 @@ export function EmpresaDetalhes() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
   const [business, setBusiness] = useState<Business | null>(null)
+  const [configs, setConfigs] = useState<AllBusinessConfigs | null>(null)
   const [businessServices, setBusinessServices] = useState<ServicoData[]>([])
   const [businessCombos, setBusinessCombos] = useState<ComboData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Mesclar dados do doc principal com subcoleções (subcoleção tem prioridade)
+  const mergedBusiness = business ? {
+    ...business,
+    name: configs?.informacoes?.name || business.name,
+    description: configs?.informacoes?.description || business.description,
+    phone: configs?.contato?.phone || business.phone,
+    email: configs?.contato?.email || business.email,
+    image: configs?.fotos?.image || business.image,
+    gallery: (configs?.fotos?.gallery && configs.fotos.gallery.length > 0)
+      ? configs.fotos.gallery
+      : business.gallery,
+    businessHours: configs?.horarios?.businessHours || business.businessHours,
+    address: {
+      street: configs?.endereco?.street || business.address?.street || '',
+      number: configs?.endereco?.number || business.address?.number || '',
+      complement: configs?.endereco?.complement ?? business.address?.complement,
+      neighborhood: configs?.endereco?.neighborhood || business.address?.neighborhood || '',
+      city: configs?.endereco?.city || business.address?.city || '',
+      state: configs?.endereco?.state || business.address?.state || '',
+      zipCode: configs?.endereco?.zipCode || business.address?.zipCode || '',
+    },
+  } : null
 
   // Carregar estabelecimento e serviços do Firestore
   useEffect(() => {
@@ -70,12 +95,14 @@ export function EmpresaDetalhes() {
         if (businessData) {
           setBusiness(businessData)
         }
-        const [servicosData, combosData] = await Promise.all([
+        const [servicosData, combosData, configsData] = await Promise.all([
           getServicos(businessId),
           getCombos(businessId),
+          getAllBusinessConfigs(businessId),
         ])
         setBusinessServices(servicosData)
         setBusinessCombos(combosData)
+        setConfigs(configsData)
       } catch (error) {
         console.error('Erro ao carregar estabelecimento:', error)
       } finally {
@@ -88,16 +115,16 @@ export function EmpresaDetalhes() {
 
   // Get gallery images from business data or fallback to main image
   const getGalleryImages = () => {
-    if (!business) return []
+    if (!mergedBusiness) return []
 
     // Se o estabelecimento tem galeria de fotos, usar ela
-    if (business.gallery && business.gallery.length > 0) {
-      return business.gallery
+    if (mergedBusiness.gallery && mergedBusiness.gallery.length > 0) {
+      return mergedBusiness.gallery
     }
 
     // Se tem imagem principal, usar como única imagem na galeria
-    if (business.image) {
-      return [business.image]
+    if (mergedBusiness.image) {
+      return [mergedBusiness.image]
     }
 
     // Fallback para uma imagem placeholder
@@ -151,7 +178,7 @@ export function EmpresaDetalhes() {
     )
   }
 
-  if (!business) {
+  if (!mergedBusiness) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
@@ -186,7 +213,7 @@ export function EmpresaDetalhes() {
     const dayOfWeek = selectedDate.getDay()
     const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     const todayString = dayMap[dayOfWeek]
-    const hours = business.businessHours.find((h) => h.day === todayString)
+    const hours = mergedBusiness!.businessHours.find((h) => h.day === todayString)
 
     if (!hours || !hours.isOpen) return []
 
@@ -241,8 +268,8 @@ export function EmpresaDetalhes() {
     const formattedDate = selectedDate.toISOString().split('T')[0]
     navigate('/checkout', {
       state: {
-        businessId: business.id,
-        businessName: business.name,
+        businessId: mergedBusiness!.id,
+        businessName: mergedBusiness!.name,
         serviceId: actualId,
         serviceName,
         servicePrice,
@@ -325,7 +352,7 @@ export function EmpresaDetalhes() {
                 >
                   <img
                     src={galleryImages[currentImageIndex]}
-                    alt={`${business.name} - Foto ${currentImageIndex + 1}`}
+                    alt={`${mergedBusiness.name} - Foto ${currentImageIndex + 1}`}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
@@ -393,7 +420,7 @@ export function EmpresaDetalhes() {
                   <CardTitle className="text-white">Sobre</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-400 leading-relaxed">{business.description}</p>
+                  <p className="text-gray-400 leading-relaxed">{mergedBusiness.description}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -535,28 +562,28 @@ export function EmpresaDetalhes() {
                   <div className="flex items-start gap-3">
                     <MapPin className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-gray-400">
-                      <p>{business.address.street}, {business.address.number}</p>
-                      <p>{business.address.neighborhood}</p>
-                      <p>{business.address.city} - {business.address.state}</p>
-                      <p>{business.address.zipCode}</p>
+                      <p>{mergedBusiness.address.street}, {mergedBusiness.address.number}</p>
+                      <p>{mergedBusiness.address.neighborhood}</p>
+                      <p>{mergedBusiness.address.city} - {mergedBusiness.address.state}</p>
+                      <p>{mergedBusiness.address.zipCode}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Phone className="w-5 h-5 text-gold" />
                     <a
-                      href={`tel:${business.phone}`}
+                      href={`tel:${mergedBusiness.phone}`}
                       className="text-sm text-gray-400 hover:text-gold transition-colors"
                     >
-                      {business.phone}
+                      {mergedBusiness.phone}
                     </a>
                   </div>
                   <div className="flex items-center gap-3">
                     <Mail className="w-5 h-5 text-gold" />
                     <a
-                      href={`mailto:${business.email}`}
+                      href={`mailto:${mergedBusiness.email}`}
                       className="text-sm text-gray-400 hover:text-gold transition-colors"
                     >
-                      {business.email}
+                      {mergedBusiness.email}
                     </a>
                   </div>
                 </CardContent>
@@ -575,7 +602,7 @@ export function EmpresaDetalhes() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {business.businessHours.map((hours) => (
+                    {mergedBusiness.businessHours.map((hours) => (
                       <div
                         key={hours.day}
                         className="flex items-center justify-between text-sm"
@@ -602,7 +629,7 @@ export function EmpresaDetalhes() {
             >
               {/* Instagram */}
               <motion.a
-                href={`https://instagram.com/${business.name.toLowerCase().replace(/\s+/g, '')}`}
+                href={`https://instagram.com/${mergedBusiness.name.toLowerCase().replace(/\s+/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.15, y: -3 }}
@@ -614,7 +641,7 @@ export function EmpresaDetalhes() {
 
               {/* Facebook */}
               <motion.a
-                href={`https://facebook.com/${business.name.toLowerCase().replace(/\s+/g, '')}`}
+                href={`https://facebook.com/${mergedBusiness.name.toLowerCase().replace(/\s+/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.15, y: -3 }}
@@ -626,7 +653,7 @@ export function EmpresaDetalhes() {
 
               {/* WhatsApp */}
               <motion.a
-                href={`https://wa.me/55${business.phone.replace(/\D/g, '')}`}
+                href={`https://wa.me/55${mergedBusiness.phone.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.15, y: -3 }}
@@ -640,7 +667,7 @@ export function EmpresaDetalhes() {
 
               {/* X (Twitter) */}
               <motion.a
-                href={`https://x.com/${business.name.toLowerCase().replace(/\s+/g, '')}`}
+                href={`https://x.com/${mergedBusiness.name.toLowerCase().replace(/\s+/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.15, y: -3 }}

@@ -211,6 +211,19 @@ export async function deactivateProfessionalLink(linkId: string): Promise<void> 
 }
 
 // ============================================
+// DELETAR VÍNCULO (desvincular profissional do estabelecimento)
+// Remove permanentemente — profissional pode re-vincular no futuro
+// ============================================
+
+export async function deleteProfessionalLink(linkId: string): Promise<void> {
+  await deleteDoc(doc(db, COLLECTION_NAME, linkId))
+}
+
+export async function deleteProfessionalLinks(linkIds: string[]): Promise<void> {
+  await Promise.all(linkIds.map(id => deleteDoc(doc(db, COLLECTION_NAME, id))))
+}
+
+// ============================================
 // BUSCAR VÍNCULOS DO PROFISSIONAL
 // ============================================
 
