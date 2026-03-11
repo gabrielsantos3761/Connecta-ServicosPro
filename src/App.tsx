@@ -25,6 +25,7 @@ import { Checkout } from './pages/Checkout'
 import { ConfirmacaoAgendamento } from './pages/ConfirmacaoAgendamento'
 import { ProfissionalDashboard } from './pages/ProfissionalDashboard'
 import { ProfissionalAssociarBarbearia } from './pages/ProfissionalAssociarBarbearia'
+import { ProfissionalPainelEstabelecimento } from './pages/ProfissionalPainelEstabelecimento'
 import { Perfil } from './pages/Perfil'
 import { CompleteProfile } from './pages/CompleteProfile'
 import { ConfiguracoesEstabelecimento } from './pages/ConfiguracoesEstabelecimento'
@@ -75,6 +76,7 @@ function App() {
           >
             <Route index element={<ProfissionalDashboard />} />
             <Route path="associar-barbearia" element={<ProfissionalAssociarBarbearia />} />
+            <Route path=":businessId/painel" element={<ProfissionalPainelEstabelecimento />} />
           </Route>
 
           {/* Rota de Seleção de Empresa (Proprietário) */}

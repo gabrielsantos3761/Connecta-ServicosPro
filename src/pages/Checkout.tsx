@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { createAppointment } from '@/services/appointmentService'
 import {
   CreditCard,
   Smartphone,
@@ -11,6 +13,7 @@ import {
   Scissors,
   Check,
   Lock,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,11 +25,17 @@ import { formatCurrency } from '@/lib/utils'
 interface BookingData {
   businessId: string
   businessName: string
+  businessPhone?: string
+  businessEmail?: string
+  businessAddress?: { street?: string; number?: string; neighborhood?: string; city?: string; state?: string }
   serviceId: string
   serviceName: string
   servicePrice: number
   serviceDuration: number
-  serviceDescription: string
+  serviceDescription?: string
+  professionalId?: string
+  professionalName?: string
+  professionalRole?: string
   date: string
   time: string
 }
@@ -36,9 +45,11 @@ type PaymentMethod = 'credit' | 'debit' | 'pix' | 'cash'
 export function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user } = useAuth()
   const bookingData = location.state as BookingData
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [cardData, setCardData] = useState({
     number: '',
     name: '',
@@ -83,7 +94,7 @@ export function Checkout() {
     return date.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   }
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (!selectedPaymentMethod) {
       alert('Por favor, selecione uma forma de pagamento')
       return
@@ -96,11 +107,39 @@ export function Checkout() {
       }
     }
 
-    // Simular processamento de pagamento
+    setIsProcessing(true)
+    let appointmentId: string | undefined
+
+    if (user) {
+      try {
+        appointmentId = await createAppointment({
+          businessId: bookingData.businessId,
+          businessName: bookingData.businessName,
+          professionalId: bookingData.professionalId ?? 'any',
+          professionalName: bookingData.professionalName,
+          clientId: user.uid,
+          clientName: user.name,
+          serviceId: bookingData.serviceId,
+          serviceName: bookingData.serviceName,
+          servicePrice: bookingData.servicePrice,
+          serviceDuration: bookingData.serviceDuration,
+          serviceDescription: bookingData.serviceDescription,
+          date: bookingData.date,
+          time: bookingData.time,
+          paymentMethod: selectedPaymentMethod,
+        })
+      } catch (error) {
+        console.error('[Checkout] Erro ao salvar agendamento:', error)
+        // Continua mesmo com erro para não bloquear o fluxo
+      }
+    }
+
+    setIsProcessing(false)
     navigate('/confirmacao-agendamento', {
       state: {
         ...bookingData,
         paymentMethod: selectedPaymentMethod,
+        appointmentId,
       },
     })
   }
@@ -377,10 +416,14 @@ export function Checkout() {
                         size="lg"
                         className="w-full bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold shadow-lg shadow-gold/20"
                         onClick={handlePayment}
-                        disabled={!selectedPaymentMethod}
+                        disabled={!selectedPaymentMethod || isProcessing}
                       >
-                        <Check className="w-5 h-5 mr-2" />
-                        Confirmar Pagamento
+                        {isProcessing ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        ) : (
+                          <Check className="w-5 h-5 mr-2" />
+                        )}
+                        {isProcessing ? 'Confirmando...' : 'Confirmar Pagamento'}
                       </Button>
                     </motion.div>
 

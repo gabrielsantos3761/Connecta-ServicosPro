@@ -85,6 +85,7 @@ export function ProfissionalDashboard() {
         if (infoPessoais) {
           setFormData(prev => ({
             ...prev,
+            name: infoPessoais.name || prev.name,
             phone: infoPessoais.phone || prev.phone,
             pix: infoPessoais.pix || '',
           }))

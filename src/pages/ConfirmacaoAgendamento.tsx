@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import {
   CheckCircle,
   Calendar,
@@ -25,21 +25,29 @@ import confetti from 'canvas-confetti'
 
 interface ConfirmationData {
   businessId: string
+  businessName: string
+  businessPhone?: string
+  businessEmail?: string
+  businessAddress?: { street?: string; number?: string; neighborhood?: string; city?: string; state?: string }
   serviceId: string
+  serviceName: string
+  servicePrice: number
+  serviceDuration: number
+  serviceDescription?: string
   professionalId: string
+  professionalName?: string
+  professionalRole?: string
   date: string
   time: string
   paymentMethod: string
-  business: any
-  service: any
-  professional: any
+  appointmentId?: string
 }
 
 export function ConfirmacaoAgendamento() {
   const navigate = useNavigate()
   const location = useLocation()
   const confirmationData = location.state as ConfirmationData
-  const [bookingId] = useState(`AG${Date.now().toString().slice(-8)}`)
+  const bookingId = confirmationData?.appointmentId ?? `AG${Date.now().toString().slice(-8)}`
 
   useEffect(() => {
     // Disparar confetti ao carregar a página
@@ -90,7 +98,12 @@ export function ConfirmacaoAgendamento() {
     )
   }
 
-  const { business, service, professional, date, time, paymentMethod } = confirmationData
+  const {
+    businessName, businessPhone, businessEmail, businessAddress,
+    serviceName, servicePrice, serviceDuration, serviceDescription,
+    professionalName, professionalRole,
+    date, time, paymentMethod,
+  } = confirmationData
 
   const formatDate = (dateString: string) => {
     const dateObj = new Date(dateString + 'T00:00:00')
@@ -118,7 +131,7 @@ export function ConfirmacaoAgendamento() {
     if (navigator.share) {
       navigator.share({
         title: 'Meu Agendamento',
-        text: `Agendamento confirmado em ${business.name} para ${formatDate(date)} às ${time}`,
+        text: `Agendamento confirmado em ${businessName} para ${formatDate(date)} às ${time}`,
       })
     } else {
       alert('Compartilhamento não suportado neste navegador')
@@ -169,27 +182,34 @@ export function ConfirmacaoAgendamento() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-gray-400 mb-1">Estabelecimento</p>
-                    <p className="font-bold text-lg text-white">{business.name}</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      {business.address.street}, {business.address.number} - {business.address.neighborhood}
-                      <br />
-                      {business.address.city} - {business.address.state}
-                    </p>
+                    <p className="font-bold text-lg text-white">{businessName}</p>
+                    {businessAddress && (
+                      <p className="text-sm text-gray-400 mt-1">
+                        {businessAddress.street}{businessAddress.number ? `, ${businessAddress.number}` : ''}{businessAddress.neighborhood ? ` - ${businessAddress.neighborhood}` : ''}
+                        {(businessAddress.city || businessAddress.state) && (
+                          <><br />{businessAddress.city}{businessAddress.state ? ` - ${businessAddress.state}` : ''}</>
+                        )}
+                      </p>
+                    )}
                     <div className="flex gap-3 mt-2">
-                      <a
-                        href={`tel:${business.phone}`}
-                        className="text-sm text-gold hover:text-yellow-600 flex items-center gap-1 transition-colors"
-                      >
-                        <Phone className="w-3 h-3" />
-                        {business.phone}
-                      </a>
-                      <a
-                        href={`mailto:${business.email}`}
-                        className="text-sm text-gold hover:text-yellow-600 flex items-center gap-1 transition-colors"
-                      >
-                        <Mail className="w-3 h-3" />
-                        Email
-                      </a>
+                      {businessPhone && (
+                        <a
+                          href={`tel:${businessPhone}`}
+                          className="text-sm text-gold hover:text-yellow-600 flex items-center gap-1 transition-colors"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {businessPhone}
+                        </a>
+                      )}
+                      {businessEmail && (
+                        <a
+                          href={`mailto:${businessEmail}`}
+                          className="text-sm text-gold hover:text-yellow-600 flex items-center gap-1 transition-colors"
+                        >
+                          <Mail className="w-3 h-3" />
+                          Email
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -203,15 +223,15 @@ export function ConfirmacaoAgendamento() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-gray-400 mb-1">Serviço</p>
-                    <p className="font-bold text-lg text-white">{service.name}</p>
-                    <p className="text-sm text-gray-400 mt-1">{service.description}</p>
+                    <p className="font-bold text-lg text-white">{serviceName}</p>
+                    {serviceDescription && <p className="text-sm text-gray-400 mt-1">{serviceDescription}</p>}
                     <div className="flex items-center gap-3 mt-2">
                       <Badge variant="outline" className="border-white/20 text-gray-400">
                         <Clock className="w-3 h-3 mr-1" />
-                        {service.duration} minutos
+                        {serviceDuration} minutos
                       </Badge>
                       <Badge variant="outline" className="bg-gold/10 border-gold text-gold">
-                        {formatCurrency(service.price)}
+                        {formatCurrency(servicePrice)}
                       </Badge>
                     </div>
                   </div>
@@ -226,8 +246,8 @@ export function ConfirmacaoAgendamento() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-gray-400 mb-1">Profissional</p>
-                    <p className="font-bold text-lg text-white">{professional.name}</p>
-                    <p className="text-sm text-gray-400">{professional.role}</p>
+                    <p className="font-bold text-lg text-white">{professionalName || 'Qualquer profissional disponível'}</p>
+                    {professionalRole && <p className="text-sm text-gray-400">{professionalRole}</p>}
                   </div>
                 </div>
 

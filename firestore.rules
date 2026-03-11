@@ -196,16 +196,16 @@ service cloud.firestore {
       // SUBCOLEÇÃO: GERENCIAR SERVICOS (documentos de aba)
       // ============================================
       match /GerenciarServicos/{tabName} {
-        allow read: if isAuthenticated()
-          && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+        // Leitura pública — clientes precisam ver serviços/combos para agendar
+        allow read: if true;
 
         allow write: if isAuthenticated()
           && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
 
         // SUBCOLEÇÃO: ITEMS (itens de cada aba)
         match /items/{itemId} {
-          allow read: if isAuthenticated()
-            && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+          // Leitura pública — clientes precisam ver serviços/combos para agendar
+          allow read: if true;
 
           allow create: if isAuthenticated()
             && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
@@ -318,11 +318,15 @@ service cloud.firestore {
     // COLEÇÃO: PROFESSIONAL_LINKS (Vínculos Profissional ↔ Estabelecimento)
     // ============================================
     match /professional_links/{linkId} {
-      // Leitura: profissional vinculado ou dono do estabelecimento
-      allow read: if isAuthenticated() && (
+      // Leitura de documento específico: profissional vinculado ou dono do estabelecimento
+      allow get: if isAuthenticated() && (
         resource.data.professionalId == request.auth.uid
         || get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
       );
+
+      // Query (list): qualquer usuário autenticado pode buscar links por businessId
+      // necessário para a página de agendamento mostrar profissionais disponíveis
+      allow list: if isAuthenticated();
 
       // Criação: profissional autenticado pode solicitar vínculo
       allow create: if isAuthenticated()
@@ -340,11 +344,18 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/businesses/$(request.resource.data.businessId)).data.ownerId == request.auth.uid)
         );
 
-      // Atualização: dono do estabelecimento pode aprovar/rejeitar
-      allow update: if isAuthenticated()
-        && get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
-        && request.resource.data.professionalId == resource.data.professionalId
-        && request.resource.data.businessId == resource.data.businessId;
+      // Atualização: dono do estabelecimento OU profissional (apenas workSchedule)
+      allow update: if isAuthenticated() && (
+        // Owner pode aprovar/rejeitar/configurar
+        (get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid
+          && request.resource.data.professionalId == resource.data.professionalId
+          && request.resource.data.businessId == resource.data.businessId)
+        // Profissional pode atualizar workSchedule do próprio link (sem alterar status)
+        || (resource.data.professionalId == request.auth.uid
+          && request.resource.data.professionalId == resource.data.professionalId
+          && request.resource.data.businessId == resource.data.businessId
+          && request.resource.data.status == resource.data.status)
+      );
 
       // Deleção: profissional ou dono do estabelecimento
       allow delete: if isAuthenticated() && (

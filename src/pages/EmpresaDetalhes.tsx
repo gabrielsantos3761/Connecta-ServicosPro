@@ -30,6 +30,8 @@ import { formatCurrency } from '@/lib/utils'
 import { getBusinessById, type Business } from '@/services/businessService'
 import { getServicos, getCombos, type ServicoData, type ComboData } from '@/services/gerenciarServicosService'
 import { getAllBusinessConfigs, type AllBusinessConfigs } from '@/services/businessConfigService'
+import { getLinksByBusiness, type ProfessionalLink } from '@/services/professionalLinkService'
+import { getProfissionalInfoPessoais } from '@/services/professionalProfileService'
 import { Package } from 'lucide-react'
 
 export function EmpresaDetalhes() {
@@ -59,6 +61,8 @@ export function EmpresaDetalhes() {
   const [configs, setConfigs] = useState<AllBusinessConfigs | null>(null)
   const [businessServices, setBusinessServices] = useState<ServicoData[]>([])
   const [businessCombos, setBusinessCombos] = useState<ComboData[]>([])
+  const [businessProfessionals, setBusinessProfessionals] = useState<ProfessionalLink[]>([])
+  const [professionalSocialNames, setProfessionalSocialNames] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(true)
 
   // Mesclar dados do doc principal com subcoleções (subcoleção tem prioridade)
@@ -95,14 +99,29 @@ export function EmpresaDetalhes() {
         if (businessData) {
           setBusiness(businessData)
         }
-        const [servicosData, combosData, configsData] = await Promise.all([
+        const [servicosData, combosData, configsData, profissionaisData] = await Promise.all([
           getServicos(businessId),
           getCombos(businessId),
           getAllBusinessConfigs(businessId),
+          getLinksByBusiness(businessId),
         ])
         setBusinessServices(servicosData)
         setBusinessCombos(combosData)
         setConfigs(configsData)
+        const activeProfs = profissionaisData.filter(p => p.status === 'active')
+        setBusinessProfessionals(activeProfs)
+
+        // Carregar nomes sociais do Firestore
+        const socialNames: Record<string, string> = {}
+        await Promise.all(
+          activeProfs.map(async (link) => {
+            try {
+              const info = await getProfissionalInfoPessoais(link.professionalId)
+              if (info?.name) socialNames[link.professionalId] = info.name
+            } catch { /* mantém fallback para professionalName */ }
+          })
+        )
+        setProfessionalSocialNames(socialNames)
       } catch (error) {
         console.error('Erro ao carregar estabelecimento:', error)
       } finally {
@@ -207,25 +226,63 @@ export function EmpresaDetalhes() {
     return dayMap[day] || day
   }
 
+  const DAY_MAP = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+  const getSelectedProfLink = () => {
+    if (!selectedProfessional || selectedProfessional === 'any') return null
+    return businessProfessionals.find(p => p.professionalId === selectedProfessional) ?? null
+  }
+
+  const isDateDisabled = (date: Date) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (date < today) return true
+
+    const dayKey = DAY_MAP[date.getDay()]
+    const profLink = getSelectedProfLink()
+
+    if (profLink) {
+      const schedDay = profLink.workSchedule?.find(s => s.day === dayKey)
+      return !schedDay?.isActive
+    }
+
+    // "Qualquer profissional" → usa horários do estabelecimento
+    const hours = mergedBusiness!.businessHours.find(h => h.day === dayKey)
+    return !hours?.isOpen
+  }
+
   const getAvailableTimes = () => {
     if (!selectedDate) return []
 
-    const dayOfWeek = selectedDate.getDay()
-    const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-    const todayString = dayMap[dayOfWeek]
-    const hours = mergedBusiness!.businessHours.find((h) => h.day === todayString)
+    const dayKey = DAY_MAP[selectedDate.getDay()]
+    const profLink = getSelectedProfLink()
 
-    if (!hours || !hours.isOpen) return []
+    let openTime: string
+    let closeTime: string
+
+    if (profLink) {
+      const schedDay = profLink.workSchedule?.find(s => s.day === dayKey)
+      if (!schedDay?.isActive) return []
+      openTime = schedDay.start
+      closeTime = schedDay.end
+    } else {
+      const hours = mergedBusiness!.businessHours.find(h => h.day === dayKey)
+      if (!hours?.isOpen) return []
+      openTime = hours.open
+      closeTime = hours.close
+    }
 
     const times: string[] = []
-    const [openHour] = hours.open.split(':').map(Number)
-    const [closeHour, closeMinute] = hours.close.split(':').map(Number)
+    const [openHour, openMin] = openTime.split(':').map(Number)
+    const [closeHour, closeMin] = closeTime.split(':').map(Number)
+    let current = openHour * 60 + (openMin || 0)
+    const end = closeHour * 60 + (closeMin || 0)
 
-    for (let hour = openHour; hour < closeHour; hour++) {
-      times.push(`${hour.toString().padStart(2, '0')}:00`)
-      if (hour !== closeHour - 1 || closeMinute >= 30) {
-        times.push(`${hour.toString().padStart(2, '0')}:30`)
-      }
+    while (current < end) {
+      const h = Math.floor(current / 60)
+      const m = current % 60
+      times.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)
+      current += 30
     }
 
     return times
@@ -270,12 +327,19 @@ export function EmpresaDetalhes() {
       state: {
         businessId: mergedBusiness!.id,
         businessName: mergedBusiness!.name,
+        businessPhone: mergedBusiness!.phone,
+        businessEmail: mergedBusiness!.email,
+        businessAddress: mergedBusiness!.address,
         serviceId: actualId,
         serviceName,
         servicePrice,
         serviceDuration,
         serviceDescription,
         professionalId: selectedProfessional,
+        professionalName: selectedProfessional === 'any'
+          ? 'Qualquer profissional disponível'
+          : (professionalSocialNames[selectedProfessional] || businessProfessionals.find(p => p.professionalId === selectedProfessional)?.professionalName || ''),
+        professionalRole: businessProfessionals.find(p => p.professionalId === selectedProfessional)?.role || '',
         date: formattedDate,
         time: selectedTime,
       },
@@ -778,10 +842,19 @@ export function EmpresaDetalhes() {
                 className="w-full h-11 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/50 text-white transition-all cursor-pointer appearance-none"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23D4AF37'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
                 value={selectedProfessional}
-                onChange={(e) => setSelectedProfessional(e.target.value)}
+                onChange={(e) => {
+                  setSelectedProfessional(e.target.value)
+                  setSelectedDate(undefined)
+                  setSelectedTime('')
+                }}
               >
                 <option value="" className="bg-gray-900">Selecione um profissional</option>
                 <option value="any" className="bg-gray-900">Qualquer profissional disponível</option>
+                {businessProfessionals.map((link) => (
+                  <option key={link.professionalId} value={link.professionalId} className="bg-gray-900">
+                    {professionalSocialNames[link.professionalId] || link.professionalName}{link.role ? ` - ${link.role}` : ''}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -791,8 +864,8 @@ export function EmpresaDetalhes() {
               <div className="space-y-2">
                 <Label htmlFor="date" className="text-sm font-medium text-gray-300">Data</Label>
                 <Popover
-                  open={isCalendarOpen}
-                  onOpenChange={setIsCalendarOpen}
+                  open={isCalendarOpen && !!selectedProfessional}
+                  onOpenChange={(open) => selectedProfessional && setIsCalendarOpen(open)}
                   align="start"
                   className="w-full block"
                   content={
@@ -804,23 +877,23 @@ export function EmpresaDetalhes() {
                         setSelectedTime('')
                         setIsCalendarOpen(false)
                       }}
+                      disabled={isDateDisabled}
                     />
                   }
                 >
                   <button
                     type="button"
-                    className="w-full h-11 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition-all cursor-pointer hover:bg-white/10 text-left"
+                    disabled={!selectedProfessional}
+                    onClick={() => selectedProfessional && setIsCalendarOpen(!isCalendarOpen)}
+                    className={`w-full h-11 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition-all text-left ${!selectedProfessional ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-white/10'}`}
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23D4AF37'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
                   >
                     <span className={selectedDate ? 'text-white' : 'text-gray-400'}>
-                      {selectedDate ? (
-                        selectedDate.toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'short'
-                        })
-                      ) : (
-                        'Selecione'
-                      )}
+                      {!selectedProfessional
+                        ? 'Selecione um profissional'
+                        : selectedDate
+                          ? selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+                          : 'Selecione'}
                     </span>
                   </button>
                 </Popover>

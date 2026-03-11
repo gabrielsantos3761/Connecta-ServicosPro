@@ -69,8 +69,7 @@ export function ProfissionalAssociarBarbearia() {
   const pendingLinks = links.filter(l => l.status === 'pending')
 
   const handleSelectBusiness = (businessId: string) => {
-    localStorage.setItem('selected_business_id', businessId)
-    navigate('/profissional')
+    navigate(`/profissional/${businessId}/painel`)
   }
 
   const handleOpenModal = () => {

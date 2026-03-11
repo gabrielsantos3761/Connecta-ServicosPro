@@ -9,6 +9,7 @@ export type CalendarProps = {
   onSelect?: (date: Date | { from?: Date; to?: Date } | undefined) => void
   className?: string
   numberOfMonths?: number
+  disabled?: (date: Date) => boolean
 }
 
 export function Calendar({
@@ -16,6 +17,7 @@ export function Calendar({
   selected,
   onSelect,
   className,
+  disabled,
 }: CalendarProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date())
 
@@ -127,22 +129,24 @@ export function Calendar({
       const rangeEnd = isRangeEnd(day)
       const today = isToday(day)
       const past = isPastDate(day)
+      const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+      const isDisabled = past || (disabled ? disabled(dateObj) : false)
 
       days.push(
         <button
           key={day}
-          onClick={() => !past && handleDateClick(day)}
-          disabled={past}
+          onClick={() => !isDisabled && handleDateClick(day)}
+          disabled={isDisabled}
           className={cn(
             "w-9 h-9 text-sm rounded-full flex items-center justify-center transition-all duration-200 font-medium",
             // Default state
-            !selected && !today && !past && "text-white hover:bg-gold/20 hover:text-gold",
+            !selected && !today && !isDisabled && "text-white hover:bg-gold/20 hover:text-gold",
             // Today highlight
-            today && !selected && "bg-gold/20 text-gold border border-gold/50",
+            today && !selected && !isDisabled && "bg-gold/20 text-gold border border-gold/50",
             // Selected state
             selected && "bg-gradient-to-br from-gold to-yellow-600 text-black shadow-lg shadow-gold/30",
-            // Past dates
-            past && "text-gray-600 cursor-not-allowed opacity-50",
+            // Disabled dates
+            isDisabled && "text-gray-600 cursor-not-allowed opacity-50",
             // Range styles
             rangeStart && "rounded-r-none",
             rangeEnd && "rounded-l-none",
