@@ -1,295 +1,382 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Building2, MapPin, Star, TrendingUp, Plus, ArrowRight, Loader2, Menu } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  Building2, MapPin, Star, TrendingUp, Plus,
+  ArrowRight, Loader2, Menu,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getBusinessesByOwner, type Business } from '@/services/businessService'
 import { useToast } from '@/hooks/use-toast'
 import { Sidebar } from '@/components/Sidebar'
 
+const grainStyle: React.CSSProperties = {
+  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+  backgroundSize: '256px 256px',
+}
+
 export function SelecionarEmpresa() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const { toast } = useToast()
   const [userBusinesses, setUserBusinesses] = useState<Business[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Buscar empresas do proprietário logado
   useEffect(() => {
     const fetchBusinesses = async () => {
       if (!user?.id) return
-
       try {
         setIsLoading(true)
         const businesses = await getBusinessesByOwner(user.id)
         setUserBusinesses(businesses)
       } catch (error: any) {
         console.error('Erro ao buscar estabelecimentos:', error)
-        toast({
-          title: 'Erro',
-          description: 'Erro ao carregar estabelecimentos',
-          variant: 'destructive',
-        })
+        toast({ title: 'Erro', description: 'Erro ao carregar estabelecimentos', variant: 'destructive' })
       } finally {
         setIsLoading(false)
       }
     }
-
     fetchBusinesses()
   }, [user?.id, toast])
 
   const handleSelectBusiness = (businessId: string) => {
-    // Salvar a empresa selecionada no contexto/localStorage
     localStorage.setItem('selected_business_id', businessId)
     navigate(`/${businessId}/dashboard`)
   }
 
+  const avgRating = userBusinesses.length > 0
+    ? (userBusinesses.reduce((a, b) => a + b.rating, 0) / userBusinesses.length).toFixed(1)
+    : '0.0'
+  const totalReviews = userBusinesses.reduce((a, b) => a + b.totalReviews, 0)
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black relative overflow-hidden">
+    <div className="min-h-screen relative" style={{ background: '#050400' }}>
+      {/* Grain */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.025]" style={grainStyle} />
+
+      {/* Ambient glows */}
+      <div
+        className="fixed top-0 left-0 w-[700px] h-[700px] pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 10% 10%, rgba(212,175,55,0.07) 0%, transparent 60%)' }}
+      />
+      <div
+        className="fixed bottom-0 right-0 w-[500px] h-[500px] pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 90% 90%, rgba(212,175,55,0.04) 0%, transparent 60%)' }}
+      />
+
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Menu Button - Fixed Position */}
+      {/* Menu button */}
       <AnimatePresence>
         {!sidebarOpen && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
             onClick={() => setSidebarOpen(true)}
-            className="fixed top-4 left-4 md:top-6 md:left-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-gold to-yellow-600 backdrop-blur-xl border-2 border-white/20 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl hover:shadow-gold/50"
+            className="fixed top-4 left-4 z-50 w-12 h-12 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #D4AF37, #B8941E)', boxShadow: '0 4px 24px rgba(212,175,55,0.3)' }}
           >
-            <Menu className="w-6 h-6 md:w-7 md:h-7 text-white" />
+            <Menu className="w-5 h-5 text-black" />
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Animated Gradient Orbs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-gold/20 to-transparent rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-purple-500/20 to-transparent rounded-full blur-3xl"
-        />
-      </div>
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Page Header */}
+        {/* ── HEADER ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-center mb-12"
+          transition={{ duration: 0.5 }}
+          className="mb-14"
         >
-          <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-gray-100 to-white bg-clip-text text-transparent mb-4">
-            Selecione uma Empresa
-          </h2>
-          <p className="text-lg text-gray-400 mb-8">
-            Escolha qual estabelecimento você deseja gerenciar
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-xs font-semibold uppercase tracking-widest"
+            style={{
+              background: 'rgba(212,175,55,0.08)',
+              border: '1px solid rgba(212,175,55,0.2)',
+              color: '#D4AF37',
+            }}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            Área do Proprietário
+          </div>
+
+          <h1
+            className="text-5xl md:text-6xl font-bold text-white mb-4"
+            style={{ fontFamily: "'Playfair Display', serif", lineHeight: 1.1 }}
+          >
+            Seus{' '}
+            <span style={{ color: '#D4AF37' }}>Estabelecimentos</span>
+          </h1>
+          <p className="text-lg" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            Selecione um estabelecimento para acessar o dashboard
           </p>
         </motion.div>
 
-        {/* Stats Overview */}
+        {/* ── STATS ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
+          transition={{ delay: 0.15, duration: 0.4 }}
+          className="grid grid-cols-3 gap-0 mb-14 rounded-2xl overflow-hidden"
+          style={{ border: '1px solid rgba(255,255,255,0.06)' }}
         >
-          <motion.div
-            whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-gold/50 transition-all"
-          >
-            <Building2 className="w-8 h-8 text-gold mx-auto mb-2" />
-            <p className="text-3xl font-bold text-white">{userBusinesses.length}</p>
-            <p className="text-sm text-gray-400">
-              {userBusinesses.length === 1 ? 'Estabelecimento' : 'Estabelecimentos'}
-            </p>
-          </motion.div>
-          <motion.div
-            whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-gold/50 transition-all"
-          >
-            <Star className="w-8 h-8 text-gold mx-auto mb-2" />
-            <p className="text-3xl font-bold text-white">
-              {userBusinesses.length > 0
-                ? (
-                    userBusinesses.reduce((acc, b) => acc + b.rating, 0) / userBusinesses.length
-                  ).toFixed(1)
-                : '0.0'}
-            </p>
-            <p className="text-sm text-gray-400">Avaliação Média</p>
-          </motion.div>
-          <motion.div
-            whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-gold/50 transition-all"
-          >
-            <TrendingUp className="w-8 h-8 text-gold mx-auto mb-2" />
-            <p className="text-3xl font-bold text-white">
-              {userBusinesses.reduce((acc, b) => acc + b.totalReviews, 0)}
-            </p>
-            <p className="text-sm text-gray-400">Total de Avaliações</p>
-          </motion.div>
+          {[
+            {
+              icon: Building2,
+              value: userBusinesses.length,
+              label: userBusinesses.length === 1 ? 'Estabelecimento' : 'Estabelecimentos',
+            },
+            {
+              icon: Star,
+              value: avgRating,
+              label: 'Avaliação Média',
+            },
+            {
+              icon: TrendingUp,
+              value: totalReviews,
+              label: 'Total de Avaliações',
+            },
+          ].map((stat, i) => {
+            const Icon = stat.icon
+            return (
+              <div
+                key={i}
+                className="flex flex-col items-center justify-center py-8 px-6"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                }}
+              >
+                <Icon className="w-5 h-5 mb-3" style={{ color: 'rgba(212,175,55,0.6)' }} />
+                <p
+                  className="text-3xl font-bold text-white mb-1"
+                  style={{ fontFamily: "'Playfair Display', serif" }}
+                >
+                  {stat.value}
+                </p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', letterSpacing: '0.05em' }}>
+                  {stat.label}
+                </p>
+              </div>
+            )
+          })}
         </motion.div>
 
-        {/* Business Cards */}
+        {/* ── CARDS ── */}
         {isLoading ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-16"
+            className="flex flex-col items-center justify-center py-24 gap-4"
           >
-            <Loader2 className="w-12 h-12 text-gold animate-spin mb-4" />
-            <p className="text-white text-lg">Carregando estabelecimentos...</p>
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#D4AF37' }} />
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              Carregando estabelecimentos…
+            </p>
           </motion.div>
         ) : userBusinesses.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-center py-16"
+            className="flex flex-col items-center justify-center py-24 text-center"
           >
-            <Building2 className="w-20 h-20 mx-auto text-gray-600 mb-6" />
-            <h3 className="text-2xl font-bold text-white mb-2">
+            <div
+              className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6"
+              style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.15)' }}
+            >
+              <Building2 className="w-9 h-9" style={{ color: 'rgba(212,175,55,0.5)' }} />
+            </div>
+            <h3
+              className="text-2xl font-bold text-white mb-2"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
               Nenhuma empresa cadastrada
             </h3>
-            <p className="text-gray-400 mb-8">
+            <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.3)' }}>
               Cadastre seu primeiro estabelecimento para começar
             </p>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="default"
-                size="lg"
-                className="bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold"
-                onClick={() => navigate('/cadastrar-estabelecimento')}
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Cadastrar Estabelecimento
-              </Button>
-            </motion.div>
+            <button
+              onClick={() => navigate('/cadastrar-estabelecimento')}
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-semibold text-black transition-opacity hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg, #D4AF37, #B8941E)' }}
+            >
+              <Plus className="w-4 h-4" />
+              Cadastrar Estabelecimento
+            </button>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {userBusinesses.map((business, index) => (
               <motion.div
                 key={business.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ y: -8 }}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + index * 0.08 }}
+                whileHover={{ y: -6 }}
                 onClick={() => handleSelectBusiness(business.id)}
+                className="cursor-pointer group"
               >
-                <Card className="h-full cursor-pointer hover:shadow-2xl hover:shadow-gold/10 transition-all duration-300 border-2 border-white/10 hover:border-gold/50 group overflow-hidden bg-white/5 backdrop-blur-sm">
-                  {/* Image/Banner */}
-                  <div className="relative h-40 bg-gradient-to-br from-gold/20 to-gold/5 overflow-hidden">
-                    {business.image && (
+                <div
+                  className="rounded-2xl overflow-hidden transition-all duration-300"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    boxShadow: '0 0 0 0 rgba(212,175,55,0)',
+                    transition: 'border-color 0.3s, box-shadow 0.3s, transform 0.3s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(212,175,55,0.3)'
+                    e.currentTarget.style.boxShadow = '0 20px 60px rgba(212,175,55,0.08)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
+                    e.currentTarget.style.boxShadow = '0 0 0 0 rgba(212,175,55,0)'
+                  }}
+                >
+                  {/* Image */}
+                  <div className="relative h-44 overflow-hidden">
+                    {business.image ? (
                       <img
                         src={business.image}
                         alt={business.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div
+                        className="w-full h-full"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(212,175,55,0.12) 0%, rgba(10,8,0,0.8) 100%)',
+                        }}
                       />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                    <div className="absolute top-3 right-3">
-                      <Badge className="bg-gradient-to-r from-gold to-yellow-600 text-black border-0">
-                        <Star className="w-3 h-3 mr-1 fill-black" />
-                        {business.rating.toFixed(1)}
-                      </Badge>
+                    {/* Gradient bottom overlay */}
+                    <div
+                      className="absolute inset-0"
+                      style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(5,4,0,0.85) 100%)' }}
+                    />
+
+                    {/* Rating badge */}
+                    <div
+                      className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-black"
+                      style={{ background: 'linear-gradient(135deg, #D4AF37, #B8941E)' }}
+                    >
+                      <Star className="w-3 h-3 fill-black" />
+                      {business.rating.toFixed(1)}
                     </div>
-                    <div className="absolute bottom-3 left-3 right-3">
-                      <Badge
-                        variant="outline"
-                        className="bg-white/10 backdrop-blur-sm text-white border-white/20"
+
+                    {/* Category badge */}
+                    <div className="absolute bottom-3 left-3">
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full font-medium"
+                        style={{
+                          background: 'rgba(0,0,0,0.6)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid rgba(255,255,255,0.12)',
+                          color: 'rgba(255,255,255,0.8)',
+                        }}
                       >
                         {business.category}
-                      </Badge>
+                      </span>
                     </div>
                   </div>
 
-                  <CardContent className="p-6">
-                    {/* Business Name */}
-                    <h3 className="text-xl font-bold text-white mb-2 group-hover:bg-gradient-to-r group-hover:from-gold group-hover:to-yellow-600 group-hover:bg-clip-text group-hover:text-transparent transition-all">
+                  {/* Content */}
+                  <div className="p-5">
+                    <h3
+                      className="text-lg font-bold text-white mb-1.5 transition-colors group-hover:text-[#D4AF37]"
+                      style={{ fontFamily: "'Playfair Display', serif" }}
+                    >
                       {business.name}
                     </h3>
 
-                    {/* Description */}
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                    <p
+                      className="text-sm mb-4 line-clamp-2"
+                      style={{ color: 'rgba(255,255,255,0.35)' }}
+                    >
                       {business.description}
                     </p>
 
-                    {/* Address */}
-                    <div className="flex items-start gap-2 text-sm text-gray-400 mb-4">
-                      <MapPin className="w-4 h-4 text-gold flex-shrink-0 mt-0.5" />
-                      <p className="line-clamp-2">
-                        {business.address.neighborhood}, {business.address.city} - {business.address.state}
-                      </p>
+                    {/* Meta */}
+                    <div className="space-y-2 mb-5">
+                      <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'rgba(212,175,55,0.5)' }} />
+                        <span className="truncate">
+                          {business.address.neighborhood}, {business.address.city} — {business.address.state}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        <Star className="w-3.5 h-3.5 flex-shrink-0 fill-current" style={{ color: 'rgba(212,175,55,0.5)' }} />
+                        <span>
+                          {business.totalReviews} avalia{business.totalReviews !== 1 ? 'ções' : 'ção'}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Reviews */}
-                    <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-                      <Star className="w-4 h-4 text-gold fill-gold" />
-                      <p>
-                        {business.totalReviews} avalia{business.totalReviews !== 1 ? 'ções' : 'ção'}
-                      </p>
-                    </div>
+                    {/* Thin divider */}
+                    <div className="mb-4" style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
 
-                    {/* Action Indicator */}
-                    <div className="flex items-center justify-center gap-2 text-gold font-semibold">
+                    {/* CTA */}
+                    <div
+                      className="flex items-center justify-between text-sm font-semibold"
+                      style={{ color: '#D4AF37' }}
+                    >
                       <span>Acessar Dashboard</span>
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </motion.div>
             ))}
 
-            {/* Add New Business Card */}
+            {/* Add new business */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: userBusinesses.length * 0.1 }}
-              whileHover={{ y: -8 }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + userBusinesses.length * 0.08 }}
+              whileHover={{ y: -6 }}
+              onClick={() => navigate('/cadastrar-estabelecimento')}
+              className="cursor-pointer group"
             >
-              <Card
-                className="h-full cursor-pointer hover:shadow-2xl hover:shadow-gold/10 transition-all duration-300 border-2 border-dashed border-white/20 hover:border-gold/50 group bg-white/5 backdrop-blur-sm"
-                onClick={() => navigate('/cadastrar-estabelecimento')}
+              <div
+                className="rounded-2xl flex flex-col items-center justify-center min-h-[320px] transition-all duration-300"
+                style={{
+                  border: '1px dashed rgba(212,175,55,0.2)',
+                  background: 'rgba(212,175,55,0.02)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(212,175,55,0.5)'
+                  e.currentTarget.style.background = 'rgba(212,175,55,0.04)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(212,175,55,0.2)'
+                  e.currentTarget.style.background = 'rgba(212,175,55,0.02)'
+                }}
               >
-                <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[400px]">
-                  <div className="w-20 h-20 bg-white/5 group-hover:bg-gold/20 rounded-full flex items-center justify-center mb-4 transition-colors">
-                    <Plus className="w-10 h-10 text-gray-400 group-hover:text-gold transition-colors" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:bg-gradient-to-r group-hover:from-gold group-hover:to-yellow-600 group-hover:bg-clip-text group-hover:text-transparent transition-all">
-                    Adicionar Estabelecimento
-                  </h3>
-                  <p className="text-sm text-gray-400 text-center">
-                    Cadastre um novo estabelecimento para gerenciar
-                  </p>
-                </CardContent>
-              </Card>
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 transition-all duration-300 group-hover:scale-110"
+                  style={{
+                    background: 'rgba(212,175,55,0.08)',
+                    border: '1px solid rgba(212,175,55,0.2)',
+                  }}
+                >
+                  <Plus className="w-7 h-7" style={{ color: '#D4AF37' }} />
+                </div>
+                <h3
+                  className="text-lg font-bold text-white mb-2"
+                  style={{ fontFamily: "'Playfair Display', serif" }}
+                >
+                  Novo Estabelecimento
+                </h3>
+                <p className="text-xs text-center px-8" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  Cadastre um novo estabelecimento para gerenciar
+                </p>
+              </div>
             </motion.div>
           </div>
         )}
