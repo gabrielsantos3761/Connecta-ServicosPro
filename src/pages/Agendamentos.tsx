@@ -1,21 +1,61 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Calendar, Filter, Plus, Kanban, CalendarDays, CalendarRange, CalendarClock } from 'lucide-react'
+import { useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { mockAppointments } from '@/data/mockData'
 import { CalendarView, CalendarMode } from '@/components/calendar/CalendarView'
 import { KanbanView } from '@/components/calendar/KanbanView'
 import { usePinchZoom, getNextZoomLevel } from '@/hooks/usePinchZoom'
 import { OwnerPageLayout } from '@/components/layout/OwnerPageLayout'
+import { getAppointmentsByBusiness, type Appointment as FirebaseAppointment } from '@/services/appointmentService'
+import { type Appointment } from '@/types'
+
+/** Converte o Appointment do Firebase para o formato que CalendarView/KanbanView esperam */
+function toCalendarAppointment(apt: FirebaseAppointment): Appointment {
+  const [year, month, day] = apt.date.split('-').map(Number)
+  return {
+    id: apt.id,
+    businessId: apt.businessId,
+    clientId: apt.clientId,
+    clientName: apt.clientName,
+    serviceId: apt.serviceId,
+    service: apt.serviceName,
+    professionalId: apt.professionalId,
+    professional: apt.professionalName ?? '',
+    date: new Date(year, month - 1, day),
+    time: apt.time,
+    price: apt.servicePrice,
+    status: apt.status,
+    duration: apt.serviceDuration,
+    paymentMethod: apt.paymentMethod as Appointment['paymentMethod'],
+  }
+}
 
 type ViewMode = 'kanban' | 'calendar'
 
 export function Agendamentos() {
+  const { businessId } = useParams<{ businessId: string }>()
   const [filter, setFilter] = useState<string>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('day')
   const [zoomIndicator, setZoomIndicator] = useState<string | null>(null)
+  const [rawAppointments, setRawAppointments] = useState<FirebaseAppointment[]>([])
+
+  useEffect(() => {
+    if (!businessId) return
+    // Carrega 90 dias atrás até hoje para suportar navegação no calendário
+    const from = new Date()
+    from.setDate(from.getDate() - 90)
+    getAppointmentsByBusiness(businessId, from)
+      .then(setRawAppointments)
+      .catch(console.error)
+  }, [businessId])
+
+  const appointments = useMemo(
+    () => rawAppointments.map(toCalendarAppointment),
+    [rawAppointments]
+  )
 
   const showZoomIndicator = (mode: CalendarMode) => {
     const labels = {
@@ -51,7 +91,7 @@ export function Agendamentos() {
     threshold: 50,
   })
 
-  const filteredAppointments = mockAppointments.filter(apt => {
+  const filteredAppointments = appointments.filter(apt => {
     if (filter === 'all') return true
     return apt.status === filter
   })
@@ -279,7 +319,7 @@ export function Agendamentos() {
       {/* Kanban View */}
       {viewMode === 'kanban' && (
           <KanbanView
-            appointments={mockAppointments}
+            appointments={appointments}
           onAppointmentClick={(apt) => console.log('Clicked appointment:', apt)}
         />
       )}

@@ -115,7 +115,7 @@ export function Checkout() {
         appointmentId = await createAppointment({
           businessId: bookingData.businessId,
           businessName: bookingData.businessName,
-          professionalId: bookingData.professionalId ?? 'any',
+          professionalId: bookingData.professionalId ?? '',
           professionalName: bookingData.professionalName,
           clientId: user.uid,
           clientName: user.name,

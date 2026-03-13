@@ -4,10 +4,8 @@ import {
   setDoc,
   query,
   where,
-  orderBy,
   getDocs,
   Timestamp,
-  limit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
@@ -66,6 +64,11 @@ function buildScheduledAt(date: string, time: string): Timestamp {
   return Timestamp.fromDate(new Date(year, month - 1, day, hours, minutes, 0, 0))
 }
 
+/** Ordena appointments por data+hora crescente */
+function sortByScheduledAt(a: Appointment, b: Appointment): number {
+  return a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+}
+
 // ============================================
 // CRIAR AGENDAMENTO
 // ============================================
@@ -103,46 +106,62 @@ export async function createAppointment(data: CreateAppointmentData): Promise<st
 
 // ============================================
 // BUSCAR AGENDAMENTOS DO PROFISSIONAL
+// Usa apenas where de igualdade (sem índice composto)
+// Filtragem por data feita no cliente
 // ============================================
 
 export async function getAppointmentsByProfessional(
   professionalId: string,
   fromDate?: Date
 ): Promise<Appointment[]> {
-  const from = fromDate ?? new Date()
-  from.setHours(0, 0, 0, 0)
-
   const q = query(
     collection(db, 'appointments'),
     where('professionalId', '==', professionalId),
-    where('scheduledAt', '>=', Timestamp.fromDate(from)),
-    orderBy('scheduledAt', 'asc'),
-    limit(50)
   )
 
   const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment))
+  const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment))
+
+  const from = fromDate ? new Date(fromDate) : new Date()
+  from.setHours(0, 0, 0, 0)
+  const fromStr = from.toISOString().split('T')[0]
+
+  return all
+    .filter(a => a.date >= fromStr)
+    .sort(sortByScheduledAt)
 }
 
 // ============================================
 // BUSCAR AGENDAMENTOS DO ESTABELECIMENTO
+// Usa apenas where de igualdade (sem índice composto)
+// Filtragem por data feita no cliente
 // ============================================
 
 export async function getAppointmentsByBusiness(
   businessId: string,
-  fromDate?: Date
+  fromDate?: Date,
+  toDate?: Date
 ): Promise<Appointment[]> {
-  const from = fromDate ?? new Date()
-  from.setHours(0, 0, 0, 0)
-
   const q = query(
     collection(db, 'appointments'),
     where('businessId', '==', businessId),
-    where('scheduledAt', '>=', Timestamp.fromDate(from)),
-    orderBy('scheduledAt', 'asc'),
-    limit(100)
   )
 
   const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment))
+  const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment))
+
+  const from = fromDate ? new Date(fromDate) : new Date()
+  from.setHours(0, 0, 0, 0)
+  const fromStr = from.toISOString().split('T')[0]
+
+  let result = all.filter(a => a.date >= fromStr)
+
+  if (toDate) {
+    const to = new Date(toDate)
+    to.setHours(23, 59, 59, 999)
+    const toStr = to.toISOString().split('T')[0]
+    result = result.filter(a => a.date <= toStr)
+  }
+
+  return result.sort(sortByScheduledAt)
 }

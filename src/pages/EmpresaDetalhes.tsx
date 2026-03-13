@@ -229,7 +229,7 @@ export function EmpresaDetalhes() {
   const DAY_MAP = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
   const getSelectedProfLink = () => {
-    if (!selectedProfessional || selectedProfessional === 'any') return null
+    if (!selectedProfessional) return null
     return businessProfessionals.find(p => p.professionalId === selectedProfessional) ?? null
   }
 
@@ -246,7 +246,7 @@ export function EmpresaDetalhes() {
       return !schedDay?.isActive
     }
 
-    // "Qualquer profissional" → usa horários do estabelecimento
+    // Profissional sem horário configurado → usa horários do estabelecimento
     const hours = mergedBusiness!.businessHours.find(h => h.day === dayKey)
     return !hours?.isOpen
   }
@@ -289,7 +289,7 @@ export function EmpresaDetalhes() {
   }
 
   const handleBooking = () => {
-    if (!selectedService || !selectedDate || !selectedTime) {
+    if (!selectedService || !selectedProfessional || !selectedDate || !selectedTime) {
       alert('Por favor, preencha todos os campos')
       return
     }
@@ -336,9 +336,7 @@ export function EmpresaDetalhes() {
         serviceDuration,
         serviceDescription,
         professionalId: selectedProfessional,
-        professionalName: selectedProfessional === 'any'
-          ? 'Qualquer profissional disponível'
-          : (professionalSocialNames[selectedProfessional] || businessProfessionals.find(p => p.professionalId === selectedProfessional)?.professionalName || ''),
+        professionalName: professionalSocialNames[selectedProfessional] || businessProfessionals.find(p => p.professionalId === selectedProfessional)?.professionalName || '',
         professionalRole: businessProfessionals.find(p => p.professionalId === selectedProfessional)?.role || '',
         date: formattedDate,
         time: selectedTime,
@@ -849,7 +847,6 @@ export function EmpresaDetalhes() {
                 }}
               >
                 <option value="" className="bg-gray-900">Selecione um profissional</option>
-                <option value="any" className="bg-gray-900">Qualquer profissional disponível</option>
                 {businessProfessionals.map((link) => (
                   <option key={link.professionalId} value={link.professionalId} className="bg-gray-900">
                     {professionalSocialNames[link.professionalId] || link.professionalName}{link.role ? ` - ${link.role}` : ''}
