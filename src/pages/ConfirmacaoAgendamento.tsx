@@ -17,9 +17,6 @@ import {
   Share2,
   Home,
 } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 import confetti from 'canvas-confetti'
 
@@ -43,6 +40,59 @@ interface ConfirmationData {
   appointmentId?: string
 }
 
+const CARD_STYLE = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+}
+
+const DIVIDER_STYLE = {
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  marginTop: '1.5rem',
+  marginBottom: '1.5rem',
+}
+
+const BADGE_GOLD = {
+  background: 'rgba(212,175,55,0.15)',
+  color: '#D4AF37',
+  borderRadius: '9999px',
+  padding: '2px 10px',
+  fontSize: '0.75rem',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+}
+
+const BTN_GOLD = {
+  background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+  color: '#050400',
+  fontWeight: 600,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.5rem',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  fontSize: '0.95rem',
+}
+
+const BTN_OUTLINE = {
+  background: 'rgba(255,255,255,0.03)',
+  color: '#fff',
+  fontWeight: 500,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.5rem',
+  border: '1px solid rgba(255,255,255,0.1)',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  fontSize: '0.95rem',
+  width: '100%',
+  justifyContent: 'center',
+}
+
 export function ConfirmacaoAgendamento() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -50,7 +100,6 @@ export function ConfirmacaoAgendamento() {
   const bookingId = confirmationData?.appointmentId ?? `AG${Date.now().toString().slice(-8)}`
 
   useEffect(() => {
-    // Disparar confetti ao carregar a página
     const duration = 3 * 1000
     const animationEnd = Date.now() + duration
     const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 }
@@ -59,7 +108,7 @@ export function ConfirmacaoAgendamento() {
       return Math.random() * (max - min) + min
     }
 
-    const interval: any = setInterval(function() {
+    const interval: any = setInterval(function () {
       const timeLeft = animationEnd - Date.now()
 
       if (timeLeft <= 0) {
@@ -70,12 +119,12 @@ export function ConfirmacaoAgendamento() {
       confetti({
         ...defaults,
         particleCount,
-        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
       })
       confetti({
         ...defaults,
         particleCount,
-        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
       })
     }, 250)
 
@@ -84,15 +133,15 @@ export function ConfirmacaoAgendamento() {
 
   if (!confirmationData) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Dados não encontrados</h2>
-          <Button
-            onClick={() => navigate('/')}
-            className="bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold"
-          >
+      <div style={{ minHeight: '100vh', background: '#050400', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginBottom: '1rem' }}>
+            Dados não encontrados
+          </h2>
+          <button style={BTN_GOLD} onClick={() => navigate('/')}>
+            <Home size={16} />
             Voltar para início
-          </Button>
+          </button>
         </div>
       </div>
     )
@@ -139,22 +188,39 @@ export function ConfirmacaoAgendamento() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div style={{ minHeight: '100vh', background: '#050400' }}>
+      <div style={{ maxWidth: '56rem', margin: '0 auto', padding: '3rem 1.5rem' }}>
+
         {/* Success Animation */}
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          className="text-center mb-8"
+          transition={{ type: 'spring', stiffness: 320, damping: 36 }}
+          style={{ textAlign: 'center', marginBottom: '2rem' }}
         >
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-full mb-6 border-2 border-green-500/50">
-            <CheckCircle className="w-16 h-16 text-green-400" />
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '6rem',
+            height: '6rem',
+            background: 'rgba(212,175,55,0.1)',
+            borderRadius: '9999px',
+            marginBottom: '1.5rem',
+            border: '2px solid rgba(212,175,55,0.35)',
+          }}>
+            <CheckCircle size={56} color="#D4AF37" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-green-400 via-green-300 to-green-400 bg-clip-text text-transparent mb-2">
+          <h1 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: '2.25rem',
+            fontWeight: 700,
+            color: '#D4AF37',
+            marginBottom: '0.5rem',
+          }}>
             Agendamento Confirmado!
           </h1>
-          <p className="text-lg text-gray-400">
+          <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.5)' }}>
             Seu horário foi reservado com sucesso
           </p>
         </motion.div>
@@ -163,207 +229,208 @@ export function ConfirmacaoAgendamento() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 36, delay: 0.15 }}
         >
-          <Card className="bg-white/5 backdrop-blur-sm border-2 border-green-500/30 shadow-2xl shadow-green-500/10">
-            <CardContent className="p-8">
-              {/* Booking ID */}
-              <div className="text-center mb-8 pb-6 border-b border-white/10">
-                <p className="text-sm text-gray-400 mb-2">Número do Agendamento</p>
-                <p className="text-3xl font-bold bg-gradient-to-r from-gold to-yellow-600 bg-clip-text text-transparent">{bookingId}</p>
-              </div>
+          <div style={{ ...CARD_STYLE, padding: '2rem' }}>
 
-              {/* Details Grid */}
-              <div className="space-y-6">
-                {/* Business */}
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-gold/20 to-yellow-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-6 h-6 text-gold" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-400 mb-1">Estabelecimento</p>
-                    <p className="font-bold text-lg text-white">{businessName}</p>
-                    {businessAddress && (
-                      <p className="text-sm text-gray-400 mt-1">
-                        {businessAddress.street}{businessAddress.number ? `, ${businessAddress.number}` : ''}{businessAddress.neighborhood ? ` - ${businessAddress.neighborhood}` : ''}
-                        {(businessAddress.city || businessAddress.state) && (
-                          <><br />{businessAddress.city}{businessAddress.state ? ` - ${businessAddress.state}` : ''}</>
-                        )}
-                      </p>
-                    )}
-                    <div className="flex gap-3 mt-2">
-                      {businessPhone && (
-                        <a
-                          href={`tel:${businessPhone}`}
-                          className="text-sm text-gold hover:text-yellow-600 flex items-center gap-1 transition-colors"
-                        >
-                          <Phone className="w-3 h-3" />
-                          {businessPhone}
-                        </a>
+            {/* Booking ID */}
+            <div style={{ textAlign: 'center', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Número do Agendamento
+              </p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: '#D4AF37' }}>
+                {bookingId}
+              </p>
+            </div>
+
+            {/* Details */}
+            <div>
+
+              {/* Business */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                <div style={{ width: '3rem', height: '3rem', background: 'rgba(212,175,55,0.1)', borderRadius: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <MapPin size={22} color="#D4AF37" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estabelecimento</p>
+                  <p style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff' }}>{businessName}</p>
+                  {businessAddress && (
+                    <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>
+                      {businessAddress.street}{businessAddress.number ? `, ${businessAddress.number}` : ''}{businessAddress.neighborhood ? ` - ${businessAddress.neighborhood}` : ''}
+                      {(businessAddress.city || businessAddress.state) && (
+                        <><br />{businessAddress.city}{businessAddress.state ? ` - ${businessAddress.state}` : ''}</>
                       )}
-                      {businessEmail && (
-                        <a
-                          href={`mailto:${businessEmail}`}
-                          className="text-sm text-gold hover:text-yellow-600 flex items-center gap-1 transition-colors"
-                        >
-                          <Mail className="w-3 h-3" />
-                          Email
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10" />
-
-                {/* Service */}
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Scissors className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-400 mb-1">Serviço</p>
-                    <p className="font-bold text-lg text-white">{serviceName}</p>
-                    {serviceDescription && <p className="text-sm text-gray-400 mt-1">{serviceDescription}</p>}
-                    <div className="flex items-center gap-3 mt-2">
-                      <Badge variant="outline" className="border-white/20 text-gray-400">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {serviceDuration} minutos
-                      </Badge>
-                      <Badge variant="outline" className="bg-gold/10 border-gold text-gold">
-                        {formatCurrency(servicePrice)}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10" />
-
-                {/* Professional */}
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <User className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-400 mb-1">Profissional</p>
-                    <p className="font-bold text-lg text-white">{professionalName || 'Qualquer profissional disponível'}</p>
-                    {professionalRole && <p className="text-sm text-gray-400">{professionalRole}</p>}
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10" />
-
-                {/* Date & Time */}
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Calendar className="w-6 h-6 text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-400 mb-1">Data e Horário</p>
-                    <p className="font-bold text-lg text-white capitalize">{formatDate(date)}</p>
-                    <p className="text-sm text-gray-400 flex items-center gap-1 mt-1">
-                      <Clock className="w-3 h-3" />
-                      {time}
                     </p>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10" />
-
-                {/* Payment */}
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <PaymentIcon className="w-6 h-6 text-amber-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-400 mb-1">Forma de Pagamento</p>
-                    <p className="font-bold text-lg text-white">{paymentInfo.name}</p>
-                    {paymentMethod === 'cash' && (
-                      <p className="text-sm text-amber-400 mt-1">
-                        Pagamento a ser realizado no local
-                      </p>
+                  )}
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                    {businessPhone && (
+                      <a href={`tel:${businessPhone}`} style={{ fontSize: '0.85rem', color: '#D4AF37', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
+                        <Phone size={13} />
+                        {businessPhone}
+                      </a>
                     )}
-                    {paymentMethod === 'pix' && (
-                      <Badge className="bg-green-500/20 text-green-400 border-green-500/50 mt-2">Pagamento Confirmado</Badge>
+                    {businessEmail && (
+                      <a href={`mailto:${businessEmail}`} style={{ fontSize: '0.85rem', color: '#D4AF37', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
+                        <Mail size={13} />
+                        Email
+                      </a>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Important Info */}
-              <div className="mt-8 bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-400 mb-2">Informações Importantes</h3>
-                <ul className="text-sm text-blue-300 space-y-1">
-                  <li>• Chegue com 10 minutos de antecedência</li>
-                  <li>• Em caso de atraso, o horário poderá ser reagendado</li>
-                  <li>• Para cancelamentos, avisar com no mínimo 24h de antecedência</li>
-                </ul>
+              <div style={DIVIDER_STYLE} />
+
+              {/* Service */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                <div style={{ width: '3rem', height: '3rem', background: 'rgba(212,175,55,0.07)', borderRadius: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Scissors size={22} color="#D4AF37" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Serviço</p>
+                  <p style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff' }}>{serviceName}</p>
+                  {serviceDescription && <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>{serviceDescription}</p>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    <span style={BADGE_GOLD}>
+                      <Clock size={11} />
+                      {serviceDuration} min
+                    </span>
+                    <span style={BADGE_GOLD}>
+                      {formatCurrency(servicePrice)}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="outline"
-                    onClick={handleDownloadReceipt}
-                    className="w-full border-white/10 hover:bg-white/5 text-white"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Baixar Comprovante
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="outline"
-                    onClick={handleShareBooking}
-                    className="w-full border-white/10 hover:bg-white/5 text-white"
-                  >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Compartilhar
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="default"
-                    onClick={() => navigate('/')}
-                    className="w-full bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold"
-                  >
-                    <Home className="w-4 h-4 mr-2" />
-                    Voltar ao Início
-                  </Button>
-                </motion.div>
+              <div style={DIVIDER_STYLE} />
+
+              {/* Professional */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                <div style={{ width: '3rem', height: '3rem', background: 'rgba(212,175,55,0.07)', borderRadius: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <User size={22} color="#D4AF37" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Profissional</p>
+                  <p style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff' }}>{professionalName || 'Qualquer profissional disponível'}</p>
+                  {professionalRole && <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>{professionalRole}</p>}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+
+              <div style={DIVIDER_STYLE} />
+
+              {/* Date & Time */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                <div style={{ width: '3rem', height: '3rem', background: 'rgba(212,175,55,0.07)', borderRadius: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Calendar size={22} color="#D4AF37" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Data e Horário</p>
+                  <p style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff', textTransform: 'capitalize' }}>{formatDate(date)}</p>
+                  <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '0.25rem' }}>
+                    <Clock size={13} />
+                    {time}
+                  </p>
+                </div>
+              </div>
+
+              <div style={DIVIDER_STYLE} />
+
+              {/* Payment */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                <div style={{ width: '3rem', height: '3rem', background: 'rgba(212,175,55,0.07)', borderRadius: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <PaymentIcon size={22} color="#D4AF37" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Forma de Pagamento</p>
+                  <p style={{ fontWeight: 700, fontSize: '1.05rem', color: '#fff' }}>{paymentInfo.name}</p>
+                  {paymentMethod === 'cash' && (
+                    <p style={{ fontSize: '0.85rem', color: 'rgba(212,175,55,0.8)', marginTop: '0.25rem' }}>
+                      Pagamento a ser realizado no local
+                    </p>
+                  )}
+                  {paymentMethod === 'pix' && (
+                    <span style={{ ...BADGE_GOLD, marginTop: '0.5rem' }}>Pagamento Confirmado</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Important Info */}
+            <div style={{
+              marginTop: '2rem',
+              background: 'rgba(212,175,55,0.05)',
+              border: '1px solid rgba(212,175,55,0.18)',
+              borderRadius: '0.75rem',
+              padding: '1rem 1.25rem',
+            }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600, color: '#D4AF37', marginBottom: '0.5rem', fontSize: '1rem' }}>
+                Informações Importantes
+              </h3>
+              <ul style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.8', listStyle: 'none', padding: 0, margin: 0 }}>
+                <li>• Chegue com 10 minutos de antecedência</li>
+                <li>• Em caso de atraso, o horário poderá ser reagendado</li>
+                <li>• Para cancelamentos, avisar com no mínimo 24h de antecedência</li>
+              </ul>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', gap: '1rem', marginTop: '2rem' }}>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <button style={BTN_OUTLINE} onClick={handleDownloadReceipt}>
+                  <Download size={16} />
+                  Baixar Comprovante
+                </button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <button style={BTN_OUTLINE} onClick={handleShareBooking}>
+                  <Share2 size={16} />
+                  Compartilhar
+                </button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <button style={{ ...BTN_GOLD, width: '100%', justifyContent: 'center' }} onClick={() => navigate('/')}>
+                  <Home size={16} />
+                  Voltar ao Início
+                </button>
+              </motion.div>
+            </div>
+          </div>
         </motion.div>
 
         {/* Next Steps */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 text-center"
+          transition={{ type: 'spring', stiffness: 320, damping: 36, delay: 0.3 }}
+          style={{ marginTop: '2rem', textAlign: 'center' }}
         >
-          <Card className="bg-white/5 backdrop-blur-sm border-gold/30">
-            <CardContent className="p-6">
-              <h3 className="font-bold text-lg text-white mb-2">
-                Próximos Passos
-              </h3>
-              <p className="text-gray-400 mb-4">
-                Um email de confirmação foi enviado com todos os detalhes do seu agendamento.
-              </p>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/login')}
-                  className="border-gold text-gold hover:bg-gold hover:text-black transition-all"
-                >
-                  Fazer Login para Ver Meus Agendamentos
-                </Button>
-              </motion.div>
-            </CardContent>
-          </Card>
+          <div style={{ ...CARD_STYLE, padding: '1.5rem' }}>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.15rem', color: '#fff', marginBottom: '0.5rem' }}>
+              Próximos Passos
+            </h3>
+            <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+              Um email de confirmação foi enviado com todos os detalhes do seu agendamento.
+            </p>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ display: 'inline-block' }}>
+              <button
+                style={{
+                  background: 'transparent',
+                  color: '#D4AF37',
+                  border: '1px solid rgba(212,175,55,0.45)',
+                  borderRadius: '0.5rem',
+                  padding: '0.625rem 1.5rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                }}
+                onClick={() => navigate('/login')}
+              >
+                Fazer Login para Ver Meus Agendamentos
+              </button>
+            </motion.div>
+          </div>
         </motion.div>
+
       </div>
     </div>
   )

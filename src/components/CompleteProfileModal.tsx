@@ -14,6 +14,8 @@ interface CompleteProfileModalProps {
   requireImmediate?: boolean;
 }
 
+const SPRING = { type: 'spring', stiffness: 320, damping: 36 };
+
 export function CompleteProfileModal({
   isOpen,
   onClose,
@@ -62,14 +64,30 @@ export function CompleteProfileModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={SPRING}
             onClick={requireImmediate ? undefined : onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.85)',
+              backdropFilter: 'blur(6px)',
+            }}
           />
 
           {/* Modal */}
@@ -77,62 +95,165 @@ export function CompleteProfileModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+            transition={SPRING}
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '28rem',
+              background: '#0a0900',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '1.125rem',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+              overflow: 'hidden',
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-amber-500" />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1.5rem',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '0.75rem',
+                    background: 'rgba(212,175,55,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <AlertTriangle style={{ width: '1.5rem', height: '1.5rem', color: '#D4AF37' }} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Complete seu perfil</h2>
-                  <p className="text-sm text-gray-400">{completeness}% completo</p>
+                  <h2
+                    style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: '#fff',
+                      margin: 0,
+                    }}
+                  >
+                    Complete seu perfil
+                  </h2>
+                  <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                    {completeness}% completo
+                  </p>
                 </div>
               </div>
               {!requireImmediate && (
                 <button
                   onClick={onClose}
-                  className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
+                  style={{
+                    width: '2.5rem',
+                    height: '2.5rem',
+                    borderRadius: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.background =
+                      'rgba(255,255,255,0.05)')
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')
+                  }
                 >
-                  <X className="w-5 h-5 text-gray-400" />
+                  <X style={{ width: '1.25rem', height: '1.25rem', color: 'rgba(255,255,255,0.5)' }} />
                 </button>
               )}
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-6">
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {/* Progress Bar */}
               <div>
-                <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
+                <div
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.07)',
+                    borderRadius: '9999px',
+                    height: '0.75rem',
+                    overflow: 'hidden',
+                  }}
+                >
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${completeness}%` }}
                     transition={{ duration: 0.5, ease: 'easeOut' }}
-                    className="h-full bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full"
+                    style={{
+                      height: '100%',
+                      background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+                      borderRadius: '9999px',
+                    }}
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
+                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem' }}>
                   {totalFilled} de {totalRequired} campos preenchidos
                 </p>
               </div>
 
               {/* Message */}
-              <p className="text-sm text-gray-300">
+              <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.7)', margin: 0 }}>
                 {requireImmediate
                   ? 'Para continuar, precisamos que você complete algumas informações do seu perfil.'
                   : 'Para aproveitar melhor nossa plataforma, complete seu perfil com as informações abaixo:'}
               </p>
 
               {/* Missing Fields */}
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                <p className="text-sm font-medium text-amber-400 mb-3">
+              <div
+                style={{
+                  background: 'rgba(212,175,55,0.08)',
+                  border: '1px solid rgba(212,175,55,0.2)',
+                  borderRadius: '0.75rem',
+                  padding: '1rem',
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#D4AF37',
+                    marginBottom: '0.75rem',
+                    marginTop: 0,
+                  }}
+                >
                   Campos necessários:
                 </p>
-                <ul className="space-y-2">
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {missingFieldsLabels.map((label, index) => (
-                    <li key={index} className="text-sm text-amber-300/90 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                    <li
+                      key={index}
+                      style={{
+                        fontSize: '0.875rem',
+                        color: 'rgba(212,175,55,0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '0.375rem',
+                          height: '0.375rem',
+                          borderRadius: '50%',
+                          background: '#D4AF37',
+                          flexShrink: 0,
+                        }}
+                      />
                       {label}
                     </li>
                   ))}
@@ -141,42 +262,108 @@ export function CompleteProfileModal({
 
               {/* Benefits */}
               {!requireImmediate && (
-                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-                  <p className="text-sm font-medium text-green-400 mb-3 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5" />
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '0.75rem',
+                    padding: '1rem',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'rgba(255,255,255,0.85)',
+                      marginBottom: '0.75rem',
+                      marginTop: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <CheckCircle style={{ width: '1.125rem', height: '1.125rem', color: '#D4AF37' }} />
                     Benefícios de completar seu perfil:
                   </p>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2 text-sm text-green-300/90">
-                      <span className="text-green-500 mt-0.5">✓</span>
-                      <span>Agendar serviços nas melhores barbearias</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-sm text-green-300/90">
-                      <span className="text-green-500 mt-0.5">✓</span>
-                      <span>Receber ofertas e promoções exclusivas</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-sm text-green-300/90">
-                      <span className="text-green-500 mt-0.5">✓</span>
-                      <span>Histórico completo de agendamentos</span>
-                    </li>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {[
+                      'Agendar serviços nas melhores barbearias',
+                      'Receber ofertas e promoções exclusivas',
+                      'Histórico completo de agendamentos',
+                    ].map((benefit) => (
+                      <li
+                        key={benefit}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          color: 'rgba(255,255,255,0.6)',
+                        }}
+                      >
+                        <span style={{ color: '#D4AF37', marginTop: '0.0625rem', flexShrink: 0 }}>✓</span>
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}
             </div>
 
             {/* Actions */}
-            <div className="p-6 pt-0 flex gap-3">
+            <div
+              style={{
+                padding: '0 1.5rem 1.5rem',
+                display: 'flex',
+                gap: '0.75rem',
+              }}
+            >
               <button
                 onClick={handleCompleteNow}
-                className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:opacity-90 text-white font-medium transition-opacity flex items-center justify-center gap-2"
+                style={{
+                  flex: 1,
+                  background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+                  color: '#050400',
+                  fontWeight: 600,
+                  borderRadius: '0.5rem',
+                  padding: '0.625rem 1.5rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9375rem',
+                  transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.88')}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
               >
-                <UserCircle className="w-5 h-5" />
+                <UserCircle style={{ width: '1.25rem', height: '1.25rem' }} />
                 Completar agora
               </button>
               {!requireImmediate && (
                 <button
                   onClick={handleCompleteLater}
-                  className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-white hover:bg-white/5 font-medium transition-colors"
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '0.5rem',
+                    padding: '0.625rem 1.5rem',
+                    color: '#fff',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '0.9375rem',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.background =
+                      'rgba(255,255,255,0.05)')
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')
+                  }
                 >
                   Fazer depois
                 </button>

@@ -1,10 +1,9 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Appointment } from '@/types'
-import { theme } from '@/styles/theme'
+
+const GOLD = '#D4AF37'
 
 interface YearViewProps {
   appointments: Appointment[]
@@ -104,75 +103,116 @@ export function YearView({ appointments, currentDate, onDateChange, onMonthClick
     }
   }, [appointments, currentDate])
 
+  const navBtnBase: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '2.25rem',
+    height: '2.25rem',
+    borderRadius: '0.5rem',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.07)',
+    color: 'rgba(255,255,255,0.5)',
+    cursor: 'pointer',
+    transition: 'color 0.18s, border-color 0.18s',
+  }
+
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h2 className="text-2xl font-bold text-gold">
+          <h2
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: GOLD,
+              margin: 0,
+              lineHeight: 1.1,
+            }}
+          >
             {currentDate.getFullYear()}
           </h2>
-          <p className="text-sm text-gray-400 mt-1">
+          <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>
             {yearStats.totalAppointments} agendamentos no ano
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Ano Atual button — hidden on small screens via inline style override in parent, kept visible here */}
+          <button
             onClick={goToCurrentYear}
-            className="hidden sm:flex"
+            style={{
+              padding: '0.4rem 0.875rem',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.7)',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              letterSpacing: '0.01em',
+            }}
           >
             Ano Atual
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={previousYear}
-              className="h-9 w-9 text-gray-400 hover:text-gold"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={nextYear}
-              className="h-9 w-9 text-gray-400 hover:text-gold"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <button onClick={previousYear} style={navBtnBase} aria-label="Ano anterior">
+              <ChevronLeft style={{ width: '1.125rem', height: '1.125rem' }} />
+            </button>
+            <button onClick={nextYear} style={navBtnBase} aria-label="Próximo ano">
+              <ChevronRight style={{ width: '1.125rem', height: '1.125rem' }} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Year Stats */}
-      <Card className={`${theme.colors.card.base} border-gold/20`}>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-gold">{yearStats.totalAppointments}</div>
-              <div className="text-xs text-gray-400">Total de Agendamentos</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gold">
-                R$ {yearStats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </div>
-              <div className="text-xs text-gray-400">Receita Total</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gold">
-                {yearStats.averagePerMonth.toFixed(1)}
-              </div>
-              <div className="text-xs text-gray-400">Média por Mês</div>
-            </div>
+      <div
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: `1px solid ${GOLD}33`,
+          borderRadius: '1.125rem',
+          padding: '1rem 1.25rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '1rem',
+            textAlign: 'center',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: GOLD }}>{yearStats.totalAppointments}</div>
+            <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.125rem' }}>Total de Agendamentos</div>
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: GOLD }}>
+              R$ {yearStats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </div>
+            <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.125rem' }}>Receita Total</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: GOLD }}>
+              {yearStats.averagePerMonth.toFixed(1)}
+            </div>
+            <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.125rem' }}>Média por Mês</div>
+          </div>
+        </div>
+      </div>
 
       {/* Months Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: '1rem',
+        }}
+      >
         {monthNames.map((monthName, monthIndex) => {
           const monthDays = getMonthData(monthIndex)
           const appointmentsCount = getMonthAppointmentsCount(monthIndex)
@@ -183,60 +223,120 @@ export function YearView({ appointments, currentDate, onDateChange, onMonthClick
               key={monthIndex}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: monthIndex * 0.03 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 36, delay: monthIndex * 0.03 }}
+              onClick={() => onMonthClick?.(monthIndex)}
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: '1.125rem',
+                padding: '0.875rem',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+              }}
+              whileHover={{
+                borderColor: `${GOLD}80`,
+                background: 'rgba(255,255,255,0.04)',
+              }}
             >
-              <Card
-                className={`${theme.colors.card.base} border-gray-700 hover:border-gold/50 transition-all cursor-pointer`}
-                onClick={() => onMonthClick?.(monthIndex)}
+              {/* Month Header */}
+              <div style={{ marginBottom: '0.5rem' }}>
+                <h3
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                    color: GOLD,
+                    margin: '0 0 0.25rem 0',
+                  }}
+                >
+                  {monthName}
+                </h3>
+                {appointmentsCount > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)' }}>
+                      {appointmentsCount} agend.
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', color: '#4ade80', fontWeight: 600 }}>
+                      R$ {revenue.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Day Names */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
+                  gap: '2px',
+                  marginBottom: '0.25rem',
+                }}
               >
-                <CardContent className="p-3">
-                  {/* Month Header */}
-                  <div className="mb-2">
-                    <h3 className="font-bold text-sm text-gold mb-1">{monthName}</h3>
-                    {appointmentsCount > 0 && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-400">{appointmentsCount} agend.</span>
-                        <span className="text-green-400">
-                          R$ {revenue.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                        </span>
-                      </div>
-                    )}
+                {dayNamesShort.map((day, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      fontSize: '0.5rem',
+                      textAlign: 'center',
+                      color: 'rgba(255,255,255,0.3)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {day}
                   </div>
+                ))}
+              </div>
 
-                  {/* Day Names */}
-                  <div className="grid grid-cols-7 gap-0.5 mb-1">
-                    {dayNamesShort.map((day, i) => (
-                      <div
-                        key={i}
-                        className="text-[8px] text-center text-gray-500 font-semibold"
-                      >
-                        {day}
-                      </div>
-                    ))}
-                  </div>
+              {/* Mini Calendar */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
+                  gap: '2px',
+                }}
+              >
+                {monthDays.map((day, index) => {
+                  const isTodayDate = day.date ? isToday(monthIndex, day.date) : false
 
-                  {/* Mini Calendar */}
-                  <div className="grid grid-cols-7 gap-0.5">
-                    {monthDays.map((day, index) => {
-                      const isTodayDate = day.date ? isToday(monthIndex, day.date) : false
+                  let cellBg = 'transparent'
+                  let cellColor = 'rgba(255,255,255,0.55)'
+                  let outline = 'none'
+                  let fontWeight: React.CSSProperties['fontWeight'] = 400
 
-                      return (
-                        <div
-                          key={index}
-                          className={`
-                            aspect-square flex items-center justify-center text-[9px] rounded
-                            ${day.date ? 'text-gray-300' : ''}
-                            ${day.hasAppointments ? 'bg-gold/30 text-white font-bold' : ''}
-                            ${isTodayDate ? 'ring-1 ring-gold bg-gold/20' : ''}
-                          `}
-                        >
-                          {day.date}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+                  if (day.hasAppointments) {
+                    cellBg = `${GOLD}30`
+                    cellColor = '#ffffff'
+                    fontWeight = 700
+                  }
+                  if (isTodayDate) {
+                    cellBg = `${GOLD}25`
+                    outline = `1px solid ${GOLD}`
+                    cellColor = '#ffffff'
+                    fontWeight = 700
+                  }
+
+                  return (
+                    <div
+                      key={index}
+                      style={{
+                        aspectRatio: '1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.5625rem',
+                        borderRadius: '3px',
+                        background: cellBg,
+                        color: cellColor,
+                        fontWeight,
+                        outline,
+                        outlineOffset: '-1px',
+                      }}
+                    >
+                      {day.date}
+                    </div>
+                  )
+                })}
+              </div>
             </motion.div>
           )
         })}

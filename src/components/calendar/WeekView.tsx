@@ -1,17 +1,28 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Appointment } from '@/types'
-import { theme } from '@/styles/theme'
 
 interface WeekViewProps {
   appointments: Appointment[]
   currentDate: Date
   onDateChange: (date: Date) => void
   onAppointmentClick?: (appointment: Appointment) => void
+}
+
+const getStatusInlineStyle = (status: string): React.CSSProperties => {
+  switch (status) {
+    case 'confirmed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderLeft: '2px solid #22c55e' }
+    case 'pending':
+      return { background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderLeft: '2px solid #fbbf24' }
+    case 'completed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderLeft: '2px solid #22c55e' }
+    case 'cancelled':
+      return { background: 'rgba(248,113,113,0.15)', color: '#f87171', borderLeft: '2px solid #f87171' }
+    default:
+      return { background: 'rgba(212,175,55,0.15)', color: '#D4AF37', borderLeft: '2px solid #D4AF37' }
+  }
 }
 
 export function WeekView({ appointments, currentDate, onDateChange, onAppointmentClick }: WeekViewProps) {
@@ -65,21 +76,6 @@ export function WeekView({ appointments, currentDate, onDateChange, onAppointmen
            date.getFullYear() === today.getFullYear()
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-blue-500/20 border-blue-500 text-blue-200'
-      case 'pending':
-        return 'bg-yellow-500/20 border-yellow-500 text-yellow-200'
-      case 'completed':
-        return 'bg-green-500/20 border-green-500 text-green-200'
-      case 'cancelled':
-        return 'bg-red-500/20 border-red-500 text-red-200'
-      default:
-        return 'bg-gray-500/20 border-gray-500 text-gray-200'
-    }
-  }
-
   const formatWeekRange = () => {
     const firstDay = getWeekDays[0]
     const lastDay = getWeekDays[6]
@@ -92,125 +88,223 @@ export function WeekView({ appointments, currentDate, onDateChange, onAppointmen
 
   const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
+  const navBtnBase: React.CSSProperties = {
+    background: 'none',
+    border: '1px solid rgba(255,255,255,0.10)',
+    borderRadius: '0.5rem',
+    color: 'rgba(255,255,255,0.5)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    transition: 'color 0.2s, border-color 0.2s',
+  }
+
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h2 className="text-2xl font-bold text-gold">
+          <h2
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              color: '#D4AF37',
+              margin: 0,
+            }}
+          >
             {formatWeekRange()}
           </h2>
-          <p className="text-sm text-gray-400 mt-1">
+          <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
             {appointments.length} agendamento{appointments.length !== 1 ? 's' : ''} na semana
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
             onClick={goToToday}
-            className="hidden sm:flex"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: '0.5rem',
+              color: 'rgba(255,255,255,0.75)',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              padding: '0.375rem 0.75rem',
+              cursor: 'pointer',
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#D4AF37')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
           >
             Esta Semana
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <button
+              style={navBtnBase}
               onClick={previousWeek}
-              className="h-9 w-9 text-gray-400 hover:text-gold"
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#D4AF37'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
             >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              style={navBtnBase}
               onClick={nextWeek}
-              className="h-9 w-9 text-gray-400 hover:text-gold"
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#D4AF37'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
             >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Week Grid */}
-      <Card className={`${theme.colors.card.base} border-gold/20`}>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-            {getWeekDays.map((date, index) => {
-              const dayAppointments = getAppointmentsForDay(date)
-              const isCurrentDay = isToday(date)
+      <div
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '1.125rem',
+          padding: '1rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr)',
+            gap: '0.75rem',
+          }}
+          className="md:grid-cols-7"
+        >
+          {getWeekDays.map((date, index) => {
+            const dayAppointments = getAppointmentsForDay(date)
+            const isCurrentDay = isToday(date)
 
-              return (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`
-                    min-h-[300px] border rounded-lg p-3 transition-all
-                    ${isCurrentDay
-                      ? 'bg-gold/10 border-gold shadow-lg shadow-gold/20'
-                      : 'bg-gray-900/30 border-gray-700 hover:border-gold/50'
-                    }
-                  `}
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, type: 'spring', stiffness: 320, damping: 36 }}
+                style={{
+                  minHeight: 300,
+                  border: isCurrentDay
+                    ? '2px solid #D4AF37'
+                    : '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: '0.75rem',
+                  padding: '0.75rem',
+                  background: isCurrentDay
+                    ? 'rgba(212,175,55,0.06)'
+                    : 'rgba(255,255,255,0.015)',
+                  boxShadow: isCurrentDay ? '0 0 20px rgba(212,175,55,0.1)' : 'none',
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                {/* Cabeçalho do dia */}
+                <div
+                  style={{
+                    marginBottom: '0.75rem',
+                    paddingBottom: '0.5rem',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  }}
                 >
-                  {/* Cabeçalho do dia */}
-                  <div className="mb-3 pb-2 border-b border-gray-700">
-                    <div className={`text-xs font-semibold ${isCurrentDay ? 'text-gold' : 'text-gray-400'}`}>
-                      {dayNames[date.getDay()]}
-                    </div>
-                    <div className={`text-2xl font-bold ${isCurrentDay ? 'text-gold' : 'text-white'}`}>
-                      {date.getDate()}
-                    </div>
-                    {dayAppointments.length > 0 && (
-                      <Badge variant="secondary" className="mt-1 text-xs">
-                        {dayAppointments.length}
-                      </Badge>
-                    )}
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: isCurrentDay ? '#D4AF37' : 'rgba(255,255,255,0.5)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {dayNames[date.getDay()]}
                   </div>
+                  <div
+                    style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 700,
+                      color: isCurrentDay ? '#D4AF37' : '#fff',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {date.getDate()}
+                  </div>
+                  {dayAppointments.length > 0 && (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        marginTop: 4,
+                        borderRadius: '9999px',
+                        padding: '1px 8px',
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        background: 'rgba(212,175,55,0.15)',
+                        color: '#D4AF37',
+                      }}
+                    >
+                      {dayAppointments.length}
+                    </span>
+                  )}
+                </div>
 
-                  {/* Lista de agendamentos */}
-                  <div className="space-y-2">
-                    {dayAppointments.map((appointment) => (
-                      <motion.div
-                        key={appointment.id}
-                        whileHover={{ scale: 1.02 }}
-                        onClick={() => onAppointmentClick?.(appointment)}
-                        className={`
-                          p-2 rounded border-l-2 cursor-pointer
-                          text-xs transition-all
-                          ${getStatusColor(appointment.status)}
-                          hover:shadow-md
-                        `}
-                      >
-                        <div className="flex items-center gap-1 mb-1">
-                          <Clock className="w-3 h-3" />
-                          <span className="font-bold">{appointment.time}</span>
-                        </div>
-                        <div className="font-semibold text-white mb-0.5">
-                          {appointment.clientName}
-                        </div>
-                        <div className="opacity-80 truncate">
-                          {appointment.service}
-                        </div>
-                      </motion.div>
-                    ))}
-
-                    {dayAppointments.length === 0 && (
-                      <div className="text-center text-gray-600 text-xs py-4">
-                        Sem agendamentos
+                {/* Lista de agendamentos */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {dayAppointments.map((appointment) => (
+                    <motion.div
+                      key={appointment.id}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => onAppointmentClick?.(appointment)}
+                      style={{
+                        padding: '0.375rem 0.5rem',
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        transition: 'box-shadow 0.2s',
+                        ...getStatusInlineStyle(appointment.status),
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                        <Clock size={11} />
+                        <span style={{ fontWeight: 700 }}>{appointment.time}</span>
                       </div>
-                    )}
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                      <div style={{ fontWeight: 600, color: '#fff', marginBottom: 1 }}>
+                        {appointment.clientName}
+                      </div>
+                      <div
+                        style={{
+                          opacity: 0.8,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {appointment.service}
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {dayAppointments.length === 0 && (
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        color: 'rgba(255,255,255,0.2)',
+                        fontSize: '0.75rem',
+                        padding: '1rem 0',
+                      }}
+                    >
+                      Sem agendamentos
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

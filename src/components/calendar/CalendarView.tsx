@@ -1,11 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Appointment } from '@/types'
-import { theme } from '@/styles/theme'
 import { DayView } from './DayView'
 import { WeekView } from './WeekView'
 import { YearView } from './YearView'
@@ -22,6 +18,21 @@ interface CalendarDay {
   date: Date
   isCurrentMonth: boolean
   appointments: Appointment[]
+}
+
+const getStatusInlineStyle = (status: string): React.CSSProperties => {
+  switch (status) {
+    case 'confirmed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderLeft: '2px solid #22c55e' }
+    case 'pending':
+      return { background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderLeft: '2px solid #fbbf24' }
+    case 'completed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderLeft: '2px solid #22c55e' }
+    case 'cancelled':
+      return { background: 'rgba(248,113,113,0.15)', color: '#f87171', borderLeft: '2px solid #f87171' }
+    default:
+      return { background: 'rgba(212,175,55,0.15)', color: '#D4AF37', borderLeft: '2px solid #D4AF37' }
+  }
 }
 
 export function CalendarView({ appointments, mode = 'month', onAppointmentClick }: CalendarViewProps) {
@@ -112,21 +123,6 @@ export function CalendarView({ appointments, mode = 'month', onAppointmentClick 
            date.getFullYear() === today.getFullYear()
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-blue-500/20 border-blue-500 text-blue-200'
-      case 'pending':
-        return 'bg-yellow-500/20 border-yellow-500 text-yellow-200'
-      case 'completed':
-        return 'bg-green-500/20 border-green-500 text-green-200'
-      case 'cancelled':
-        return 'bg-red-500/20 border-red-500 text-red-200'
-      default:
-        return 'bg-gray-500/20 border-gray-500 text-gray-200'
-    }
-  }
-
   // Renderizar componentes específicos baseado no modo (após todos os hooks)
   if (mode === 'day') {
     return (
@@ -165,164 +161,232 @@ export function CalendarView({ appointments, mode = 'month', onAppointmentClick 
   }
 
   // Visualização mensal (padrão)
+  const navBtnBase: React.CSSProperties = {
+    background: 'none',
+    border: '1px solid rgba(255,255,255,0.10)',
+    borderRadius: '0.5rem',
+    color: 'rgba(255,255,255,0.5)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    transition: 'color 0.2s, border-color 0.2s',
+  }
+
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Header do Calendário */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h2 className="text-2xl font-bold text-gold">
+          <h2
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              color: '#D4AF37',
+              margin: 0,
+            }}
+          >
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
-          <p className="text-sm text-gray-400 mt-1">
+          <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
             {appointments.length} agendamento{appointments.length !== 1 ? 's' : ''} no total
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
             onClick={goToToday}
-            className="hidden sm:flex"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: '0.5rem',
+              color: 'rgba(255,255,255,0.75)',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              padding: '0.375rem 0.75rem',
+              cursor: 'pointer',
+              display: 'none',
+            }}
+            className="sm-show"
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#D4AF37')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
           >
             Hoje
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <button
+              style={navBtnBase}
               onClick={previousMonth}
-              className="h-9 w-9 text-gray-400 hover:text-gold"
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#D4AF37'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
             >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              style={navBtnBase}
               onClick={nextMonth}
-              className="h-9 w-9 text-gray-400 hover:text-gold"
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#D4AF37'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
             >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Grade do Calendário */}
-      <Card className={`${theme.colors.card.base} border-gold/20`}>
-        <CardContent className="p-4">
-          {/* Cabeçalho dos dias da semana */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {dayNames.map((day, index) => (
-              <div
-                key={`day-name-${index}`}
-                className={`text-center text-sm font-semibold py-2 ${
-                  index === 0 || index === 6 ? 'text-gold/70' : 'text-gray-400'
-                }`}
+      <div
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '1.125rem',
+          padding: '1rem',
+        }}
+      >
+        {/* Cabeçalho dos dias da semana */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          {dayNames.map((day, index) => (
+            <div
+              key={`day-name-${index}`}
+              style={{
+                textAlign: 'center',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                padding: '0.5rem 0',
+                color: index === 0 || index === 6 ? 'rgba(212,175,55,0.7)' : 'rgba(255,255,255,0.5)',
+              }}
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Grade de dias */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem' }}>
+          {calendarDays.map((day, index) => {
+            const isCurrentDay = isToday(day.date)
+
+            return (
+              <motion.div
+                key={`day-${index}`}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.005, type: 'spring', stiffness: 320, damping: 36 }}
+                style={{
+                  minHeight: 120,
+                  border: isCurrentDay
+                    ? '2px solid #D4AF37'
+                    : day.isCurrentMonth
+                      ? '1px solid rgba(255,255,255,0.08)'
+                      : '1px solid rgba(255,255,255,0.04)',
+                  borderRadius: '0.625rem',
+                  padding: '0.5rem',
+                  background: isCurrentDay
+                    ? 'rgba(212,175,55,0.07)'
+                    : day.isCurrentMonth
+                      ? 'rgba(255,255,255,0.02)'
+                      : 'rgba(255,255,255,0.01)',
+                  boxShadow: isCurrentDay ? '0 0 16px rgba(212,175,55,0.12)' : 'none',
+                  transition: 'border-color 0.2s',
+                  cursor: 'default',
+                }}
               >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Grade de dias */}
-          <div className="grid grid-cols-7 gap-2">
-            {calendarDays.map((day, index) => {
-              const isCurrentDay = isToday(day.date)
-
-              return (
-                <motion.div
-                  key={`day-${index}`}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.005 }}
-                  className={`
-                    min-h-[120px] border rounded-lg p-2 transition-all duration-200
-                    ${day.isCurrentMonth
-                      ? 'bg-gray-900/50 border-gray-700'
-                      : 'bg-gray-900/20 border-gray-800'
-                    }
-                    ${isCurrentDay
-                      ? 'ring-2 ring-gold shadow-lg shadow-gold/20'
-                      : ''
-                    }
-                    hover:border-gold/50 hover:shadow-md
-                  `}
-                >
-                  {/* Número do dia */}
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`
-                      text-sm font-semibold
-                      ${day.isCurrentMonth ? 'text-white' : 'text-gray-600'}
-                      ${isCurrentDay ? 'text-gold' : ''}
-                    `}>
-                      {day.date.getDate()}
+                {/* Número do dia */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span
+                    style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      color: isCurrentDay
+                        ? '#D4AF37'
+                        : day.isCurrentMonth
+                          ? '#fff'
+                          : 'rgba(255,255,255,0.2)',
+                    }}
+                  >
+                    {day.date.getDate()}
+                  </span>
+                  {day.appointments.length > 0 && (
+                    <span
+                      style={{
+                        borderRadius: '9999px',
+                        padding: '1px 7px',
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        background: 'rgba(212,175,55,0.15)',
+                        color: '#D4AF37',
+                      }}
+                    >
+                      {day.appointments.length}
                     </span>
-                    {day.appointments.length > 0 && (
-                      <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                        {day.appointments.length}
-                      </Badge>
-                    )}
-                  </div>
+                  )}
+                </div>
 
-                  {/* Lista de agendamentos do dia */}
-                  <div className="space-y-1">
-                    {day.appointments.slice(0, 3).map((appointment) => (
-                      <motion.div
-                        key={appointment.id}
-                        whileHover={{ scale: 1.02 }}
-                        onClick={() => onAppointmentClick?.(appointment)}
-                        className={`
-                          text-xs p-1.5 rounded border-l-2 cursor-pointer
-                          transition-all duration-200
-                          ${getStatusColor(appointment.status)}
-                          hover:shadow-md
-                        `}
-                      >
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <Clock className="w-3 h-3" />
-                          <span className="font-medium">{appointment.time}</span>
-                        </div>
-                        <div className="font-semibold truncate">
-                          {appointment.clientName}
-                        </div>
-                        <div className="text-xs opacity-80 truncate">
-                          {appointment.service}
-                        </div>
-                      </motion.div>
-                    ))}
-
-                    {day.appointments.length > 3 && (
-                      <div className="text-xs text-gray-500 text-center py-1">
-                        +{day.appointments.length - 3} mais
+                {/* Lista de agendamentos do dia */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {day.appointments.slice(0, 3).map((appointment) => (
+                    <motion.div
+                      key={appointment.id}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => onAppointmentClick?.(appointment)}
+                      style={{
+                        fontSize: '0.7rem',
+                        padding: '0.25rem 0.375rem',
+                        borderRadius: '0.3rem',
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s',
+                        ...getStatusInlineStyle(appointment.status),
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 1 }}>
+                        <Clock size={10} />
+                        <span style={{ fontWeight: 500 }}>{appointment.time}</span>
                       </div>
-                    )}
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                      <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {appointment.clientName}
+                      </div>
+                      <div style={{ opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {appointment.service}
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {day.appointments.length > 3 && (
+                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', textAlign: 'center', paddingTop: 2 }}>
+                      +{day.appointments.length - 3} mais
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Legenda */}
-      <div className="flex flex-wrap items-center gap-4 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded border-2 border-blue-500 bg-blue-500/20" />
-          <span className="text-gray-400">Confirmado</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded border-2 border-yellow-500 bg-yellow-500/20" />
-          <span className="text-gray-400">Pendente</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded border-2 border-green-500 bg-green-500/20" />
-          <span className="text-gray-400">Concluído</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded border-2 border-red-500 bg-red-500/20" />
-          <span className="text-gray-400">Cancelado</span>
-        </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem' }}>
+        {[
+          { color: '#22c55e', bg: 'rgba(34,197,94,0.18)', label: 'Confirmado' },
+          { color: '#fbbf24', bg: 'rgba(251,191,36,0.18)', label: 'Pendente' },
+          { color: '#22c55e', bg: 'rgba(34,197,94,0.18)', label: 'Concluído' },
+          { color: '#f87171', bg: 'rgba(248,113,113,0.18)', label: 'Cancelado' },
+        ].map(({ color, bg, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: '3px',
+                background: bg,
+                border: `2px solid ${color}`,
+              }}
+            />
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{label}</span>
+          </div>
+        ))}
       </div>
     </div>
   )

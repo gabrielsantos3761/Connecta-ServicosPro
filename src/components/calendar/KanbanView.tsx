@@ -1,12 +1,7 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Clock, User, Scissors, Calendar, DollarSign, MoreVertical } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Appointment } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { theme } from '@/styles/theme'
 
 interface KanbanViewProps {
   appointments: Appointment[]
@@ -17,9 +12,10 @@ interface Column {
   id: string
   title: string
   status: string
-  color: string
-  bgColor: string
-  borderColor: string
+  headingColor: string
+  accentColor: string
+  borderTopColor: string
+  countBg: string
 }
 
 const columns: Column[] = [
@@ -27,59 +23,71 @@ const columns: Column[] = [
     id: 'pending',
     title: 'Pendentes',
     status: 'pending',
-    color: 'text-yellow-200',
-    bgColor: 'bg-yellow-500/10',
-    borderColor: 'border-yellow-500/30'
+    headingColor: '#fbbf24',
+    accentColor: 'rgba(251,191,36,0.35)',
+    borderTopColor: 'rgba(251,191,36,0.5)',
+    countBg: 'rgba(251,191,36,0.15)',
   },
   {
     id: 'confirmed',
     title: 'Confirmados',
     status: 'confirmed',
-    color: 'text-blue-200',
-    bgColor: 'bg-blue-500/10',
-    borderColor: 'border-blue-500/30'
+    headingColor: '#22c55e',
+    accentColor: 'rgba(34,197,94,0.35)',
+    borderTopColor: 'rgba(34,197,94,0.5)',
+    countBg: 'rgba(34,197,94,0.15)',
   },
   {
     id: 'completed',
     title: 'Concluídos',
     status: 'completed',
-    color: 'text-green-200',
-    bgColor: 'bg-green-500/10',
-    borderColor: 'border-green-500/30'
+    headingColor: '#22c55e',
+    accentColor: 'rgba(34,197,94,0.35)',
+    borderTopColor: 'rgba(34,197,94,0.5)',
+    countBg: 'rgba(34,197,94,0.15)',
   },
   {
     id: 'cancelled',
     title: 'Cancelados',
     status: 'cancelled',
-    color: 'text-red-200',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30'
-  }
+    headingColor: '#f87171',
+    accentColor: 'rgba(248,113,113,0.35)',
+    borderTopColor: 'rgba(248,113,113,0.5)',
+    countBg: 'rgba(248,113,113,0.15)',
+  },
 ]
+
+const getStatusBadgeStyle = (status: string): React.CSSProperties => {
+  switch (status) {
+    case 'confirmed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e' }
+    case 'pending':
+      return { background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }
+    case 'completed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e' }
+    case 'cancelled':
+      return { background: 'rgba(248,113,113,0.15)', color: '#f87171' }
+    default:
+      return { background: 'rgba(212,175,55,0.15)', color: '#D4AF37' }
+  }
+}
 
 export function KanbanView({ appointments, onAppointmentClick }: KanbanViewProps) {
   const getAppointmentsByStatus = (status: string) => {
     return appointments.filter(apt => apt.status === status)
   }
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-blue-500/20 border-blue-500 text-blue-200'
-      case 'pending':
-        return 'bg-yellow-500/20 border-yellow-500 text-yellow-200'
-      case 'completed':
-        return 'bg-green-500/20 border-green-500 text-green-200'
-      case 'cancelled':
-        return 'bg-red-500/20 border-red-500 text-red-200'
-      default:
-        return 'bg-gray-500/20 border-gray-500 text-gray-200'
-    }
-  }
-
   return (
-    <div className="w-full overflow-x-auto pb-4">
-      <div className="flex gap-4 min-w-max lg:grid lg:grid-cols-4 lg:min-w-0">
+    <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '1rem' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(18rem, 1fr))',
+          gap: '1rem',
+          minWidth: 'max-content',
+        }}
+        className="lg:min-w-0"
+      >
         {columns.map((column, columnIndex) => {
           const columnAppointments = getAppointmentsByStatus(column.status)
 
@@ -88,24 +96,76 @@ export function KanbanView({ appointments, onAppointmentClick }: KanbanViewProps
               key={column.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: columnIndex * 0.1 }}
-              className="flex-shrink-0 w-80 lg:w-auto"
+              transition={{ delay: columnIndex * 0.1, type: 'spring', stiffness: 320, damping: 36 }}
+              style={{ flexShrink: 0 }}
             >
-              <Card className={`${theme.colors.card.base} border-t-4 ${column.borderColor} h-full`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className={`font-bold text-lg ${column.color}`}>
-                      {column.title}
-                    </h3>
-                    <Badge variant="outline" className={`${column.bgColor} ${column.color} border-0`}>
-                      {columnAppointments.length}
-                    </Badge>
-                  </div>
-                </CardHeader>
+              {/* Column wrapper */}
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: '1.125rem',
+                  borderTop: `4px solid ${column.borderTopColor}`,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                {/* Column header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '1rem 1.125rem 0.75rem',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: '1.0625rem',
+                      fontWeight: 700,
+                      color: column.headingColor,
+                      margin: 0,
+                    }}
+                  >
+                    {column.title}
+                  </h3>
+                  <span
+                    style={{
+                      borderRadius: '9999px',
+                      padding: '2px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      background: column.countBg,
+                      color: column.headingColor,
+                    }}
+                  >
+                    {columnAppointments.length}
+                  </span>
+                </div>
 
-                <CardContent className="space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+                {/* Column body */}
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.625rem',
+                    maxHeight: 'calc(100vh - 280px)',
+                    overflowY: 'auto',
+                  }}
+                >
                   {columnAppointments.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 text-sm">
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        padding: '2rem 0',
+                        fontSize: '0.875rem',
+                        color: 'rgba(255,255,255,0.25)',
+                      }}
+                    >
                       Nenhum agendamento
                     </div>
                   ) : (
@@ -114,67 +174,136 @@ export function KanbanView({ appointments, onAppointmentClick }: KanbanViewProps
                         key={appointment.id}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.05 }}
+                        transition={{ delay: index * 0.05, type: 'spring', stiffness: 320, damping: 36 }}
                         whileHover={{ scale: 1.02 }}
-                        className="cursor-pointer"
+                        style={{ cursor: 'pointer' }}
                         onClick={() => onAppointmentClick?.(appointment)}
                       >
-                        <Card className={`${theme.colors.card.base} border-l-4 ${column.borderColor} hover:shadow-lg transition-all duration-200`}>
-                          <CardContent className="p-4">
-                            {/* Header */}
-                            <div className="flex items-start justify-between mb-3">
-                              <h4 className="font-bold text-white text-base">
-                                {appointment.clientName}
-                              </h4>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-1">
-                                <MoreVertical className="h-4 w-4 text-gray-400" />
-                              </Button>
-                            </div>
+                        {/* Appointment card */}
+                        <div
+                          style={{
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.07)',
+                            borderRadius: '1.125rem',
+                            borderLeft: `4px solid ${column.borderTopColor}`,
+                            padding: '1rem',
+                            transition: 'box-shadow 0.2s, border-color 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.boxShadow = `0 4px 24px ${column.accentColor}`
+                            e.currentTarget.style.borderColor = column.borderTopColor
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.boxShadow = 'none'
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
+                          }}
+                        >
+                          {/* Header */}
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                            <h4
+                              style={{
+                                fontWeight: 700,
+                                color: '#fff',
+                                fontSize: '0.9375rem',
+                                margin: 0,
+                              }}
+                            >
+                              {appointment.clientName}
+                            </h4>
+                            <button
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'rgba(255,255,255,0.35)',
+                                padding: '0 0 0 4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                flexShrink: 0,
+                                marginTop: -2,
+                                marginRight: -6,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#D4AF37')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+                          </div>
 
-                            {/* Service */}
-                            <div className="flex items-center gap-2 mb-2">
-                              <Scissors className="w-4 h-4 text-gold flex-shrink-0" />
-                              <span className="text-sm text-gray-300 truncate">
-                                {appointment.service}
-                              </span>
-                            </div>
+                          {/* Service */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <Scissors size={15} style={{ color: '#D4AF37', flexShrink: 0 }} />
+                            <span
+                              style={{
+                                fontSize: '0.8125rem',
+                                color: 'rgba(255,255,255,0.65)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {appointment.service}
+                            </span>
+                          </div>
 
-                            {/* Professional */}
-                            <div className="flex items-center gap-2 mb-2">
-                              <User className="w-4 h-4 text-gold flex-shrink-0" />
-                              <span className="text-sm text-gray-300 truncate">
-                                {appointment.professional}
-                              </span>
-                            </div>
+                          {/* Professional */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <User size={15} style={{ color: '#D4AF37', flexShrink: 0 }} />
+                            <span
+                              style={{
+                                fontSize: '0.8125rem',
+                                color: 'rgba(255,255,255,0.65)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {appointment.professional}
+                            </span>
+                          </div>
 
-                            {/* Date & Time */}
-                            <div className="flex items-center gap-2 mb-3">
-                              <Calendar className="w-4 h-4 text-gold flex-shrink-0" />
-                              <span className="text-xs text-gray-400">
-                                {formatDate(appointment.date)}
-                              </span>
-                              <Clock className="w-4 h-4 text-gold flex-shrink-0 ml-auto" />
-                              <span className="text-xs text-gray-400">
-                                {appointment.time}
-                              </span>
-                            </div>
+                          {/* Date & Time */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                            <Calendar size={15} style={{ color: '#D4AF37', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                              {formatDate(appointment.date)}
+                            </span>
+                            <Clock size={15} style={{ color: '#D4AF37', flexShrink: 0, marginLeft: 'auto' }} />
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                              {appointment.time}
+                            </span>
+                          </div>
 
-                            {/* Footer */}
-                            <div className="flex items-center justify-between pt-3 border-t border-gray-700">
-                              <span className="text-xs text-gray-500">
-                                {appointment.duration} min
-                              </span>
-                              <span className="text-lg font-bold text-gold">
-                                {formatCurrency(appointment.price)}
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
+                          {/* Footer */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingTop: '0.75rem',
+                              borderTop: '1px solid rgba(255,255,255,0.06)',
+                            }}
+                          >
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
+                              {appointment.duration} min
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '1.0625rem',
+                                fontWeight: 700,
+                                color: '#D4AF37',
+                              }}
+                            >
+                              {formatCurrency(appointment.price)}
+                            </span>
+                          </div>
+                        </div>
                       </motion.div>
                     ))
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </motion.div>
           )
         })}

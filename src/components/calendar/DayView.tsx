@@ -1,12 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Clock, User, Scissors, DollarSign, Eye, EyeOff } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { ChevronLeft, ChevronRight, Clock, Scissors, Eye, EyeOff } from 'lucide-react'
 import { Appointment } from '@/types'
-import { formatCurrency } from '@/lib/utils'
-import { theme } from '@/styles/theme'
 import { AppointmentDetailModal } from './AppointmentDetailModal'
 
 interface DayViewProps {
@@ -14,6 +9,21 @@ interface DayViewProps {
   currentDate: Date
   onDateChange: (date: Date) => void
   onAppointmentClick?: (appointment: Appointment) => void
+}
+
+const getStatusInlineStyle = (status: string): React.CSSProperties => {
+  switch (status) {
+    case 'confirmed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderLeft: '3px solid #22c55e' }
+    case 'pending':
+      return { background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderLeft: '3px solid #fbbf24' }
+    case 'completed':
+      return { background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderLeft: '3px solid #22c55e' }
+    case 'cancelled':
+      return { background: 'rgba(248,113,113,0.15)', color: '#f87171', borderLeft: '3px solid #f87171' }
+    default:
+      return { background: 'rgba(212,175,55,0.15)', color: '#D4AF37', borderLeft: '3px solid #D4AF37' }
+  }
 }
 
 export function DayView({ appointments, currentDate, onDateChange, onAppointmentClick }: DayViewProps) {
@@ -108,21 +118,6 @@ export function DayView({ appointments, currentDate, onDateChange, onAppointment
 
   const hours = getRelevantHours()
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-blue-500/20 border-blue-500 text-blue-200'
-      case 'pending':
-        return 'bg-yellow-500/20 border-yellow-500 text-yellow-200'
-      case 'completed':
-        return 'bg-green-500/20 border-green-500 text-green-200'
-      case 'cancelled':
-        return 'bg-red-500/20 border-red-500 text-red-200'
-      default:
-        return 'bg-gray-500/20 border-gray-500 text-gray-200'
-    }
-  }
-
   const formatDayName = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   }
@@ -169,78 +164,122 @@ export function DayView({ appointments, currentDate, onDateChange, onAppointment
     return aptHour > currentHour || (aptHour === currentHour && aptMinute >= currentMinute)
   }
 
+  const navBtnBase: React.CSSProperties = {
+    background: 'none',
+    border: '1px solid rgba(255,255,255,0.10)',
+    borderRadius: '0.5rem',
+    color: 'rgba(255,255,255,0.5)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 34,
+    height: 34,
+    transition: 'color 0.2s, border-color 0.2s',
+  }
+
   return (
     <div
-      className="space-y-4"
+      style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
       onClick={() => {
         // Recolher todos os agendamentos expandidos ao clicar fora
         setExpandedAppointments(new Set())
       }}
     >
       {/* Header */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex-1">
-            <h2 className="text-xl sm:text-2xl font-bold text-gold capitalize">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1 }}>
+            <h2
+              style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.375rem',
+                fontWeight: 700,
+                color: '#D4AF37',
+                margin: 0,
+                textTransform: 'capitalize',
+              }}
+            >
               {formatDayName(currentDate)}
             </h2>
-            <p className="text-xs sm:text-sm text-gray-400 mt-1">
+            <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
               {dayAppointments.length} agendamento{dayAppointments.length !== 1 ? 's' : ''} hoje
             </p>
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-              className="text-xs"
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); goToToday() }}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: '0.5rem',
+                color: 'rgba(255,255,255,0.75)',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
+                padding: '0.3125rem 0.625rem',
+                cursor: 'pointer',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#D4AF37')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
             >
               Hoje
-            </Button>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={previousDay}
-                className="h-8 w-8 sm:h-9 sm:w-9 text-gray-400 hover:text-gold"
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <button
+                style={navBtnBase}
+                onClick={(e) => { e.stopPropagation(); previousDay() }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#D4AF37'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
               >
-                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={nextDay}
-                className="h-8 w-8 sm:h-9 sm:w-9 text-gray-400 hover:text-gold"
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                style={navBtnBase}
+                onClick={(e) => { e.stopPropagation(); nextDay() }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#D4AF37'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)' }}
               >
-                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
         </div>
 
         {/* Toggle para mostrar todos os horários */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <Button
-            variant={showAllHours ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowAllHours(!showAllHours)}
-            className="text-xs w-full sm:w-auto"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowAllHours(!showAllHours) }}
+            style={{
+              background: showAllHours ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
+              border: showAllHours ? '1px solid rgba(212,175,55,0.35)' : '1px solid rgba(255,255,255,0.10)',
+              borderRadius: '0.5rem',
+              color: showAllHours ? '#D4AF37' : 'rgba(255,255,255,0.6)',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              padding: '0.3125rem 0.75rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              transition: 'all 0.2s',
+            }}
           >
             {showAllHours ? (
               <>
-                <EyeOff className="w-3.5 h-3.5 mr-1.5" />
+                <EyeOff size={13} />
                 Apenas com Agendamentos
               </>
             ) : (
               <>
-                <Eye className="w-3.5 h-3.5 mr-1.5" />
+                <Eye size={13} />
                 Todos os Horários
               </>
             )}
-          </Button>
+          </button>
           {!showAllHours && dayAppointments.length > 0 && (
-            <span className="text-xs text-gray-500 text-center sm:text-left">
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
               Mostrando {hours.length} de {allHours.length} horários
             </span>
           )}
@@ -248,108 +287,142 @@ export function DayView({ appointments, currentDate, onDateChange, onAppointment
       </div>
 
       {/* Timeline */}
-      <Card className={`${theme.colors.card.base} border-gold/20`}>
-        <CardContent className="p-2 sm:p-3">
-          <div className="space-y-1 sm:space-y-1.5">
-            {hours.map((hour, index) => {
-              const hourAppointments = getAppointmentsForHour(hour)
-              const isCurrent = isCurrentHour(hour)
-              const isPast = isPastHour(hour)
-              const hasAppointments = hourAppointments.length > 0
+      <div
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '1.125rem',
+          padding: '0.75rem',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+          {hours.map((hour, index) => {
+            const hourAppointments = getAppointmentsForHour(hour)
+            const isCurrent = isCurrentHour(hour)
+            const isPast = isPastHour(hour)
+            const hasAppointments = hourAppointments.length > 0
 
-              return (
-                <motion.div
-                  key={hour}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.01 }}
-                  className={`
-                    flex gap-2 sm:gap-3 rounded-lg border transition-all
-                    ${isPast && hasAppointments ? 'p-1 sm:p-1.5' : hasAppointments ? 'p-2 sm:p-2.5' : 'p-1 sm:p-1.5'}
-                    ${isCurrent
-                      ? 'bg-gold/10 border-gold shadow-lg shadow-gold/20'
-                      : isPast
-                        ? 'bg-gray-900/10 border-gray-800/30 opacity-50'
-                        : hasAppointments
-                          ? 'bg-gray-900/30 border-gray-700 hover:border-gold/50'
-                          : 'bg-gray-900/10 border-gray-800/50'
-                    }
-                  `}
-                >
-                  {/* Hora */}
-                  <div className="w-12 sm:w-16 flex-shrink-0">
-                    <div className={`text-[10px] sm:text-xs font-semibold ${isCurrent ? 'text-gold' : isPast ? 'text-gray-600' : hasAppointments ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {hour.toString().padStart(2, '0')}:00
-                    </div>
+            return (
+              <motion.div
+                key={hour}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.01, type: 'spring', stiffness: 320, damping: 36 }}
+                style={{
+                  display: 'flex',
+                  gap: '0.625rem',
+                  borderRadius: '0.625rem',
+                  border: isCurrent
+                    ? '1px solid rgba(212,175,55,0.4)'
+                    : isPast
+                      ? '1px solid rgba(255,255,255,0.03)'
+                      : hasAppointments
+                        ? '1px solid rgba(255,255,255,0.08)'
+                        : '1px solid rgba(255,255,255,0.04)',
+                  background: isCurrent
+                    ? 'rgba(212,175,55,0.07)'
+                    : isPast
+                      ? 'rgba(255,255,255,0.01)'
+                      : hasAppointments
+                        ? 'rgba(255,255,255,0.025)'
+                        : 'transparent',
+                  padding: hasAppointments && !isPast ? '0.5rem 0.625rem' : '0.25rem 0.625rem',
+                  opacity: isPast && hasAppointments ? 0.55 : 1,
+                  boxShadow: isCurrent ? '0 0 12px rgba(212,175,55,0.12)' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {/* Hora */}
+                <div style={{ width: 48, flexShrink: 0 }}>
+                  <div
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      color: isCurrent
+                        ? '#D4AF37'
+                        : isPast
+                          ? 'rgba(255,255,255,0.2)'
+                          : hasAppointments
+                            ? 'rgba(255,255,255,0.5)'
+                            : 'rgba(255,255,255,0.2)',
+                    }}
+                  >
+                    {hour.toString().padStart(2, '0')}:00
                   </div>
+                </div>
 
-                  {/* Linha divisória - apenas se tiver agendamentos */}
-                  {hasAppointments && !isPast && (
-                    <div className={`w-px ${isCurrent ? 'bg-gold' : 'bg-gray-700'}`} />
-                  )}
+                {/* Linha divisória - apenas se tiver agendamentos */}
+                {hasAppointments && !isPast && (
+                  <div
+                    style={{
+                      width: 1,
+                      background: isCurrent ? '#D4AF37' : 'rgba(255,255,255,0.1)',
+                      borderRadius: 1,
+                    }}
+                  />
+                )}
 
-                  {/* Agendamentos */}
-                  <div className="flex-1">
-                    {hourAppointments.length > 0 ? (
-                      <div className="space-y-0.5">
-                        {hourAppointments.map((appointment) => {
-                          const isFutureAppointment = isCurrentOrFuture(appointment)
-                          const isExpanded = expandedAppointments.has(appointment.id)
-                          // Todos começam recolhidos, só expandem ao clicar
-                          const shouldShowExpanded = isExpanded
+                {/* Agendamentos */}
+                <div style={{ flex: 1 }}>
+                  {hourAppointments.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {hourAppointments.map((appointment) => {
+                        const isFutureAppointment = isCurrentOrFuture(appointment)
+                        const isExpanded = expandedAppointments.has(appointment.id)
+                        const shouldShowExpanded = isExpanded
 
-                          return (
-                            <div
-                              key={appointment.id}
-                              onClick={(e) => handleAppointmentClick(appointment, e)}
-                              className={`
-                                rounded-lg border-l-3 cursor-pointer
-                                transition-all duration-200
-                                ${shouldShowExpanded
-                                  ? `p-2.5 ${getStatusColor(appointment.status)} hover:shadow-lg`
-                                  : `p-1 ${getStatusColor(appointment.status)} ${isFutureAppointment ? 'opacity-90' : 'opacity-60'} hover:opacity-100`
-                                }
-                              `}
-                            >
-                              {shouldShowExpanded ? (
-                                // Versão expandida (quando clicado)
-                                <>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                      <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                                      <span className="font-bold text-sm">{appointment.time}</span>
-                                      <span className="text-xs opacity-70">{appointment.duration}min</span>
-                                    </div>
-                                  </div>
-
-                                  <div className="mt-1.5 flex items-center gap-1.5">
-                                    <Scissors className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
-                                    <span className="text-sm font-medium text-white truncate">
-                                      {appointment.service}
-                                    </span>
-                                  </div>
-                                </>
-                              ) : (
-                                // Versão compacta (padrão para todos os agendamentos)
-                                <div className="flex items-center gap-1.5">
-                                  <Clock className="w-3 h-3 flex-shrink-0" />
-                                  <span className="text-xs font-medium">{appointment.time}</span>
-                                  <span className="text-xs">•</span>
-                                  <span className="text-xs truncate">{appointment.service}</span>
+                        return (
+                          <div
+                            key={appointment.id}
+                            onClick={(e) => handleAppointmentClick(appointment, e)}
+                            style={{
+                              borderRadius: '0.4375rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              opacity: isFutureAppointment || shouldShowExpanded ? 1 : 0.6,
+                              ...getStatusInlineStyle(appointment.status),
+                              ...(shouldShowExpanded
+                                ? { padding: '0.5rem 0.625rem' }
+                                : { padding: '0.1875rem 0.5rem' }),
+                            }}
+                          >
+                            {shouldShowExpanded ? (
+                              // Versão expandida (quando clicado)
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                  <Clock size={13} style={{ flexShrink: 0 }} />
+                                  <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{appointment.time}</span>
+                                  <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{appointment.duration}min</span>
                                 </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <Scissors size={13} style={{ flexShrink: 0, opacity: 0.7 }} />
+                                  <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {appointment.service}
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              // Versão compacta (padrão)
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Clock size={11} style={{ flexShrink: 0 }} />
+                                <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{appointment.time}</span>
+                                <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>•</span>
+                                <span style={{ fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {appointment.service}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Modal de Detalhes */}
       <AppointmentDetailModal

@@ -2,8 +2,6 @@ import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Cropper from 'react-easy-crop'
 import { X, Check, ZoomIn, ZoomOut, RotateCw, Image as ImageIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
 
 interface ImageCropModalProps {
   isOpen: boolean
@@ -12,6 +10,22 @@ interface ImageCropModalProps {
   onSave: (croppedImage: string) => void
   aspectRatio?: number
   title?: string
+}
+
+const SPRING = { type: 'spring', stiffness: 320, damping: 36 }
+
+const iconBtnStyle: React.CSSProperties = {
+  width: '2rem',
+  height: '2rem',
+  borderRadius: '0.5rem',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  flexShrink: 0,
+  transition: 'background 0.15s',
 }
 
 export function ImageCropModal({
@@ -107,14 +121,29 @@ export function ImageCropModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={SPRING}
             onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.85)',
+              backdropFilter: 'blur(6px)',
+            }}
           />
 
           {/* Modal */}
@@ -122,29 +151,89 @@ export function ImageCropModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-4xl mx-4 bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+            transition={SPRING}
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '56rem',
+              margin: '0 1rem',
+              background: '#0a0900',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '1.125rem',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+              overflow: 'hidden',
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center">
-                  <ImageIcon className="w-5 h-5 text-gold" />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1.5rem',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: '2.5rem',
+                    height: '2.5rem',
+                    borderRadius: '0.75rem',
+                    background: 'rgba(212,175,55,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <ImageIcon style={{ width: '1.25rem', height: '1.25rem', color: '#D4AF37' }} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{title}</h2>
-                  <p className="text-sm text-gray-400">Ajuste o enquadramento e zoom da imagem</p>
+                  <h2
+                    style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: '#fff',
+                      margin: 0,
+                    }}
+                  >
+                    {title}
+                  </h2>
+                  <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                    Ajuste o enquadramento e zoom da imagem
+                  </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
+                style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLButtonElement).style.background =
+                    'rgba(255,255,255,0.05)')
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')
+                }
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X style={{ width: '1.25rem', height: '1.25rem', color: 'rgba(255,255,255,0.5)' }} />
               </button>
             </div>
 
             {/* Crop Area */}
-            <div className="relative h-[500px] bg-black">
+            <div style={{ position: 'relative', height: '500px', background: '#000' }}>
               <Cropper
                 image={imageSrc}
                 crop={crop}
@@ -170,84 +259,214 @@ export function ImageCropModal({
             </div>
 
             {/* Controls */}
-            <div className="p-6 space-y-6 bg-gray-900/50">
+            <div
+              style={{
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.25rem',
+                background: 'rgba(255,255,255,0.02)',
+                borderTop: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
               {/* Zoom Control */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                    <ZoomIn className="w-4 h-4 text-gold" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: 'rgba(255,255,255,0.7)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <ZoomIn style={{ width: '1rem', height: '1rem', color: '#D4AF37' }} />
                     Zoom
                   </label>
-                  <span className="text-sm text-gray-400">{Math.round(zoom * 100)}%</span>
+                  <span style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)' }}>
+                    {Math.round(zoom * 100)}%
+                  </span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <button
                     onClick={handleZoomOut}
-                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                    style={iconBtnStyle}
+                    onMouseEnter={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        'rgba(255,255,255,0.1)')
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        'rgba(255,255,255,0.05)')
+                    }
                   >
-                    <ZoomOut className="w-4 h-4 text-gray-400" />
+                    <ZoomOut style={{ width: '1rem', height: '1rem', color: 'rgba(255,255,255,0.5)' }} />
                   </button>
-                  <Slider
-                    value={[zoom]}
+                  <input
+                    type="range"
                     min={0.5}
                     max={3}
                     step={0.1}
-                    onValueChange={(value) => setZoom(value[0])}
-                    className="flex-1"
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    style={{
+                      flex: 1,
+                      accentColor: '#D4AF37',
+                      cursor: 'pointer',
+                      height: '4px',
+                    }}
                   />
                   <button
                     onClick={handleZoomIn}
-                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                    style={iconBtnStyle}
+                    onMouseEnter={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        'rgba(255,255,255,0.1)')
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        'rgba(255,255,255,0.05)')
+                    }
                   >
-                    <ZoomIn className="w-4 h-4 text-gray-400" />
+                    <ZoomIn style={{ width: '1rem', height: '1rem', color: 'rgba(255,255,255,0.5)' }} />
                   </button>
                 </div>
               </div>
 
               {/* Rotation Control */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                    <RotateCw className="w-4 h-4 text-gold" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: 'rgba(255,255,255,0.7)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <RotateCw style={{ width: '1rem', height: '1rem', color: '#D4AF37' }} />
                     Rotação
                   </label>
-                  <span className="text-sm text-gray-400">{rotation}°</span>
+                  <span style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)' }}>
+                    {rotation}°
+                  </span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <button
                     onClick={handleRotate}
-                    className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white transition-colors"
+                    style={{
+                      padding: '0.375rem 0.875rem',
+                      borderRadius: '0.5rem',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      fontSize: '0.875rem',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'background 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                    }}
+                    onMouseEnter={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        'rgba(255,255,255,0.1)')
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        'rgba(255,255,255,0.05)')
+                    }
                   >
+                    <RotateCw style={{ width: '0.875rem', height: '0.875rem', color: '#D4AF37' }} />
                     Girar 90°
                   </button>
-                  <Slider
-                    value={[rotation]}
+                  <input
+                    type="range"
                     min={0}
                     max={360}
                     step={1}
-                    onValueChange={(value) => setRotation(value[0])}
-                    className="flex-1"
+                    value={rotation}
+                    onChange={(e) => setRotation(Number(e.target.value))}
+                    style={{
+                      flex: 1,
+                      accentColor: '#D4AF37',
+                      cursor: 'pointer',
+                      height: '4px',
+                    }}
                   />
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  paddingTop: '0.75rem',
+                  borderTop: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                <button
                   onClick={onClose}
-                  variant="outline"
-                  className="flex-1 border-white/10 text-white hover:bg-white/5"
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '0.5rem',
+                    padding: '0.625rem 1.5rem',
+                    color: '#fff',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '0.9375rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.background =
+                      'rgba(255,255,255,0.05)')
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')
+                  }
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X style={{ width: '1rem', height: '1rem' }} />
                   Cancelar
-                </Button>
-                <Button
+                </button>
+                <button
                   onClick={handleSave}
-                  className="flex-1 bg-gradient-to-r from-gold to-yellow-600 hover:opacity-90 text-white"
+                  style={{
+                    flex: 1,
+                    background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+                    color: '#050400',
+                    fontWeight: 600,
+                    borderRadius: '0.5rem',
+                    padding: '0.625rem 1.5rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.9375rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'opacity 0.15s',
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.opacity = '0.88')
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLButtonElement).style.opacity = '1')
+                  }
                 >
-                  <Check className="w-4 h-4 mr-2" />
+                  <Check style={{ width: '1rem', height: '1rem' }} />
                   Aplicar
-                </Button>
+                </button>
               </div>
             </div>
           </motion.div>

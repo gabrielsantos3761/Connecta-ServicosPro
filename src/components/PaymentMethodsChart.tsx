@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { CreditCard, Smartphone, Banknote, DollarSign, FileText } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Appointment, PaymentMethod } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { motion } from 'framer-motion'
@@ -9,41 +8,33 @@ interface PaymentMethodsChartProps {
   appointments: Appointment[]
 }
 
+const GOLD = '#D4AF37'
+
 const paymentMethodConfig = {
   pix: {
     label: 'PIX',
     icon: Smartphone,
-    color: 'bg-teal-500',
-    lightColor: 'bg-teal-100',
-    textColor: 'text-teal-700',
+    color: '#0d9488',
   },
   credit: {
     label: 'Cartão de Crédito',
     icon: CreditCard,
-    color: 'bg-blue-500',
-    lightColor: 'bg-blue-100',
-    textColor: 'text-blue-700',
+    color: '#3b82f6',
   },
   debit: {
     label: 'Cartão de Débito',
     icon: CreditCard,
-    color: 'bg-purple-500',
-    lightColor: 'bg-purple-100',
-    textColor: 'text-purple-700',
+    color: '#a855f7',
   },
   cash: {
     label: 'Dinheiro',
     icon: Banknote,
-    color: 'bg-green-500',
-    lightColor: 'bg-green-100',
-    textColor: 'text-green-700',
+    color: '#22c55e',
   },
   boleto: {
     label: 'Boleto',
     icon: FileText,
-    color: 'bg-orange-500',
-    lightColor: 'bg-orange-100',
-    textColor: 'text-orange-700',
+    color: '#f97316',
   },
 }
 
@@ -80,15 +71,50 @@ export function PaymentMethodsChart({ appointments }: PaymentMethodsChartProps) 
   const totalCount = paymentStats.reduce((sum, stat) => sum + stat.count, 0)
 
   return (
-    <Card className="col-span-full">
-      <CardHeader className="border-b border-gray-100">
-        <CardTitle className="flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-gold" />
+    <div
+      style={{
+        gridColumn: '1 / -1',
+        background: 'rgba(255,255,255,0.02)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: '1.125rem',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '1.25rem 1.5rem',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}
+      >
+        <DollarSign style={{ width: '1.25rem', height: '1.25rem', color: GOLD, flexShrink: 0 }} />
+        <h3
+          style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: '1.125rem',
+            fontWeight: 600,
+            color: '#ffffff',
+            margin: 0,
+          }}
+        >
           Formas de Pagamento
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        </h3>
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: '1.5rem' }}>
+        {/* Method Cards Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
           {paymentStats.map((stat, index) => {
             const config = paymentMethodConfig[stat.method]
             const Icon = config.icon
@@ -98,40 +124,96 @@ export function PaymentMethodsChart({ appointments }: PaymentMethodsChartProps) 
                 key={stat.method}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="relative"
+                transition={{ type: 'spring', stiffness: 320, damping: 36, delay: index * 0.06 }}
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: '0.875rem',
+                  padding: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                }}
               >
-                <div className="bg-white border-2 border-gray-100 rounded-lg p-4 hover:shadow-lg transition-all duration-200 hover:border-gray-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className={`${config.color} p-2 rounded-lg`}>
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-2xl font-bold text-gray-900">{stat.count}</span>
+                {/* Icon + Count row */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div
+                    style={{
+                      background: `${config.color}22`,
+                      border: `1px solid ${config.color}44`,
+                      borderRadius: '0.5rem',
+                      padding: '0.4rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon style={{ width: '1.125rem', height: '1.125rem', color: config.color }} />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {stat.count}
+                  </span>
+                </div>
+
+                {/* Label */}
+                <span
+                  style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: 'rgba(255,255,255,0.7)',
+                  }}
+                >
+                  {config.label}
+                </span>
+
+                {/* Revenue + bar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <span
+                    style={{
+                      fontSize: '1.0625rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                    }}
+                  >
+                    {formatCurrency(stat.revenue)}
+                  </span>
+
+                  {/* Progress bar track */}
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      borderRadius: '9999px',
+                      background: 'rgba(255,255,255,0.08)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${stat.percentage}%` }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 36, delay: index * 0.06 + 0.15 }}
+                      style={{
+                        height: '100%',
+                        borderRadius: '9999px',
+                        background: config.color,
+                      }}
+                    />
                   </div>
 
-                  <h4 className="text-sm font-semibold text-gray-700 mb-1">{config.label}</h4>
-
-                  <div className="space-y-2">
-                    <div className="text-lg font-bold text-gray-900">
-                      {formatCurrency(stat.revenue)}
-                    </div>
-
-                    {/* Barra de porcentagem */}
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${stat.percentage}%` }}
-                        transition={{ duration: 0.5, delay: index * 0.1 }}
-                        className={`${config.color} h-2 rounded-full`}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">{stat.percentage.toFixed(1)}%</span>
-                      <span className={`font-semibold ${config.textColor}`}>
-                        {totalCount > 0 ? ((stat.count / totalCount) * 100).toFixed(0) : 0}% transações
-                      </span>
-                    </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)' }}>
+                      {stat.percentage.toFixed(1)}%
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: config.color }}>
+                      {totalCount > 0 ? ((stat.count / totalCount) * 100).toFixed(0) : 0}% transações
+                    </span>
                   </div>
                 </div>
               </motion.div>
@@ -139,26 +221,49 @@ export function PaymentMethodsChart({ appointments }: PaymentMethodsChartProps) 
           })}
         </div>
 
-        {/* Resumo Total */}
-        <div className="bg-gradient-to-r from-gold/10 to-gold/5 rounded-lg p-4 border border-gold/20">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {/* Summary bar */}
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${GOLD}14, ${GOLD}08)`,
+            border: `1px solid ${GOLD}33`,
+            borderRadius: '0.875rem',
+            padding: '1rem 1.25rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '1rem',
+            }}
+          >
             <div>
-              <p className="text-xs text-gray-600 mb-1">Total de Transações</p>
-              <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+              <p style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.25rem' }}>
+                Total de Transações
+              </p>
+              <p style={{ fontSize: '1.375rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+                {totalCount}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 mb-1">Receita Total</p>
-              <p className="text-2xl font-bold text-gold">{formatCurrency(totalRevenue)}</p>
+              <p style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.25rem' }}>
+                Receita Total
+              </p>
+              <p style={{ fontSize: '1.375rem', fontWeight: 700, color: GOLD, margin: 0 }}>
+                {formatCurrency(totalRevenue)}
+              </p>
             </div>
-            <div className="col-span-2 md:col-span-1">
-              <p className="text-xs text-gray-600 mb-1">Ticket Médio</p>
-              <p className="text-2xl font-bold text-gray-900">
+            <div>
+              <p style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.25rem' }}>
+                Ticket Médio
+              </p>
+              <p style={{ fontSize: '1.375rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
                 {totalCount > 0 ? formatCurrency(totalRevenue / totalCount) : formatCurrency(0)}
               </p>
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

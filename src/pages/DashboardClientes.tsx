@@ -1,12 +1,9 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Users, DollarSign, TrendingUp, Calendar, UserPlus, Award } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Users, DollarSign, Calendar, UserPlus } from 'lucide-react'
 import { DateRangePicker } from '@/components/DateRangePicker'
 import { mockAppointments } from '@/data/mockData'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { theme, cardClasses, iconClasses } from '@/styles/theme'
 import { OwnerPageLayout } from "@/components/layout/OwnerPageLayout"
 
 type DateRange = { from?: Date; to?: Date }
@@ -24,12 +21,54 @@ interface ClientStats {
   completionRate: number
 }
 
+// ─── Design tokens ─────────────────────────────────────────────────────────────
+const CARD_STYLE = {
+  background: "rgba(255,255,255,0.02)",
+  border: "1px solid rgba(255,255,255,0.07)",
+  borderRadius: "1.125rem",
+}
+const GOLD = "#D4AF37"
+const DIV_LINE = { borderBottom: "1px solid rgba(255,255,255,0.06)" }
+const MEDAL_GRADIENTS = [
+  "linear-gradient(135deg,#D4AF37,#B8941E)",
+  "linear-gradient(135deg,#9ca3af,#6b7280)",
+  "linear-gradient(135deg,#b45309,#92400e)",
+]
+
+// ─── SVG Ring Chart ────────────────────────────────────────────────────────────
+function RingChart({ value, max, color, size = 52, sw = 4 }: {
+  value: number; max: number; color: string; size?: number; sw?: number
+}) {
+  const r = (size - sw * 2) / 2
+  const circ = 2 * Math.PI * r
+  const pct = max > 0 ? Math.min(value / max, 1) : 0
+  const cx = size / 2
+  const cy = size / 2
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)", display: "block" }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
+      <circle
+        cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+        strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)} strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+// ─── Urgency color helper ──────────────────────────────────────────────────────
+function urgencyColor(days: number): string {
+  if (days > 90) return "#f87171"
+  if (days > 60) return "#fb923c"
+  return "#fbbf24"
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
 export function DashboardClientes() {
   const today = new Date()
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(today.getFullYear(), today.getMonth(), 1),
-    to: today
+    to: today,
   })
 
   // Filtrar agendamentos por data
@@ -57,17 +96,14 @@ export function DashboardClientes() {
   const clientStats = useMemo((): ClientStats[] => {
     const clientsMap = new Map<string, ClientStats>()
 
-    // Considerar todos os agendamentos históricos para análise completa do cliente
     mockAppointments.forEach(apt => {
       const existing = clientsMap.get(apt.clientName)
 
       if (!existing) {
-        // Primeiro agendamento deste cliente
         const clientAppointments = mockAppointments.filter(a => a.clientName === apt.clientName)
         const completed = clientAppointments.filter(a => a.status === 'completed')
         const cancelled = clientAppointments.filter(a => a.status === 'cancelled')
 
-        // Encontrar serviço favorito (mais frequente)
         const serviceCounts = new Map<string, number>()
         completed.forEach(a => {
           serviceCounts.set(a.service, (serviceCounts.get(a.service) || 0) + 1)
@@ -92,7 +128,7 @@ export function DashboardClientes() {
           averageSpent: completed.length > 0 ? totalRevenue / completed.length : 0,
           completionRate: clientAppointments.length > 0
             ? (completed.length / clientAppointments.length) * 100
-            : 0
+            : 0,
         })
       }
     })
@@ -100,7 +136,7 @@ export function DashboardClientes() {
     return Array.from(clientsMap.values())
   }, [])
 
-  // Filtrar clientes que tiveram atividade no período selecionado
+  // Filtrar clientes com atividade no período
   const activeClientsInPeriod = useMemo(() => {
     const clientNamesInPeriod = new Set(filteredAppointments.map(apt => apt.clientName))
     return clientStats.filter(client => clientNamesInPeriod.has(client.name))
@@ -141,7 +177,6 @@ export function DashboardClientes() {
   // Estatísticas gerais
   const totalStats = useMemo(() => {
     const revenue = activeClientsInPeriod.reduce((sum, c) => {
-      // Calcular apenas receita do período filtrado
       const clientAppointmentsInPeriod = filteredAppointments.filter(
         apt => apt.clientName === c.name && apt.status === 'completed'
       )
@@ -164,9 +199,19 @@ export function DashboardClientes() {
       revenue,
       avgSpent,
       avgAppointmentsPerClient,
-      inactiveCount: inactiveClients.length
+      inactiveCount: inactiveClients.length,
     }
   }, [activeClientsInPeriod, newClients, clientStats, filteredAppointments, inactiveClients])
+
+  // Derived ring chart metrics
+  const retentionPct = totalStats.totalClients > 0
+    ? ((totalStats.totalClients - totalStats.inactiveCount) / totalStats.totalClients) * 100
+    : 0
+  const activePct = totalStats.totalClients > 0
+    ? (totalStats.activeInPeriod / totalStats.totalClients) * 100
+    : 0
+
+  const maxRevenue = topClients.length > 0 ? topClients[0].totalRevenue : 1
 
   return (
     <OwnerPageLayout
@@ -174,308 +219,469 @@ export function DashboardClientes() {
       subtitle="Análise de comportamento e estatísticas dos clientes"
     >
       {/* Filtros */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-3">
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            className="w-full sm:w-auto"
-          />
-        </div>
+      <div className="mb-6 flex flex-col sm:flex-row gap-3">
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          className="w-full sm:w-auto"
+        />
+      </div>
 
-        {/* Cards de Estatísticas Gerais */}
-        <motion.div
-          variants={theme.animations.container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+      {/* ── HERO Feature Card ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mb-6"
+      >
+        <div
+          style={{
+            ...CARD_STYLE,
+            border: "1px solid rgba(99,102,241,0.2)",
+            background: "rgba(99,102,241,0.04)",
+          }}
+          className="p-6 flex items-center justify-between gap-6 flex-wrap"
         >
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('blue')}>
-              <CardContent className="p-6">
-                <div className={iconClasses.container('blue')}>
-                  <Users className={iconClasses.icon('blue')} />
-                </div>
-                <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                  Clientes Ativos
-                </p>
-                <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                  {totalStats.activeInPeriod}
-                </h3>
-                <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                  Total: {totalStats.totalClients} clientes
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {/* Left: total count + inline stats */}
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
+              Base Total de Clientes
+            </p>
+            <p
+              className="text-6xl font-bold text-white leading-none mb-3"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {totalStats.totalClients}
+            </p>
+            <div className="flex items-center gap-1.5 flex-wrap text-sm">
+              <span style={{ color: "#818cf8" }} className="font-semibold">
+                {totalStats.activeInPeriod} ativos
+              </span>
+              <span className="text-gray-600">·</span>
+              <span style={{ color: "#34d399" }} className="font-semibold">
+                {totalStats.newClients} novos
+              </span>
+              <span className="text-gray-600">·</span>
+              <span style={{ color: "#f87171" }} className="font-semibold">
+                {totalStats.inactiveCount} inativos
+              </span>
+            </div>
+          </div>
 
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('green')}>
-              <CardContent className="p-6">
-                <div className={iconClasses.container('green')}>
-                  <UserPlus className={iconClasses.icon('green')} />
+          {/* Right: two ring charts */}
+          <div className="flex items-center gap-8">
+            {/* Retention ring */}
+            <div className="flex flex-col items-center gap-2">
+              <div style={{ position: "relative", width: 80, height: 80 }}>
+                <RingChart value={retentionPct} max={100} color="#34d399" size={80} sw={7} />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    textAlign: "center",
+                  }}
+                >
+                  <span className="text-base font-bold text-white">{retentionPct.toFixed(0)}%</span>
                 </div>
-                <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                  Novos Clientes
-                </p>
-                <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                  {totalStats.newClients}
-                </h3>
-                <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                  No período selecionado
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div>
+              <span className="text-xs text-gray-400">Retenção</span>
+            </div>
 
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('gold')}>
-              <CardContent className="p-6">
-                <div className={iconClasses.container('gold')}>
-                  <DollarSign className={iconClasses.icon('gold')} />
+            {/* Active ring */}
+            <div className="flex flex-col items-center gap-2">
+              <div style={{ position: "relative", width: 80, height: 80 }}>
+                <RingChart value={activePct} max={100} color="#818cf8" size={80} sw={7} />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    textAlign: "center",
+                  }}
+                >
+                  <span className="text-base font-bold text-white">{activePct.toFixed(0)}%</span>
                 </div>
-                <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                  Receita no Período
-                </p>
-                <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                  {formatCurrency(totalStats.revenue)}
-                </h3>
-                <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                  Média: {formatCurrency(totalStats.avgSpent)}/cliente
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div>
+              <span className="text-xs text-gray-400">Ativos</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('purple')}>
-              <CardContent className="p-6">
-                <div className={iconClasses.container('purple')}>
-                  <Calendar className={iconClasses.icon('purple')} />
-                </div>
-                <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                  Média Agend./Cliente
-                </p>
-                <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                  {totalStats.avgAppointmentsPerClient.toFixed(1)}
-                </h3>
-                <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                  No período selecionado
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+      {/* ── 4 KPI Cards ── */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+      >
+        {/* Clientes Ativos */}
+        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
+          <div style={CARD_STYLE} className="p-5 flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">Clientes Ativos</p>
+              <p
+                className="text-3xl font-bold text-white mb-1"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                {totalStats.activeInPeriod}
+              </p>
+              <p className="text-xs text-gray-500">Total: {totalStats.totalClients} clientes</p>
+            </div>
+            <div
+              className="flex items-center justify-center rounded-xl shrink-0"
+              style={{ background: "rgba(129,140,248,0.12)", width: 44, height: 44 }}
+            >
+              <Users size={20} style={{ color: "#818cf8" }} />
+            </div>
+          </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Top Clientes */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className={theme.colors.card.base}>
-              <CardHeader className={`border-b ${theme.colors.border.light}`}>
-                <CardTitle className={`flex items-center gap-2 ${theme.colors.text.primary}`}>
-                  <Award className="w-5 h-5 text-gold" />
-                  Top Clientes (Receita Total)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className={`divide-y ${theme.colors.border.light}`}>
-                  {topClients.map((client, index) => (
+        {/* Novos Clientes */}
+        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
+          <div style={CARD_STYLE} className="p-5 flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">Novos Clientes</p>
+              <p
+                className="text-3xl font-bold text-white mb-1"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                {totalStats.newClients}
+              </p>
+              <p className="text-xs text-gray-500">No período selecionado</p>
+            </div>
+            <div
+              className="flex items-center justify-center rounded-xl shrink-0"
+              style={{ background: "rgba(52,211,153,0.12)", width: 44, height: 44 }}
+            >
+              <UserPlus size={20} style={{ color: "#34d399" }} />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Receita no Período */}
+        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
+          <div style={CARD_STYLE} className="p-5 flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">Receita no Período</p>
+              <p
+                className="text-3xl font-bold text-white mb-1"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                {formatCurrency(totalStats.revenue)}
+              </p>
+              <p className="text-xs text-gray-500">Média: {formatCurrency(totalStats.avgSpent)}/cliente</p>
+            </div>
+            <div
+              className="flex items-center justify-center rounded-xl shrink-0"
+              style={{ background: `${GOLD}18`, width: 44, height: 44 }}
+            >
+              <DollarSign size={20} style={{ color: GOLD }} />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Média Agend./Cliente */}
+        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
+          <div style={CARD_STYLE} className="p-5 flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">Média Agend./Cliente</p>
+              <p
+                className="text-3xl font-bold text-white mb-1"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                {totalStats.avgAppointmentsPerClient.toFixed(1)}
+              </p>
+              <p className="text-xs text-gray-500">No período selecionado</p>
+            </div>
+            <div
+              className="flex items-center justify-center rounded-xl shrink-0"
+              style={{ background: "rgba(167,139,250,0.12)", width: 44, height: 44 }}
+            >
+              <Calendar size={20} style={{ color: "#a78bfa" }} />
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* ── Asymmetric 3/5 + 2/5 grid ── */}
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        {/* Left 3/5 — Top clients */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="col-span-5 lg:col-span-3"
+        >
+          <div style={CARD_STYLE} className="p-6">
+            <p
+              className="text-sm font-semibold text-white mb-5"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              Top Clientes por Receita
+            </p>
+
+            {topClients.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                Nenhum cliente ativo no período
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {topClients.map((client, index) => {
+                  const pct = maxRevenue > 0 ? (client.totalRevenue / maxRevenue) * 100 : 0
+                  const completionColor = client.completionRate >= 80
+                    ? "#34d399"
+                    : client.completionRate >= 50
+                    ? GOLD
+                    : "#f87171"
+
+                  return (
                     <div
                       key={client.name}
-                      className="p-6 hover:bg-white/5 transition-colors"
+                      className="py-3.5"
+                      style={index < topClients.length - 1 ? DIV_LINE : {}}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex gap-4 items-center flex-1">
-                          <div className={`
-                            w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg
-                            ${index === 0 ? 'bg-gold text-black' : ''}
-                            ${index === 1 ? 'bg-gray-700 text-white' : ''}
-                            ${index === 2 ? 'bg-amber-600 text-white' : ''}
-                            ${index > 2 ? 'bg-white/10 text-gray-400' : ''}
-                          `}>
-                            {index + 1}
+                      <div className="flex items-center gap-3 mb-2">
+                        {/* Medal badge */}
+                        <div
+                          className="flex items-center justify-center rounded-full font-bold text-sm shrink-0"
+                          style={{
+                            width: 32,
+                            height: 32,
+                            background: index < 3 ? MEDAL_GRADIENTS[index] : "rgba(255,255,255,0.06)",
+                            color: index < 3 ? (index === 0 ? "#000" : "#fff") : "#6b7280",
+                          }}
+                        >
+                          {index + 1}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-semibold text-white truncate">{client.name}</span>
+                            {/* Completion color indicator */}
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
+                              style={{ background: `${completionColor}18`, color: completionColor }}
+                            >
+                              {client.completionRate.toFixed(0)}% conclusão
+                            </span>
                           </div>
-                          <div className="flex-1">
-                            <h4 className={`font-semibold ${theme.colors.text.primary} mb-1`}>
-                              {client.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline" className="text-xs border-white/20 text-gray-400">
-                                {client.favoriteService}
-                              </Badge>
-                            </div>
-                            <div className={`flex items-center gap-3 text-sm ${theme.colors.text.tertiary}`}>
-                              <span>
-                                {client.completedCount} visitas
-                              </span>
-                              <span>
-                                Média: {formatCurrency(client.averageSpent)}
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Favorite service tag */}
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full font-medium"
+                              style={{ background: `${GOLD}15`, color: GOLD }}
+                            >
+                              {client.favoriteService}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {client.completedCount} visitas · Média {formatCurrency(client.averageSpent)}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-xl font-bold ${theme.colors.text.primary}`}>
+
+                        <div className="text-right shrink-0">
+                          <p
+                            className="text-base font-bold text-white"
+                            style={{ fontFamily: "'Playfair Display', serif" }}
+                          >
                             {formatCurrency(client.totalRevenue)}
                           </p>
-                          <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>
-                            Última visita: {formatDate(client.lastVisit)}
+                          <p className="text-xs text-gray-500">
+                            {formatDate(client.lastVisit)}
                           </p>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
 
-          {/* Novos Clientes */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Card className={theme.colors.card.base}>
-              <CardHeader className={`border-b ${theme.colors.border.light}`}>
-                <CardTitle className={`flex items-center gap-2 ${theme.colors.text.primary}`}>
-                  <UserPlus className="w-5 h-5 text-gold" />
-                  Novos Clientes no Período
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {newClients.length > 0 ? (
-                  <div className={`divide-y ${theme.colors.border.light}`}>
-                    {newClients.slice(0, 10).map((client) => (
+                      {/* Revenue bar */}
                       <div
-                        key={client.name}
-                        className="p-6 hover:bg-white/5 transition-colors"
+                        className="relative w-full rounded-full overflow-hidden"
+                        style={{ height: 10, background: "rgba(255,255,255,0.06)", marginLeft: 44 }}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className={`font-semibold ${theme.colors.text.primary} mb-1`}>
-                              {client.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="default" className="bg-green-500 text-xs">
-                                Novo
-                              </Badge>
-                              <span className={`text-xs ${theme.colors.text.tertiary}`}>
-                                Primeira visita: {formatDate(client.firstVisit)}
-                              </span>
-                            </div>
-                            <div className={`flex items-center gap-3 text-sm ${theme.colors.text.tertiary}`}>
-                              <span>
-                                {client.appointmentsCount} agendamentos
-                              </span>
-                              <span>
-                                {client.completedCount} concluídos
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-lg font-bold ${theme.colors.text.primary}`}>
-                              {formatCurrency(client.totalRevenue)}
-                            </p>
-                          </div>
-                        </div>
+                        <motion.div
+                          className="absolute left-0 top-0 h-full rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.7, delay: 0.05 * index }}
+                          style={{ background: "#818cf8" }}
+                        />
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`p-8 text-center ${theme.colors.text.tertiary}`}>
-                    Nenhum cliente novo no período selecionado
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Clientes Inativos */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <Card className={theme.colors.card.base}>
-            <CardHeader className={`border-b ${theme.colors.border.light}`}>
-              <div className="flex items-center justify-between">
-                <CardTitle className={`flex items-center gap-2 ${theme.colors.text.primary}`}>
-                  <TrendingUp className="w-5 h-5 text-red-500" />
-                  Clientes Inativos (Última visita há mais de 30 dias)
-                </CardTitle>
-                <Badge variant="destructive">
-                  {inactiveClients.length} clientes
-                </Badge>
+                    </div>
+                  )
+                })}
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className={theme.components.table.header}>
-                    <tr>
-                      <th className={theme.components.table.headerCell}>
-                        Cliente
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Última Visita
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Total de Visitas
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Receita Total
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Serviço Favorito
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className={theme.components.table.body}>
-                    {inactiveClients.map((client) => {
-                      const daysSinceLastVisit = Math.floor(
-                        (today.getTime() - client.lastVisit.getTime()) / (1000 * 60 * 60 * 24)
-                      )
-
-                      return (
-                        <tr key={client.name} className={theme.components.table.row}>
-                          <td className={theme.components.table.cell}>
-                            <div className={`font-medium ${theme.colors.text.primary}`}>{client.name}</div>
-                          </td>
-                          <td className={theme.components.table.cell}>
-                            <div className={`text-sm ${theme.colors.text.primary}`}>
-                              {formatDate(client.lastVisit)}
-                            </div>
-                            <div className="text-xs text-red-500">
-                              Há {daysSinceLastVisit} dias
-                            </div>
-                          </td>
-                          <td className={theme.components.table.cell}>
-                            <span className={`font-semibold ${theme.colors.text.primary}`}>{client.completedCount}</span>
-                          </td>
-                          <td className={theme.components.table.cell}>
-                            <span className={`font-bold ${theme.colors.text.primary}`}>
-                              {formatCurrency(client.totalRevenue)}
-                            </span>
-                          </td>
-                          <td className={theme.components.table.cell}>
-                            <Badge variant="outline" className="border-white/20 text-gray-400">
-                              {client.favoriteService}
-                            </Badge>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         </motion.div>
+
+        {/* Right 2/5 — New clients panel */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.35 }}
+          className="col-span-5 lg:col-span-2"
+        >
+          <div style={{ ...CARD_STYLE, height: "100%" }} className="p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-5">
+              <p
+                className="text-sm font-semibold text-white"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                Novos Clientes
+              </p>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: "rgba(52,211,153,0.12)", color: "#34d399" }}
+              >
+                {newClients.length} no período
+              </span>
+            </div>
+
+            {newClients.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-gray-500 text-sm text-center px-4">
+                Nenhum cliente novo no período selecionado
+              </div>
+            ) : (
+              <div className="space-y-0 overflow-y-auto" style={{ maxHeight: 400 }}>
+                {newClients.slice(0, 10).map((client, index) => (
+                  <div
+                    key={client.name}
+                    className="py-3 hover:bg-white/[0.02] transition-colors"
+                    style={index < Math.min(newClients.length, 10) - 1 ? DIV_LINE : {}}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-white truncate">{client.name}</span>
+                          {/* New badge */}
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
+                            style={{ background: "rgba(52,211,153,0.12)", color: "#34d399" }}
+                          >
+                            Novo
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          1ª visita: {formatDate(client.firstVisit)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {client.appointmentsCount} agendamentos · {client.completedCount} concluídos
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p
+                          className="text-sm font-bold text-white"
+                          style={{ fontFamily: "'Playfair Display', serif" }}
+                        >
+                          {formatCurrency(client.totalRevenue)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── Inactive Clients Table ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <div style={CARD_STYLE} className="p-6">
+          <div className="flex items-center justify-between mb-5">
+            <p
+              className="text-sm font-semibold text-white"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              Clientes Inativos
+            </p>
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: "rgba(248,113,113,0.12)", color: "#f87171" }}
+            >
+              {inactiveClients.length} clientes · última visita há mais de 30 dias
+            </span>
+          </div>
+
+          {inactiveClients.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 text-sm">
+              Nenhum cliente inativo encontrado
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              {/* Header */}
+              <div
+                className="grid items-center text-xs font-medium text-gray-500 uppercase tracking-wider px-4 pb-3"
+                style={{ gridTemplateColumns: "3fr 2fr 1fr 2fr 2fr", ...DIV_LINE }}
+              >
+                <span>Cliente</span>
+                <span>Última Visita</span>
+                <span className="text-center">Visitas</span>
+                <span className="text-right">Receita Total</span>
+                <span className="text-right">Serviço Favorito</span>
+              </div>
+
+              {/* Rows */}
+              <div>
+                {inactiveClients.map((client, index) => {
+                  const daysSince = Math.floor(
+                    (today.getTime() - client.lastVisit.getTime()) / (1000 * 60 * 60 * 24)
+                  )
+                  const urg = urgencyColor(daysSince)
+
+                  return (
+                    <div
+                      key={client.name}
+                      className="grid items-center py-3 px-4 transition-colors hover:bg-white/[0.02]"
+                      style={{
+                        gridTemplateColumns: "3fr 2fr 1fr 2fr 2fr",
+                        borderLeft: `3px solid ${urg}`,
+                        ...(index < inactiveClients.length - 1 ? DIV_LINE : {}),
+                      }}
+                    >
+                      <span className="text-sm font-medium text-white">{client.name}</span>
+
+                      <div>
+                        <p className="text-sm text-gray-300">{formatDate(client.lastVisit)}</p>
+                        <p className="text-xs font-semibold" style={{ color: urg }}>
+                          há {daysSince} dias
+                        </p>
+                      </div>
+
+                      <span className="text-sm text-gray-300 text-center font-semibold">
+                        {client.completedCount}
+                      </span>
+
+                      <span
+                        className="text-sm font-bold text-white text-right"
+                        style={{ fontFamily: "'Playfair Display', serif" }}
+                      >
+                        {formatCurrency(client.totalRevenue)}
+                      </span>
+
+                      <div className="flex justify-end">
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-full font-medium"
+                          style={{ background: "rgba(255,255,255,0.06)", color: "#9ca3af" }}
+                        >
+                          {client.favoriteService}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
     </OwnerPageLayout>
   )
 }

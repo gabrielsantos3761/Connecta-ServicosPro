@@ -541,7 +541,7 @@ export function Home() {
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
         >
           <span className="text-xs text-gray-700 uppercase tracking-widest">
-            Scroll
+            Deslize
           </span>
           <div
             className="w-px h-10"

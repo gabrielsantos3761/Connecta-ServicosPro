@@ -18,25 +18,55 @@ export function OwnerPageLayout({ title, subtitle, children }: OwnerPageLayoutPr
 
   return (
     <div className="min-h-screen text-white">
-      {/* Menu Button - Fixed Position */}
+      {/* Menu button */}
       <motion.button
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         onClick={() => setIsMobileMenuOpen(true)}
-        className="fixed top-4 left-4 md:top-6 md:left-6 z-30 w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-gold to-yellow-600 backdrop-blur-xl border-2 border-white/20 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl hover:shadow-gold/50"
+        className="fixed top-4 left-4 z-30 w-11 h-11 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        style={{
+          background: 'linear-gradient(135deg, #D4AF37, #B8941E)',
+          boxShadow: '0 4px 20px rgba(212,175,55,0.25)',
+        }}
       >
-        <Menu className="w-6 h-6 md:w-7 md:h-7 text-white" />
+        <Menu className="w-5 h-5 text-black" />
       </motion.button>
 
-      <div className="p-6 md:p-8">
-        {/* Page Title */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-gold mb-2">{title}</h1>
-          {subtitle && <p className="text-sm text-gray-400">{subtitle}</p>}
-        </div>
+      <div className="px-6 md:px-10 pt-16 pb-10">
+        {/* Page header */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="mb-8"
+        >
+          <h1
+            className="text-3xl md:text-4xl font-bold text-white leading-none mb-2"
+            style={{ fontFamily: "'Playfair Display', serif" }}
+          >
+            {(() => {
+              const words = title.split(' ')
+              if (words.length === 1) return title
+              return (
+                <>
+                  {words.slice(0, -1).join(' ')}{' '}
+                  <span style={{ color: '#D4AF37' }}>{words[words.length - 1]}</span>
+                </>
+              )
+            })()}
+          </h1>
+          {subtitle && (
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              {subtitle}
+            </p>
+          )}
+          <div
+            className="mt-5"
+            style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }}
+          />
+        </motion.div>
 
-        {/* Page Content */}
         {children}
       </div>
     </div>

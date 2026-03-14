@@ -6,7 +6,6 @@ import {
   Scissors,
   Users,
   LogOut,
-  Menu,
   X,
   ChevronDown,
   DollarSign,
@@ -15,11 +14,10 @@ import {
   ClipboardList,
   TrendingUp,
   Settings,
-  Building2
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { grainStyle } from '@/styles/theme'
 import { useNavigate } from 'react-router-dom'
 import { getBusinessById, type Business } from '@/services/businessService'
 
@@ -41,7 +39,7 @@ const navItems: NavItem[] = [
       { to: '/dashboard/servicos', icon: ShoppingBag, label: 'Serviços' },
       { to: '/dashboard/clientes', icon: Users, label: 'Clientes' },
       { to: '/dashboard/agendamentos', icon: ClipboardList, label: 'Agendamentos' },
-    ]
+    ],
   },
   { to: '/entrada-despesas', icon: TrendingUp, label: 'Entrada/Despesas' },
   { to: '/agendamentos', icon: Calendar, label: 'Agendamentos' },
@@ -51,111 +49,73 @@ const navItems: NavItem[] = [
 ]
 
 interface SidebarProps {
-  isExpanded: boolean
-  setIsExpanded: (value: boolean) => void
   isMobileOpen: boolean
   setIsMobileOpen: (value: boolean) => void
 }
 
-export function Sidebar({ isExpanded, setIsExpanded, isMobileOpen, setIsMobileOpen }: SidebarProps) {
+export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [business, setBusiness] = useState<Business | null>(null)
   const [expandedMenus, setExpandedMenus] = useState<{ [key: string]: boolean }>({
-    'Painéis de gestão': true // Dashboard submenu expanded by default
+    'Painéis de gestão': true,
   })
-  const [imageLoadError, setImageLoadError] = useState(false)
 
-  // Carregar dados do estabelecimento
   useEffect(() => {
     const loadBusiness = async () => {
       const businessId = localStorage.getItem('selected_business_id')
       if (businessId) {
         try {
-          const businessData = await getBusinessById(businessId)
-          if (businessData) {
-            setBusiness(businessData)
-          }
-        } catch (error) {
-          console.error('Erro ao carregar estabelecimento:', error)
+          const data = await getBusinessById(businessId)
+          if (data) setBusiness(data)
+        } catch (e) {
+          console.error('Erro ao carregar estabelecimento:', e)
         }
       }
     }
-
     loadBusiness()
   }, [])
 
-  // Bloquear scroll quando sidebar estiver aberto
   useEffect(() => {
-    if (isMobileOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
-
-    // Cleanup ao desmontar
-    return () => {
-      document.body.style.overflow = 'unset'
-    }
+    document.body.style.overflow = isMobileOpen ? 'hidden' : 'unset'
+    return () => { document.body.style.overflow = 'unset' }
   }, [isMobileOpen])
 
-  // Close menu when clicking on a link
-  const handleLinkClick = () => {
-    setIsMobileOpen(false)
-  }
+  const handleLinkClick = () => setIsMobileOpen(false)
 
-  // Toggle submenu expansion
   const toggleSubmenu = (label: string) => {
-    setExpandedMenus(prev => ({
-      ...prev,
-      [label]: !prev[label]
-    }))
+    setExpandedMenus((prev) => ({ ...prev, [label]: !prev[label] }))
   }
 
-  // Get business ID for routes
   const businessId = business?.id || localStorage.getItem('selected_business_id') || ''
 
-  // Update routes with business ID
   const getRoutePath = (basePath: string) => {
     if (!businessId) return basePath
-    // Se a rota já tem o businessId, retorna como está
     if (basePath.includes(businessId)) return basePath
-    // Adiciona o businessId antes do path
     return `/${businessId}${basePath}`
   }
 
-  // Check if any child route is active
   const isParentActive = (item: NavItem) => {
     if (!item.children) return false
-    return item.children.some(child => {
-      const routePath = child.to ? getRoutePath(child.to) : ''
-      return routePath === location.pathname
+    return item.children.some((child) => {
+      const p = child.to ? getRoutePath(child.to) : ''
+      return p === location.pathname
     })
   }
 
-  // Handle logout - volta para seleção de estabelecimento
-  const handleLogout = () => {
+  const handleExit = () => {
     localStorage.removeItem('selected_business_id')
     navigate('/selecionar-empresa')
   }
 
-  // Função para pegar iniciais do nome
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
 
-  // Melhorar qualidade da imagem do Google
   const getHighQualityImageUrl = (url: string | undefined) => {
     if (!url) return url
-    if (url.includes('googleusercontent.com') && url.includes('=s96-c')) {
+    if (url.includes('googleusercontent.com') && url.includes('=s96-c'))
       return url.replace('=s96-c', '=s400-c')
-    }
     return url
   }
 
@@ -163,129 +123,187 @@ export function Sidebar({ isExpanded, setIsExpanded, isMobileOpen, setIsMobileOp
 
   return (
     <>
-      {/* Backdrop - Sempre que sidebar estiver aberta */}
+      {/* Backdrop */}
       <AnimatePresence>
         {isMobileOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            transition={{ duration: 0.25 }}
             onClick={() => setIsMobileOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            className="fixed inset-0 z-40"
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
           />
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Panel */}
       <motion.aside
-        initial={{ x: -320 }}
-        animate={{
-          x: isMobileOpen ? 0 : -320
+        animate={{ x: isMobileOpen ? 0 : -340 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 36 }}
+        className="fixed left-0 top-0 h-full w-[300px] z-50 flex flex-col overflow-hidden"
+        style={{
+          background: '#060503',
+          borderRight: '1px solid rgba(212,175,55,0.18)',
+          boxShadow: isMobileOpen ? '8px 0 60px rgba(0,0,0,0.8)' : 'none',
         }}
-        exit={{ x: -320 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="fixed left-0 top-0 h-full w-80 bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-r border-white/10 z-50 overflow-y-auto"
       >
-        {/* Header - Business Info */}
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+        {/* Grain */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={grainStyle}
+        />
+        {/* Ambient glow */}
+        <div
+          className="absolute -top-24 -left-24 w-56 h-56 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.1) 0%, transparent 70%)' }}
+        />
+
+        {/* ── HEADER ── */}
+        <div
+          className="relative z-10 px-5 pt-5 pb-4"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <div className="flex items-center justify-between mb-5">
+            {/* Business logo + name */}
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0"
+                style={{ border: '1px solid rgba(212,175,55,0.3)' }}
+              >
                 {business?.image ? (
-                  <img
-                    src={business.image}
-                    alt={business.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={business.image} alt={business.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-gold to-yellow-600 flex items-center justify-center">
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #D4AF37, #B8941E)' }}
+                  >
                     <img
                       src="/assets/images/Logo.png"
-                      alt="Connecta ServiçosPro"
-                      className="w-full h-full object-cover rounded-xl scale-110"
+                      alt="Logo"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                 )}
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">{business?.name || 'Connecta'}</h2>
-                <p className="text-xs text-gray-400">Painel de Gestão</p>
+              <div className="min-w-0">
+                <p
+                  className="text-sm font-bold text-white truncate leading-none"
+                  style={{ fontFamily: "'Playfair Display', serif" }}
+                >
+                  {business?.name || 'Connecta'}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'rgba(212,175,55,0.55)' }}>
+                  Painel de Gestão
+                </p>
               </div>
             </div>
+
+            {/* Close */}
             <button
               onClick={() => setIsMobileOpen(false)}
-              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-4 h-4 text-gray-500" />
             </button>
           </div>
 
-          {/* User Info */}
+          {/* User card */}
           {user && (
-            <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
+            <div
+              className="flex items-center gap-3 p-3 rounded-2xl"
+              style={{
+                background: 'rgba(212,175,55,0.05)',
+                border: '1px solid rgba(212,175,55,0.14)',
+              }}
+            >
               {displayAvatar ? (
                 <img
                   src={displayAvatar}
                   alt={user.name}
-                  className="w-12 h-12 rounded-lg object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                  }}
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                  style={{ border: '2px solid rgba(212,175,55,0.35)' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
                 />
               ) : (
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gold to-yellow-600 flex items-center justify-center text-white font-bold text-lg">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold text-sm flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #D4AF37, #B8941E)' }}
+                >
                   {getInitials(user.name)}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                {user.activeRole === 'owner' && (
-                  <span className="text-xs px-2 py-0.5 bg-gold/20 text-gold rounded-full inline-block mt-1">
-                    Proprietário
-                  </span>
-                )}
+                <p className="text-sm font-semibold text-white truncate leading-none mb-1">
+                  {user.name}
+                </p>
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{
+                    background: 'rgba(212,175,55,0.1)',
+                    color: '#D4AF37',
+                    border: '1px solid rgba(212,175,55,0.2)',
+                  }}
+                >
+                  Proprietário
+                </span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 overflow-y-auto">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-2">
+        {/* ── NAV ── */}
+        <div className="relative z-10 flex-1 overflow-y-auto px-4 py-5">
+          <p
+            className="text-xs font-semibold uppercase mb-3 px-2"
+            style={{ letterSpacing: '0.2em', color: 'rgba(255,255,255,0.2)' }}
+          >
             Menu
           </p>
-          <ul className="space-y-1">
+
+          <ul className="space-y-0.5">
             {navItems.map((item) => (
               <li key={item.to || item.label}>
-                {/* Item with children (submenu) */}
                 {item.children ? (
                   <div>
+                    {/* Parent toggle */}
                     <motion.button
                       onClick={() => toggleSubmenu(item.label)}
-                      whileHover={{ x: 4 }}
+                      whileHover={{ x: 3 }}
                       whileTap={{ scale: 0.98 }}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
-                        isParentActive(item)
-                          ? "bg-gold/10 text-gold border border-gold/20"
-                          : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      )}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all"
+                      style={{
+                        background: isParentActive(item) ? 'rgba(212,175,55,0.06)' : 'transparent',
+                        border: isParentActive(item) ? '1px solid rgba(212,175,55,0.15)' : '1px solid transparent',
+                      }}
                     >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      <span className="font-medium text-sm flex-1 text-left">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.04)' }}
+                      >
+                        <item.icon
+                          className="w-4 h-4"
+                          style={{ color: isParentActive(item) ? '#D4AF37' : 'rgba(255,255,255,0.3)' }}
+                        />
+                      </div>
+                      <span
+                        className="text-sm font-medium flex-1 text-left"
+                        style={{ color: isParentActive(item) ? '#D4AF37' : 'rgba(255,255,255,0.5)' }}
+                      >
                         {item.label}
                       </span>
                       <ChevronDown
-                        className={cn(
-                          "w-4 h-4 flex-shrink-0 transition-transform",
-                          expandedMenus[item.label] ? "rotate-0" : "-rotate-90"
-                        )}
+                        className="w-3.5 h-3.5 flex-shrink-0 transition-transform"
+                        style={{
+                          color: 'rgba(255,255,255,0.2)',
+                          transform: expandedMenus[item.label] ? 'rotate(0deg)' : 'rotate(-90deg)',
+                        }}
                       />
                     </motion.button>
 
-                    {/* Submenu items */}
+                    {/* Submenu */}
                     <AnimatePresence>
                       {expandedMenus[item.label] && (
                         <motion.ul
@@ -293,74 +311,128 @@ export function Sidebar({ isExpanded, setIsExpanded, isMobileOpen, setIsMobileOp
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="mt-1 space-y-1 overflow-hidden"
+                          className="mt-0.5 overflow-hidden"
+                          style={{
+                            borderLeft: '1px solid rgba(212,175,55,0.1)',
+                            marginLeft: '1.25rem',
+                            paddingLeft: '0.75rem',
+                          }}
                         >
-                          {item.children.map((child) => (
-                            <li key={child.to}>
+                          {item.children.map((child, idx) => (
+                            <motion.li
+                              key={child.to}
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: idx * 0.03 }}
+                            >
                               <NavLink
                                 to={getRoutePath(child.to!)}
                                 end
                                 onClick={handleLinkClick}
-                                className={({ isActive }) =>
-                                  cn(
-                                    "flex items-center gap-3 pl-12 pr-4 py-2.5 rounded-lg transition-all duration-200",
-                                    "hover:bg-gold/10 hover:translate-x-1",
-                                    isActive
-                                      ? "bg-gold text-white shadow-lg shadow-gold/20"
-                                      : "text-gray-400 hover:text-white"
-                                  )
-                                }
+                                className="group relative"
                               >
-                                <child.icon className="w-4 h-4 flex-shrink-0" />
-                                <span className="font-medium text-sm whitespace-nowrap">
-                                  {child.label}
-                                </span>
+                                {({ isActive }) => (
+                                  <div
+                                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all relative"
+                                    style={{
+                                      background: isActive ? 'rgba(212,175,55,0.08)' : 'transparent',
+                                      borderLeft: isActive ? '2px solid #D4AF37' : '2px solid transparent',
+                                    }}
+                                  >
+                                    <child.icon
+                                      className="w-3.5 h-3.5 flex-shrink-0"
+                                      style={{ color: isActive ? '#D4AF37' : 'rgba(255,255,255,0.25)' }}
+                                    />
+                                    <span
+                                      className="text-xs font-medium whitespace-nowrap"
+                                      style={{ color: isActive ? '#D4AF37' : 'rgba(255,255,255,0.45)' }}
+                                    >
+                                      {child.label}
+                                    </span>
+                                  </div>
+                                )}
                               </NavLink>
-                            </li>
+                            </motion.li>
                           ))}
                         </motion.ul>
                       )}
                     </AnimatePresence>
                   </div>
                 ) : (
-                  /* Regular item without children */
-                  <motion.div whileHover={{ x: 4 }} whileTap={{ scale: 0.98 }}>
+                  <motion.div whileHover={{ x: 3 }} whileTap={{ scale: 0.98 }}>
                     <NavLink
                       to={getRoutePath(item.to!)}
                       end
                       onClick={handleLinkClick}
-                      className={({ isActive }) =>
-                        cn(
-                          "flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
-                          isActive
-                            ? "bg-gold/10 text-gold border border-gold/20"
-                            : "hover:bg-white/5 text-gray-400 hover:text-white"
-                        )
-                      }
                     >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      <span className="font-medium text-sm flex-1 text-left">
-                        {item.label}
-                      </span>
+                      {({ isActive }) => (
+                        <div
+                          className="flex items-center gap-3 px-3 py-3 rounded-xl transition-all relative"
+                          style={{
+                            background: isActive ? 'rgba(212,175,55,0.08)' : 'transparent',
+                            border: isActive ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
+                          }}
+                        >
+                          {isActive && (
+                            <div
+                              className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full"
+                              style={{ background: '#D4AF37' }}
+                            />
+                          )}
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: isActive ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)' }}
+                          >
+                            <item.icon
+                              className="w-4 h-4"
+                              style={{ color: isActive ? '#D4AF37' : 'rgba(255,255,255,0.3)' }}
+                            />
+                          </div>
+                          <span
+                            className="text-sm font-medium flex-1 text-left"
+                            style={{ color: isActive ? '#D4AF37' : 'rgba(255,255,255,0.5)' }}
+                          >
+                            {item.label}
+                          </span>
+                        </div>
+                      )}
                     </NavLink>
                   </motion.div>
                 )}
               </li>
             ))}
           </ul>
-        </nav>
+        </div>
 
-        {/* Logout Button */}
-        <div className="p-4 mt-auto border-t border-white/10">
+        {/* ── FOOTER ── */}
+        <div
+          className="relative z-10 px-4 py-4"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+        >
           <motion.button
-            onClick={handleLogout}
-            whileHover={{ x: 4 }}
+            onClick={handleExit}
+            whileHover={{ x: 3 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all group"
+            style={{
+              background: 'rgba(239,68,68,0.05)',
+              border: '1px solid rgba(239,68,68,0.1)',
+            }}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Sair</span>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(239,68,68,0.1)' }}
+            >
+              <LogOut className="w-4 h-4 text-red-400" />
+            </div>
+            <span className="text-sm font-medium text-red-400/70 group-hover:text-red-400 transition-colors">
+              Sair do painel
+            </span>
           </motion.button>
+
+          <p className="text-center mt-4 text-xs" style={{ color: 'rgba(255,255,255,0.1)' }}>
+            Connecta ServiçosPro © 2025
+          </p>
         </div>
       </motion.aside>
     </>

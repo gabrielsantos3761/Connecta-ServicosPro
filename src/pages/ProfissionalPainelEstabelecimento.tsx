@@ -11,9 +11,6 @@ import {
   Building2,
   Scissors,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ProfissionalPageLayout } from '@/components/layout/ProfissionalPageLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import { getLinksByProfessional, updateLinkDetails, type ProfessionalLink, type WorkScheduleDay } from '@/services/professionalLinkService'
@@ -74,6 +71,56 @@ interface DaySchedule {
   businessOpen: string
   businessClose: string
 }
+
+// ============================================
+// STYLES
+// ============================================
+
+const S = {
+  bg: '#050400',
+  gold: '#D4AF37',
+  card: {
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: '1.125rem',
+    padding: '1.5rem',
+  },
+  select: {
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '0.5rem',
+    color: '#fff',
+    padding: '0.5rem 0.75rem',
+    outline: 'none',
+  },
+  goldBtn: {
+    background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+    color: '#050400',
+    fontWeight: 600,
+    borderRadius: '0.5rem',
+    padding: '0.625rem 1.5rem',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  badge: (variant: string) => {
+    const map: Record<string, { bg: string; color: string }> = {
+      confirmed: { bg: 'rgba(212,175,55,0.15)', color: '#D4AF37' },
+      cancelled: { bg: 'rgba(239,68,68,0.15)', color: '#f87171' },
+      completed: { bg: 'rgba(99,102,241,0.15)', color: '#a5b4fc' },
+      pending: { bg: 'rgba(234,179,8,0.15)', color: '#fde047' },
+    }
+    const c = map[variant] ?? map.pending
+    return {
+      background: c.bg,
+      color: c.color,
+      borderRadius: '9999px',
+      padding: '2px 10px',
+      fontSize: '0.75rem',
+    }
+  },
+}
+
+const SPRING = { type: 'spring', stiffness: 320, damping: 36 }
 
 // ============================================
 // COMPONENTE PRINCIPAL
@@ -193,9 +240,9 @@ export function ProfissionalPainelEstabelecimento() {
   if (loading) {
     return (
       <ProfissionalPageLayout title="Painel do Estabelecimento">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-          <span className="ml-3 text-gray-400">Carregando painel...</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5rem 0' }}>
+          <Loader2 style={{ width: 32, height: 32, color: S.gold, animation: 'spin 1s linear infinite' }} />
+          <span style={{ marginLeft: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Carregando painel...</span>
         </div>
       </ProfissionalPageLayout>
     )
@@ -204,17 +251,21 @@ export function ProfissionalPainelEstabelecimento() {
   if (!link) {
     return (
       <ProfissionalPageLayout title="Painel do Estabelecimento">
-        <div className="text-center py-20">
-          <Building2 className="w-16 h-16 mx-auto text-gray-600 mb-4" />
-          <p className="text-white text-lg font-semibold">Vínculo não encontrado</p>
-          <p className="text-gray-400 mt-2 mb-6">Você não possui um vínculo ativo com este estabelecimento.</p>
-          <Button
+        <div style={{ textAlign: 'center', padding: '5rem 0' }}>
+          <Building2 style={{ width: 64, height: 64, margin: '0 auto 1rem', color: 'rgba(255,255,255,0.15)' }} />
+          <p style={{ color: '#fff', fontSize: '1.125rem', fontWeight: 600, fontFamily: "'Playfair Display', serif" }}>
+            Vínculo não encontrado
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem', marginBottom: '1.5rem' }}>
+            Você não possui um vínculo ativo com este estabelecimento.
+          </p>
+          <button
             onClick={() => navigate('/profissional/associar-barbearia')}
-            className="bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold"
+            style={S.goldBtn}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft style={{ width: 16, height: 16, display: 'inline', marginRight: '0.5rem' }} />
             Voltar aos Estabelecimentos
-          </Button>
+          </button>
         </div>
       </ProfissionalPageLayout>
     )
@@ -225,15 +276,27 @@ export function ProfissionalPainelEstabelecimento() {
       title={business?.name ?? link.businessName}
       subtitle="Painel do profissional"
     >
-      <div className="max-w-4xl mx-auto px-4">
+      <div style={{ maxWidth: '56rem', margin: '0 auto', padding: '0 1rem' }}>
         {/* Voltar */}
         <motion.button
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
+          transition={SPRING}
           onClick={() => navigate('/profissional/associar-barbearia')}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-emerald-400 transition-colors mb-6"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.875rem',
+            color: 'rgba(255,255,255,0.5)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            marginBottom: '1.5rem',
+            padding: 0,
+          }}
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft style={{ width: 16, height: 16 }} />
           Voltar aos Estabelecimentos
         </motion.button>
 
@@ -242,258 +305,360 @@ export function ProfissionalPainelEstabelecimento() {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`mb-4 p-3 rounded-lg text-sm font-medium ${
-              saveMessage.type === 'success'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : 'bg-red-500/20 text-red-400 border border-red-500/30'
-            }`}
+            transition={SPRING}
+            style={{
+              marginBottom: '1rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              background: saveMessage.type === 'success'
+                ? 'rgba(212,175,55,0.12)'
+                : 'rgba(239,68,68,0.12)',
+              color: saveMessage.type === 'success' ? S.gold : '#f87171',
+              border: `1px solid ${saveMessage.type === 'success' ? 'rgba(212,175,55,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            }}
           >
             {saveMessage.text}
           </motion.div>
         )}
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'dashboard' | 'horario')} className="w-full">
-          <TabsList className="grid grid-cols-2 mb-8 bg-white/5 border border-white/10">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="horario" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Definir Horário
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs */}
+        <div style={{ marginBottom: '2rem' }}>
+          {/* Tab bar */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '0.75rem',
+            padding: '0.25rem',
+            gap: '0.25rem',
+          }}>
+            {(['dashboard', 'horario'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '0.625rem 1rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: activeTab === tab ? 600 : 400,
+                  background: activeTab === tab ? 'rgba(212,175,55,0.12)' : 'transparent',
+                  color: activeTab === tab ? S.gold : 'rgba(255,255,255,0.5)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {tab === 'dashboard' ? <Calendar style={{ width: 16, height: 16 }} /> : <Clock style={{ width: 16, height: 16 }} />}
+                {tab === 'dashboard' ? 'Dashboard' : 'Definir Horário'}
+              </button>
+            ))}
+          </div>
+        </div>
 
-          {/* ===== TAB: DASHBOARD ===== */}
-          <TabsContent value="dashboard">
-            <div className="space-y-6">
-              {/* Cards de stats */}
-              {(() => {
-                const today = new Date().toISOString().split('T')[0]
-                const agendamentosHoje = appointments.filter(a => a.date === today)
-                const mesAtual = new Date().toISOString().slice(0, 7)
-                const faturamentoMes = appointments
-                  .filter(a => a.date.startsWith(mesAtual) && a.status !== 'cancelled')
-                  .reduce((sum, a) => sum + a.servicePrice, 0)
+        {/* ===== TAB: DASHBOARD ===== */}
+        {activeTab === 'dashboard' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Cards de stats */}
+            {(() => {
+              const today = new Date().toISOString().split('T')[0]
+              const agendamentosHoje = appointments.filter(a => a.date === today)
+              const mesAtual = new Date().toISOString().slice(0, 7)
+              const faturamentoMes = appointments
+                .filter(a => a.date.startsWith(mesAtual) && a.status !== 'cancelled')
+                .reduce((sum, a) => sum + (a.professionalAmount ?? a.servicePrice), 0)
 
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                      <Card className="bg-white/5 border-white/10 hover:border-emerald-500/30 transition-all">
-                        <CardContent className="p-6 flex items-center gap-4">
-                          <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}>
-                            <Calendar className="w-7 h-7 text-emerald-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Agendamentos Hoje</p>
-                            <p className="text-3xl font-bold text-white">
-                              {appointmentsLoading ? '...' : agendamentosHoje.length}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                      <Card className="bg-white/5 border-white/10 hover:border-emerald-500/30 transition-all">
-                        <CardContent className="p-6 flex items-center gap-4">
-                          <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #1a333a, #2a4f58)' }}>
-                            <DollarSign className="w-7 h-7 text-emerald-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Faturamento do Mês</p>
-                            <p className="text-3xl font-bold text-white">
-                              {appointmentsLoading ? '...' : formatCurrency(faturamentoMes)}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  </div>
-                )
-              })()}
-
-              {/* Lista de próximos agendamentos */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                <Card className="bg-white/5 border-white/10">
-                  <CardHeader>
-                    <CardTitle className="text-white text-base">Próximos Agendamentos</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {appointmentsLoading ? (
-                      <div className="flex items-center justify-center py-10">
-                        <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
-                      </div>
-                    ) : appointments.length === 0 ? (
-                      <div className="text-center py-10">
-                        <Calendar className="w-12 h-12 mx-auto text-gray-600 mb-3" />
-                        <p className="text-gray-400 text-sm">Nenhum agendamento no momento</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {appointments.map((appt) => (
-                          <div
-                            key={appt.id}
-                            className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10"
-                          >
-                            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                              <Calendar className="w-5 h-5 text-emerald-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-semibold text-white text-sm truncate">{appt.clientName}</p>
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                  appt.status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400' :
-                                  appt.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
-                                  appt.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
-                                  'bg-yellow-500/20 text-yellow-400'
-                                }`}>
-                                  {appt.status === 'confirmed' ? 'Confirmado' :
-                                   appt.status === 'cancelled' ? 'Cancelado' :
-                                   appt.status === 'completed' ? 'Concluído' : 'Pendente'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                                <span className="flex items-center gap-1">
-                                  <Scissors className="w-3 h-3" />
-                                  {appt.serviceName}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {appt.date.split('-').reverse().join('/')} às {appt.time}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-sm font-semibold text-emerald-400">{formatCurrency(appt.servicePrice)}</p>
-                              <p className="text-xs text-gray-500">{appt.serviceDuration} min</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-          </TabsContent>
-
-          {/* ===== TAB: HORÁRIO ===== */}
-          <TabsContent value="horario">
-            <div className="space-y-4">
-              <p className="text-sm text-gray-400 mb-6">
-                Defina os dias e horários em que você estará disponível neste estabelecimento.
-                Os horários devem estar dentro do funcionamento do estabelecimento.
-              </p>
-
-              {schedule.length === 0 ? (
-                <Card className="bg-white/5 border-white/10">
-                  <CardContent className="py-12 text-center">
-                    <Clock className="w-12 h-12 mx-auto text-gray-600 mb-3" />
-                    <p className="text-gray-400">Nenhum horário de funcionamento configurado no estabelecimento.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  {schedule.map((day, idx) => (
-                    <motion.div
-                      key={day.day}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                    >
-                      <Card className={`border transition-all ${
-                        day.isActive ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-white/10 bg-white/5'
-                      }`}>
-                        <CardContent className="p-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                            {/* Toggle + nome do dia */}
-                            <div className="flex items-center gap-3 min-w-[180px]">
-                              <button
-                                type="button"
-                                onClick={() => toggleDay(day.day)}
-                                className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
-                                  day.isActive ? 'bg-emerald-500' : 'bg-white/20'
-                                }`}
-                              >
-                                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                                  day.isActive ? 'translate-x-6' : 'translate-x-0'
-                                }`} />
-                              </button>
-                              <span className={`font-medium text-sm ${day.isActive ? 'text-white' : 'text-gray-500'}`}>
-                                {DAY_LABELS[day.day]}
-                              </span>
-                            </div>
-
-                            {/* Seletores de horário */}
-                            {day.isActive ? (
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-400">Das</span>
-                                  <select
-                                    value={day.start}
-                                    onChange={(e) => updateDayTime(day.day, 'start', e.target.value)}
-                                    className="h-9 px-3 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
-                                  >
-                                    {generateTimeSlots(day.businessOpen, day.businessClose).slice(0, -1).map(t => (
-                                      <option key={t} value={t} className="bg-gray-900">{t}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-400">às</span>
-                                  <select
-                                    value={day.end}
-                                    onChange={(e) => updateDayTime(day.day, 'end', e.target.value)}
-                                    className="h-9 px-3 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
-                                  >
-                                    {generateTimeSlots(day.businessOpen, day.businessClose)
-                                      .filter(t => timeLt(day.start, t))
-                                      .map(t => (
-                                        <option key={t} value={t} className="bg-gray-900">{t}</option>
-                                      ))}
-                                  </select>
-                                </div>
-                                <span className="text-xs text-gray-500">
-                                  (estab. {day.businessOpen} – {day.businessClose})
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-600">Não disponível</span>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={SPRING}
+                    style={{ ...S.card, display: 'flex', alignItems: 'center', gap: '1rem' }}
+                  >
+                    <div style={{
+                      width: 56, height: 56, borderRadius: '0.75rem', flexShrink: 0,
+                      background: 'rgba(212,175,55,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Calendar style={{ width: 28, height: 28, color: S.gold }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem' }}>
+                        Agendamentos Hoje
+                      </p>
+                      <p style={{ fontSize: '1.875rem', fontWeight: 700, color: '#fff', fontFamily: "'Playfair Display', serif" }}>
+                        {appointmentsLoading ? '...' : agendamentosHoje.length}
+                      </p>
+                    </div>
+                  </motion.div>
 
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: schedule.length * 0.05 + 0.1 }}
-                    className="pt-2"
+                    transition={{ ...SPRING, delay: 0.08 }}
+                    style={{ ...S.card, display: 'flex', alignItems: 'center', gap: '1rem' }}
                   >
-                    <Button
-                      onClick={handleSaveSchedule}
-                      disabled={saving}
-                      className="w-full h-12 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-green-600 hover:to-emerald-500 text-white font-semibold shadow-lg shadow-emerald-500/20 disabled:opacity-50"
-                    >
-                      {saving ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      {saving ? 'Salvando...' : 'Salvar Horário'}
-                    </Button>
+                    <div style={{
+                      width: 56, height: 56, borderRadius: '0.75rem', flexShrink: 0,
+                      background: 'rgba(212,175,55,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <DollarSign style={{ width: 28, height: 28, color: S.gold }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem' }}>
+                        Faturamento do Mês
+                      </p>
+                      <p style={{ fontSize: '1.875rem', fontWeight: 700, color: '#fff', fontFamily: "'Playfair Display', serif" }}>
+                        {appointmentsLoading ? '...' : formatCurrency(faturamentoMes)}
+                      </p>
+                    </div>
                   </motion.div>
-                </>
+                </div>
+              )
+            })()}
+
+            {/* Lista de próximos agendamentos */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...SPRING, delay: 0.16 }}
+              style={S.card}
+            >
+              <h3 style={{
+                color: '#fff',
+                fontSize: '1rem',
+                fontWeight: 600,
+                fontFamily: "'Playfair Display', serif",
+                marginBottom: '1.25rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                Próximos Agendamentos
+              </h3>
+
+              {appointmentsLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2.5rem 0' }}>
+                  <Loader2 style={{ width: 24, height: 24, color: S.gold, animation: 'spin 1s linear infinite' }} />
+                </div>
+              ) : appointments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2.5rem 0' }}>
+                  <Calendar style={{ width: 48, height: 48, margin: '0 auto 0.75rem', color: 'rgba(255,255,255,0.1)' }} />
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>
+                    Nenhum agendamento no momento
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {appointments.map((appt) => (
+                    <div
+                      key={appt.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        padding: '1rem',
+                        borderRadius: '0.75rem',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      <div style={{
+                        width: 40, height: 40, borderRadius: '0.5rem',
+                        background: 'rgba(212,175,55,0.1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <Calendar style={{ width: 20, height: 20, color: S.gold }} />
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <p style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>
+                            {appt.clientName}
+                          </p>
+                          <span style={S.badge(appt.status)}>
+                            {appt.status === 'confirmed' ? 'Confirmado' :
+                             appt.status === 'cancelled' ? 'Cancelado' :
+                             appt.status === 'completed' ? 'Concluído' : 'Pendente'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                            <Scissors style={{ width: 12, height: 12 }} />
+                            {appt.serviceName}
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                            <Clock style={{ width: 12, height: 12 }} />
+                            {appt.date.split('-').reverse().join('/')} às {appt.time}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {appt.paymentType === 'fixed'
+                          ? <p style={{ fontSize: '0.875rem', fontWeight: 600, color: S.gold }}>Salário Fixo</p>
+                          : <p style={{ fontSize: '0.875rem', fontWeight: 600, color: S.gold }}>{formatCurrency(appt.professionalAmount ?? appt.servicePrice)}</p>
+                        }
+                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.125rem' }}>
+                          {appt.serviceDuration} min
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-          </TabsContent>
-        </Tabs>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ===== TAB: HORÁRIO ===== */}
+        {activeTab === 'horario' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1rem' }}>
+              Defina os dias e horários em que você estará disponível neste estabelecimento.
+              Os horários devem estar dentro do funcionamento do estabelecimento.
+            </p>
+
+            {schedule.length === 0 ? (
+              <div style={{ ...S.card, textAlign: 'center', padding: '3rem 1.5rem' }}>
+                <Clock style={{ width: 48, height: 48, margin: '0 auto 0.75rem', color: 'rgba(255,255,255,0.1)' }} />
+                <p style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  Nenhum horário de funcionamento configurado no estabelecimento.
+                </p>
+              </div>
+            ) : (
+              <>
+                {schedule.map((day, idx) => (
+                  <motion.div
+                    key={day.day}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ ...SPRING, delay: idx * 0.05 }}
+                    style={{
+                      background: day.isActive ? 'rgba(212,175,55,0.04)' : 'rgba(255,255,255,0.02)',
+                      border: day.isActive ? '1px solid rgba(212,175,55,0.25)' : '1px solid rgba(255,255,255,0.07)',
+                      borderRadius: '1.125rem',
+                      padding: '1rem 1.25rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem' }}>
+                      {/* Toggle + nome do dia */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 180 }}>
+                        <button
+                          type="button"
+                          onClick={() => toggleDay(day.day)}
+                          style={{
+                            position: 'relative',
+                            width: 48, height: 24,
+                            borderRadius: '9999px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            background: day.isActive ? S.gold : 'rgba(255,255,255,0.15)',
+                            transition: 'background 0.2s',
+                          }}
+                        >
+                          <span style={{
+                            position: 'absolute',
+                            top: 2, left: day.isActive ? 26 : 2,
+                            width: 20, height: 20,
+                            background: '#fff',
+                            borderRadius: '9999px',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                            transition: 'left 0.2s',
+                          }} />
+                        </button>
+                        <span style={{
+                          fontWeight: 500,
+                          fontSize: '0.875rem',
+                          color: day.isActive ? '#fff' : 'rgba(255,255,255,0.3)',
+                        }}>
+                          {DAY_LABELS[day.day]}
+                        </span>
+                      </div>
+
+                      {/* Seletores de horário */}
+                      {day.isActive ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Das</span>
+                            <select
+                              value={day.start}
+                              onChange={(e) => updateDayTime(day.day, 'start', e.target.value)}
+                              style={{ ...S.select, cursor: 'pointer' }}
+                            >
+                              {generateTimeSlots(day.businessOpen, day.businessClose).slice(0, -1).map(t => (
+                                <option key={t} value={t} style={{ background: '#050400' }}>{t}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>às</span>
+                            <select
+                              value={day.end}
+                              onChange={(e) => updateDayTime(day.day, 'end', e.target.value)}
+                              style={{ ...S.select, cursor: 'pointer' }}
+                            >
+                              {generateTimeSlots(day.businessOpen, day.businessClose)
+                                .filter(t => timeLt(day.start, t))
+                                .map(t => (
+                                  <option key={t} value={t} style={{ background: '#050400' }}>{t}</option>
+                                ))}
+                            </select>
+                          </div>
+                          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>
+                            (estab. {day.businessOpen} – {day.businessClose})
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)' }}>
+                          Não disponível
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...SPRING, delay: schedule.length * 0.05 + 0.1 }}
+                  style={{ paddingTop: '0.5rem' }}
+                >
+                  <button
+                    onClick={handleSaveSchedule}
+                    disabled={saving}
+                    style={{
+                      ...S.goldBtn,
+                      width: '100%',
+                      height: '3rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      fontSize: '1rem',
+                      opacity: saving ? 0.6 : 1,
+                    }}
+                  >
+                    {saving ? (
+                      <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Save style={{ width: 16, height: 16 }} />
+                    )}
+                    {saving ? 'Salvando...' : 'Salvar Horário'}
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </ProfissionalPageLayout>
   )

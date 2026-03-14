@@ -2,11 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Building2, MapPin, Phone, Mail, Globe, Clock, Save } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/contexts/AuthContext'
 import { createBusiness, formatCNPJ, validateCNPJ, type CreateBusinessData, type BusinessHours } from '@/services/businessService'
 import { updateProfessionalProfile } from '@/services/authService'
@@ -43,6 +38,83 @@ const CATEGORIES = [
   'Tatuagem e Piercing',
   'Outros',
 ]
+
+// ============================================
+// STYLES
+// ============================================
+
+const SPRING = { type: 'spring', stiffness: 320, damping: 36 }
+
+const GOLD = '#D4AF37'
+const BG = '#050400'
+
+const cardStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+  padding: '1.5rem',
+  marginBottom: '1.5rem',
+}
+
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: '0.5rem',
+  color: '#fff',
+  padding: '0.5rem 0.75rem',
+  outline: 'none',
+  width: '100%',
+  fontSize: '0.875rem',
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  color: 'rgba(255,255,255,0.7)',
+  fontSize: '0.875rem',
+  fontWeight: 500,
+  marginBottom: '0.375rem',
+}
+
+const sectionTitleStyle: React.CSSProperties = {
+  color: '#fff',
+  fontFamily: "'Playfair Display', serif",
+  fontSize: '1rem',
+  fontWeight: 600,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  marginBottom: '1.25rem',
+  paddingBottom: '0.75rem',
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+}
+
+const goldBtnStyle: React.CSSProperties = {
+  background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+  color: BG,
+  fontWeight: 600,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.5rem',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  fontSize: '0.9375rem',
+}
+
+const ghostBtnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: '0.5rem',
+  color: 'rgba(255,255,255,0.6)',
+  padding: '0.625rem 1.5rem',
+  cursor: 'pointer',
+  fontSize: '0.9375rem',
+}
+
+// ============================================
+// COMPONENT
+// ============================================
 
 export function CadastrarEstabelecimento() {
   const navigate = useNavigate()
@@ -200,341 +272,385 @@ export function CadastrarEstabelecimento() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div style={{ minHeight: '100vh', background: BG }}>
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-black/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50"
+        transition={SPRING}
+        style={{
+          background: 'rgba(5,4,0,0.85)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+        }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
+        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '1rem 1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button
               onClick={() => navigate('/selecionar-empresa')}
-              className="text-white hover:bg-white/10"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                padding: 0,
+              }}
             >
-              <ArrowLeft className="w-5 h-5 mr-2" />
+              <ArrowLeft style={{ width: 18, height: 18 }} />
               Voltar
-            </Button>
-            <div className="flex items-center gap-3">
-              <Building2 className="w-8 h-8 text-gold" />
-              <h1 className="text-2xl font-bold text-white">Cadastrar Estabelecimento</h1>
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Building2 style={{ width: 28, height: 28, color: GOLD }} />
+              <h1 style={{
+                fontSize: '1.375rem',
+                fontWeight: 700,
+                color: '#fff',
+                fontFamily: "'Playfair Display', serif",
+                margin: 0,
+              }}>
+                Cadastrar Estabelecimento
+              </h1>
             </div>
-            <div className="w-24" /> {/* Spacer for centering */}
+
+            <div style={{ width: 96 }} /> {/* Spacer for centering */}
           </div>
         </div>
       </motion.header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div style={{ maxWidth: '56rem', margin: '0 auto', padding: '3rem 1.5rem' }}>
         <form onSubmit={handleSubmit}>
+
           {/* Informações Básicas */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ ...SPRING, delay: 0.08 }}
           >
-            <Card className="bg-white/5 border-white/10 mb-6">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-gold" />
-                  Informações Básicas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name" className="text-white">Nome do Estabelecimento *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      placeholder="Ex: Barbearia do João"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cnpj" className="text-white">CNPJ *</Label>
-                    <Input
-                      id="cnpj"
-                      value={formData.cnpj}
-                      onChange={(e) => handleInputChange('cnpj', e.target.value)}
-                      placeholder="00.000.000/0000-00"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
-                </div>
+            <div style={cardStyle}>
+              <h2 style={sectionTitleStyle}>
+                <Building2 style={{ width: 18, height: 18, color: GOLD }} />
+                Informações Básicas
+              </h2>
 
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <Label htmlFor="category" className="text-white">Categoria *</Label>
-                  <select
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
-                    className="w-full bg-white/10 border border-white/20 text-white rounded-md px-3 py-2"
-                    required
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat} className="bg-black">
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="description" className="text-white">Descrição *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Descreva seu estabelecimento..."
-                    className="bg-white/10 border-white/20 text-white min-h-[100px]"
+                  <label htmlFor="name" style={labelStyle}>Nome do Estabelecimento *</label>
+                  <input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Ex: Barbearia do João"
+                    style={inputStyle}
                     required
                   />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <label htmlFor="cnpj" style={labelStyle}>CNPJ *</label>
+                  <input
+                    id="cnpj"
+                    value={formData.cnpj}
+                    onChange={(e) => handleInputChange('cnpj', e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label htmlFor="category" style={labelStyle}>Categoria *</label>
+                <select
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  style={{ ...inputStyle }}
+                  required
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat} style={{ background: BG }}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="description" style={labelStyle}>Descrição *</label>
+                <textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Descreva seu estabelecimento..."
+                  style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
+                  required
+                />
+              </div>
+            </div>
           </motion.div>
 
           {/* Contato */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ ...SPRING, delay: 0.16 }}
           >
-            <Card className="bg-white/5 border-white/10 mb-6">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Phone className="w-5 h-5 text-gold" />
-                  Contato
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="phone" className="text-white">Telefone *</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="(00) 00000-0000"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="email" className="text-white flex items-center gap-2">
-                      <Mail className="w-4 h-4" />
-                      E-mail
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      placeholder="contato@exemplo.com"
-                      className="bg-white/10 border-white/20 text-white"
-                    />
-                  </div>
-                </div>
+            <div style={cardStyle}>
+              <h2 style={sectionTitleStyle}>
+                <Phone style={{ width: 18, height: 18, color: GOLD }} />
+                Contato
+              </h2>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <Label htmlFor="website" className="text-white flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    Website
-                  </Label>
-                  <Input
-                    id="website"
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => handleInputChange('website', e.target.value)}
-                    placeholder="https://www.exemplo.com"
-                    className="bg-white/10 border-white/20 text-white"
+                  <label htmlFor="phone" style={labelStyle}>Telefone *</label>
+                  <input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="(00) 00000-0000"
+                    style={inputStyle}
+                    required
                   />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <label htmlFor="email" style={labelStyle}>
+                    <Mail style={{ width: 14, height: 14, display: 'inline', marginRight: '0.25rem' }} />
+                    E-mail
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="contato@exemplo.com"
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="website" style={labelStyle}>
+                  <Globe style={{ width: 14, height: 14, display: 'inline', marginRight: '0.25rem' }} />
+                  Website
+                </label>
+                <input
+                  id="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  placeholder="https://www.exemplo.com"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
           </motion.div>
 
           {/* Endereço */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ ...SPRING, delay: 0.24 }}
           >
-            <Card className="bg-white/5 border-white/10 mb-6">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-gold" />
-                  Endereço
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
-                    <Label htmlFor="street" className="text-white">Rua *</Label>
-                    <Input
-                      id="street"
-                      value={formData.street}
-                      onChange={(e) => handleInputChange('street', e.target.value)}
-                      placeholder="Ex: Rua das Flores"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="number" className="text-white">Número *</Label>
-                    <Input
-                      id="number"
-                      value={formData.number}
-                      onChange={(e) => handleInputChange('number', e.target.value)}
-                      placeholder="123"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
-                </div>
+            <div style={cardStyle}>
+              <h2 style={sectionTitleStyle}>
+                <MapPin style={{ width: 18, height: 18, color: GOLD }} />
+                Endereço
+              </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="complement" className="text-white">Complemento</Label>
-                    <Input
-                      id="complement"
-                      value={formData.complement}
-                      onChange={(e) => handleInputChange('complement', e.target.value)}
-                      placeholder="Sala, Andar, etc."
-                      className="bg-white/10 border-white/20 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="neighborhood" className="text-white">Bairro *</Label>
-                    <Input
-                      id="neighborhood"
-                      value={formData.neighborhood}
-                      onChange={(e) => handleInputChange('neighborhood', e.target.value)}
-                      placeholder="Centro"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label htmlFor="street" style={labelStyle}>Rua *</label>
+                  <input
+                    id="street"
+                    value={formData.street}
+                    onChange={(e) => handleInputChange('street', e.target.value)}
+                    placeholder="Ex: Rua das Flores"
+                    style={inputStyle}
+                    required
+                  />
                 </div>
+                <div>
+                  <label htmlFor="number" style={labelStyle}>Número *</label>
+                  <input
+                    id="number"
+                    value={formData.number}
+                    onChange={(e) => handleInputChange('number', e.target.value)}
+                    placeholder="123"
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="city" className="text-white">Cidade *</Label>
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
-                      placeholder="São Paulo"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="state" className="text-white">Estado *</Label>
-                    <Input
-                      id="state"
-                      value={formData.state}
-                      onChange={(e) => handleInputChange('state', e.target.value)}
-                      placeholder="SP"
-                      maxLength={2}
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="zipCode" className="text-white">CEP *</Label>
-                    <Input
-                      id="zipCode"
-                      value={formData.zipCode}
-                      onChange={(e) => handleInputChange('zipCode', e.target.value)}
-                      placeholder="00000-000"
-                      className="bg-white/10 border-white/20 text-white"
-                      required
-                    />
-                  </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label htmlFor="complement" style={labelStyle}>Complemento</label>
+                  <input
+                    id="complement"
+                    value={formData.complement}
+                    onChange={(e) => handleInputChange('complement', e.target.value)}
+                    placeholder="Sala, Andar, etc."
+                    style={inputStyle}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <label htmlFor="neighborhood" style={labelStyle}>Bairro *</label>
+                  <input
+                    id="neighborhood"
+                    value={formData.neighborhood}
+                    onChange={(e) => handleInputChange('neighborhood', e.target.value)}
+                    placeholder="Centro"
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                <div>
+                  <label htmlFor="city" style={labelStyle}>Cidade *</label>
+                  <input
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    placeholder="São Paulo"
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="state" style={labelStyle}>Estado *</label>
+                  <input
+                    id="state"
+                    value={formData.state}
+                    onChange={(e) => handleInputChange('state', e.target.value)}
+                    placeholder="SP"
+                    maxLength={2}
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="zipCode" style={labelStyle}>CEP *</label>
+                  <input
+                    id="zipCode"
+                    value={formData.zipCode}
+                    onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                    placeholder="00000-000"
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
           </motion.div>
 
           {/* Horário de Funcionamento */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ ...SPRING, delay: 0.32 }}
           >
-            <Card className="bg-white/5 border-white/10 mb-6">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-gold" />
-                  Horário de Funcionamento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <div style={cardStyle}>
+              <h2 style={sectionTitleStyle}>
+                <Clock style={{ width: 18, height: 18, color: GOLD }} />
+                Horário de Funcionamento
+              </h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                 {businessHours.map((hour, index) => (
-                  <div key={hour.day} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-                    <div className="flex items-center gap-2 w-40">
+                  <div
+                    key={hour.day}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '0.75rem',
+                      background: hour.isOpen ? 'rgba(212,175,55,0.04)' : 'rgba(255,255,255,0.02)',
+                      border: hour.isOpen ? '1px solid rgba(212,175,55,0.15)' : '1px solid rgba(255,255,255,0.05)',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 160 }}>
                       <input
                         type="checkbox"
                         checked={hour.isOpen}
                         onChange={(e) => handleBusinessHourChange(index, 'isOpen', e.target.checked)}
-                        className="w-4 h-4"
+                        style={{
+                          width: 16, height: 16,
+                          accentColor: GOLD,
+                          cursor: 'pointer',
+                        }}
                       />
-                      <Label className="text-white text-sm">{DAY_LABELS[hour.day]}</Label>
+                      <span style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        color: hour.isOpen ? '#fff' : 'rgba(255,255,255,0.35)',
+                      }}>
+                        {DAY_LABELS[hour.day]}
+                      </span>
                     </div>
+
                     {hour.isOpen && (
                       <>
-                        <Input
+                        <input
                           type="time"
                           value={hour.open}
                           onChange={(e) => handleBusinessHourChange(index, 'open', e.target.value)}
-                          className="bg-white/10 border-white/20 text-white w-32"
+                          style={{ ...inputStyle, width: 'auto', minWidth: 110 }}
                         />
-                        <span className="text-white">às</span>
-                        <Input
+                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>às</span>
+                        <input
                           type="time"
                           value={hour.close}
                           onChange={(e) => handleBusinessHourChange(index, 'close', e.target.value)}
-                          className="bg-white/10 border-white/20 text-white w-32"
+                          style={{ ...inputStyle, width: 'auto', minWidth: 110 }}
                         />
                       </>
                     )}
-                    {!hour.isOpen && <span className="text-gray-400 text-sm">Fechado</span>}
+                    {!hour.isOpen && (
+                      <span style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.25)' }}>Fechado</span>
+                    )}
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </motion.div>
 
           {/* Botão de Salvar */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="flex justify-end gap-4"
+            transition={{ ...SPRING, delay: 0.4 }}
+            style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}
           >
-            <Button
+            <button
               type="button"
-              variant="outline"
               onClick={() => navigate('/selecionar-empresa')}
-              className="border-white/20 text-white hover:bg-white/10"
+              style={{ ...ghostBtnStyle, opacity: isLoading ? 0.5 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
               disabled={isLoading}
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              className="bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold"
+              style={{ ...goldBtnStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
               disabled={isLoading}
             >
-              <Save className="w-5 h-5 mr-2" />
+              <Save style={{ width: 18, height: 18 }} />
               {isLoading ? 'Salvando...' : 'Salvar Estabelecimento'}
-            </Button>
+            </button>
           </motion.div>
+
         </form>
       </div>
     </div>

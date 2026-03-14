@@ -1,11 +1,48 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Mail, Eye, EyeOff, User, Crown, Scissors, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { sanitizeString, isValidEmail, detectXSS } from "@/lib/securityUtils";
+
+const inputStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: "0.5rem",
+  color: "#fff",
+  padding: "0.75rem 1rem",
+  outline: "none",
+  width: "100%",
+};
+
+const goldButtonStyle: React.CSSProperties = {
+  background: "linear-gradient(135deg,#D4AF37,#B8941E)",
+  color: "#050400",
+  fontWeight: 600,
+  borderRadius: "0.5rem",
+  padding: "0.75rem 1.5rem",
+  border: "none",
+  cursor: "pointer",
+  width: "100%",
+};
+
+const ghostButtonStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.05)",
+  color: "#fff",
+  fontWeight: 500,
+  borderRadius: "0.5rem",
+  padding: "0.75rem 1.5rem",
+  border: "1px solid rgba(255,255,255,0.1)",
+  cursor: "pointer",
+  width: "100%",
+};
+
+const cardStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.02)",
+  border: "1px solid rgba(255,255,255,0.07)",
+  borderRadius: "1.125rem",
+  padding: "2rem",
+};
 
 export function Login() {
   const { login, loginWithGoogle, loginWithFacebook, isLoading } = useAuth();
@@ -173,7 +210,10 @@ export function Login() {
   const colors = currentRoleOption.colors;
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ background: "#050400" }}
+    >
       {/* Estilos globais para remover fundo branco do autocomplete */}
       <style>{`
         input:-webkit-autofill,
@@ -202,7 +242,8 @@ export function Login() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-gradient-to-br from-gray-900/90 via-gray-800/90 to-gray-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-8 flex flex-col items-center gap-4 shadow-2xl"
+              className="backdrop-blur-xl rounded-2xl border border-white/10 p-8 flex flex-col items-center gap-4 shadow-2xl"
+              style={{ background: "rgba(255,255,255,0.02)" }}
             >
               {/* Spinner animado com as cores do provedor */}
               <motion.div
@@ -276,7 +317,8 @@ export function Login() {
             boxShadow: `0 25px 50px -12px ${colors.cardShadow}`
           }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
-          className="bg-gradient-to-br from-gray-900/90 via-gray-800/90 to-gray-900/90 backdrop-blur-xl rounded-3xl border shadow-2xl p-6 sm:p-8 relative overflow-hidden"
+          className="backdrop-blur-xl rounded-3xl shadow-2xl relative overflow-hidden"
+          style={cardStyle}
         >
           {/* Brilho sutil na borda que acompanha o tipo de login */}
           <motion.div
@@ -327,6 +369,7 @@ export function Login() {
           >
             <motion.h1
               className="text-2xl font-bold text-white mb-1"
+              style={{ fontFamily: "'Playfair Display', serif" }}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35 }}
@@ -481,7 +524,7 @@ export function Login() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <Label htmlFor="email" className="text-sm font-medium text-gray-300">Email</Label>
+              <label htmlFor="email" className="text-sm font-medium text-gray-300">Email</label>
               <div className="relative group">
                 <div className="pointer-events-none">
                   <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.email ? colors.text : 'text-gray-500'}`} />
@@ -496,13 +539,12 @@ export function Login() {
                   onChange={handleChange}
                   autoComplete="off"
                   style={{
-                    backgroundColor: 'transparent',
-                    WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                    ...inputStyle,
+                    paddingLeft: "3rem",
+                    WebkitBoxShadow: '0 0 0 1000px transparent inset',
                   }}
                   className={`
-                    w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
-                    focus:outline-none focus:ring-2 transition-all duration-300
-                    ${errors.email ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                    ${errors.email ? "border-red-500/50" : ""}
                   `}
                 />
 
@@ -535,7 +577,7 @@ export function Login() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <Label htmlFor="password" className="text-sm font-medium text-gray-300">Senha</Label>
+              <label htmlFor="password" className="text-sm font-medium text-gray-300">Senha</label>
               <div className="relative group">
                 <div className="pointer-events-none">
                   <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${formData.password ? colors.text : 'text-gray-500'}`} />
@@ -550,13 +592,13 @@ export function Login() {
                   onChange={handleChange}
                   autoComplete="off"
                   style={{
-                    backgroundColor: 'transparent',
-                    WebkitBoxShadow: '0 0 0 1000px transparent inset'
+                    ...inputStyle,
+                    paddingLeft: "3rem",
+                    paddingRight: "3rem",
+                    WebkitBoxShadow: '0 0 0 1000px transparent inset',
                   }}
                   className={`
-                    w-full h-11 pl-12 pr-12 bg-transparent border rounded-xl text-white placeholder-gray-500
-                    focus:outline-none focus:ring-2 transition-all duration-300
-                    ${errors.password ? "border-red-500/50 focus:ring-red-500/30" : `border-white/10 ${colors.ring}`}
+                    ${errors.password ? "border-red-500/50" : ""}
                   `}
                 />
 
@@ -688,10 +730,11 @@ export function Login() {
                   transition={{ duration: 0.3 }}
                 />
 
-                <Button
+                <button
                   type="submit"
-                  className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all relative overflow-hidden`}
+                  style={goldButtonStyle}
                   disabled={isLoading}
+                  className="relative overflow-hidden"
                 >
                   {/* Efeito de brilho deslizante */}
                   <motion.div
@@ -736,7 +779,7 @@ export function Login() {
                       </>
                     )}
                   </span>
-                </Button>
+                </button>
               </motion.div>
             </motion.div>
           </form>
@@ -747,7 +790,7 @@ export function Login() {
               <div className="w-full border-t border-white/10"></div>
             </div>
             <div className="relative flex justify-center">
-              <span className="px-4 bg-gray-800 text-gray-500 text-xs">Ou continue com</span>
+              <span className="px-4 text-gray-500 text-xs" style={{ background: "#050400" }}>Ou continue com</span>
             </div>
           </div>
 
@@ -779,7 +822,8 @@ export function Login() {
               }}
               whileHover={{ scale: isGoogleLoading ? 1 : 1.03, y: isGoogleLoading ? 0 : -2 }}
               whileTap={{ scale: isGoogleLoading ? 1 : 0.97 }}
-              className="flex items-center justify-center gap-2 h-10 bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-white/20 transition-all text-sm relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+              style={ghostButtonStyle}
+              className="flex items-center justify-center gap-2 h-10 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading || isGoogleLoading || isFacebookLoading}
             >
               {/* Efeito de onda no hover */}
@@ -849,7 +893,8 @@ export function Login() {
               }}
               whileHover={{ scale: isFacebookLoading ? 1 : 1.03, y: isFacebookLoading ? 0 : -2 }}
               whileTap={{ scale: isFacebookLoading ? 1 : 0.97 }}
-              className="flex items-center justify-center gap-2 h-10 bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-white/20 transition-all text-sm relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+              style={ghostButtonStyle}
+              className="flex items-center justify-center gap-2 h-10 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading || isGoogleLoading || isFacebookLoading}
             >
               {/* Efeito de onda no hover */}

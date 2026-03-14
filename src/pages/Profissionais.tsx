@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Mail, Users, DollarSign, Percent, X, QrCode, Copy, Check, Clock, UserCheck, UserX, Loader2, Phone, MapPin, User, Settings2, Trash2, CheckSquare, Square, AlertTriangle } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
-import { theme } from '@/styles/theme'
 import { OwnerPageLayout } from '@/components/layout/OwnerPageLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import { getOrCreateLinkCode, getBusinessById } from '@/services/businessService'
@@ -19,6 +12,7 @@ import {
   createProfessionalLink,
   cleanDuplicateLinks,
   deleteProfessionalLinks,
+  updateLinkDetails,
   type ProfessionalLink,
 } from '@/services/professionalLinkService'
 import {
@@ -28,6 +22,79 @@ import {
   type EnderecoData,
 } from '@/services/professionalProfileService'
 
+// ─── Design tokens ────────────────────────────────────────────────
+const BG = '#050400'
+const GOLD = '#D4AF37'
+
+const card: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+}
+
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: '0.5rem',
+  color: '#fff',
+  padding: '0.5rem 0.75rem',
+  outline: 'none',
+  width: '100%',
+}
+
+const goldBtn: React.CSSProperties = {
+  background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+  color: BG,
+  fontWeight: 600,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.5rem',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.4rem',
+}
+
+const outlineBtn: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.2)',
+  color: 'rgba(255,255,255,0.7)',
+  borderRadius: '0.5rem',
+  padding: '0.5rem 1rem',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.4rem',
+  fontSize: '0.875rem',
+}
+
+const dangerBtn: React.CSSProperties = {
+  background: 'rgba(239,68,68,0.15)',
+  border: '1px solid rgba(239,68,68,0.4)',
+  color: '#f87171',
+  borderRadius: '0.5rem',
+  padding: '0.5rem 1rem',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.4rem',
+  fontSize: '0.875rem',
+}
+
+const badge = (active?: boolean): React.CSSProperties => ({
+  background: active ? 'rgba(34,197,94,0.15)' : 'rgba(212,175,55,0.15)',
+  color: active ? '#4ade80' : GOLD,
+  borderRadius: '9999px',
+  padding: '2px 10px',
+  fontSize: '0.75rem',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.25rem',
+})
+
+const spring = { type: 'spring', stiffness: 320, damping: 36 }
+
+// ─── Types ────────────────────────────────────────────────────────
 type PaymentType = 'fixed' | 'percentage'
 
 interface PaymentConfig {
@@ -50,9 +117,11 @@ interface ProfileModalData {
   profile: ProfessionalProfileData
 }
 
+// ─── Component ───────────────────────────────────────────────────
 export function Profissionais() {
   const { user } = useAuth()
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
   const [isAddProfModalOpen, setIsAddProfModalOpen] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null)
@@ -65,44 +134,25 @@ export function Profissionais() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [profilesData, setProfilesData] = useState<Record<string, ProfessionalProfileData>>({})
-
-  // Modo de gerenciamento
   const [isManageMode, setIsManageMode] = useState(false)
   const [selectedForRemoval, setSelectedForRemoval] = useState<Set<string>>(new Set())
   const [isConfirmRemoveOpen, setIsConfirmRemoveOpen] = useState(false)
   const [removeLoading, setRemoveLoading] = useState(false)
-
-  // Links do Firestore
   const [links, setLinks] = useState<ProfessionalLink[]>([])
 
   const businessId = localStorage.getItem('selected_business_id')
 
-  // Carregar vínculos do Firestore e garantir que o owner está vinculado
   useEffect(() => {
     async function loadLinks() {
       if (!businessId || !user) return
-
       try {
-        // Limpar duplicatas existentes no Firestore
         await cleanDuplicateLinks(businessId)
-
         let businessLinks = await getLinksByBusiness(businessId)
-
-        // Verificar se o owner já está vinculado ao próprio negócio
         const ownerLinked = businessLinks.some(l => l.professionalId === user.uid)
-
         if (!ownerLinked) {
-          // Buscar dados do business para o nome
           const business = await getBusinessById(businessId)
           if (business && business.ownerId === user.uid) {
-            // Criar perfil profissional do owner se não existir
-            try {
-              await updateProfessionalProfile(user.uid, {
-                specialties: [],
-              })
-            } catch { /* pode falhar se já existir */ }
-
-            // Criar vínculo ativo automático
+            try { await updateProfessionalProfile(user.uid, { specialties: [] }) } catch { /* ok */ }
             try {
               await createProfessionalLink({
                 professionalId: user.uid,
@@ -114,17 +164,14 @@ export function Profissionais() {
                 linkedBy: 'invite',
                 status: 'active',
               })
-              // Recarregar links
               businessLinks = await getLinksByBusiness(businessId)
             } catch (e: any) {
-              // Ignorar se já existe (não é erro real)
               if (!e.message?.includes('já está vinculado') && !e.message?.includes('solicitação pendente')) {
                 console.error('Erro ao auto-vincular owner:', e)
               }
             }
           }
         }
-
         setLinks(businessLinks)
       } catch (error) {
         console.error('Erro ao carregar profissionais:', error)
@@ -132,18 +179,14 @@ export function Profissionais() {
         setLoading(false)
       }
     }
-
     loadLinks()
   }, [businessId, user])
 
-  // Carregar dados de perfil dos profissionais ativos
   useEffect(() => {
     const activeLinks = links.filter(l => l.status === 'active')
     if (activeLinks.length === 0) return
-
     async function loadProfiles() {
       const profilesMap: Record<string, ProfessionalProfileData> = {}
-
       await Promise.all(
         activeLinks.map(async (link) => {
           try {
@@ -152,7 +195,6 @@ export function Profissionais() {
               getProfissionalEspecialidades(link.professionalId),
               getProfissionalEndereco(link.professionalId),
             ])
-
             profilesMap[link.professionalId] = {
               name: infoPessoais?.name,
               phone: infoPessoais?.phone,
@@ -162,59 +204,62 @@ export function Profissionais() {
               endereco: endereco ?? undefined,
             }
           } catch (error) {
-            console.error(`Erro ao carregar perfil do profissional ${link.professionalId}:`, error)
+            console.error(`Erro ao carregar perfil ${link.professionalId}:`, error)
           }
         })
       )
-
       setProfilesData(profilesMap)
     }
-
     loadProfiles()
   }, [links])
 
   const pendingLinks = links.filter(l => l.status === 'pending')
   const activeLinks = links.filter(l => l.status === 'active')
 
-  const handleOpenPaymentModal = (professionalId: string) => {
-    setSelectedProfessional(professionalId)
+  const handleOpenPaymentModal = (link: ProfessionalLink) => {
+    setSelectedProfessional(link.professionalId)
+    setSelectedLinkId(link.id)
+    setPaymentType(link.paymentType ?? 'percentage')
+    setPercentageValue(link.commission != null ? String(link.commission) : '40')
+    setFixedValue(link.fixedMonthly != null ? String(link.fixedMonthly) : '')
     setIsPaymentModalOpen(true)
   }
 
   const handleClosePaymentModal = () => {
     setIsPaymentModalOpen(false)
     setSelectedProfessional(null)
+    setSelectedLinkId(null)
     setPaymentType('percentage')
     setFixedValue('')
     setPercentageValue('40')
   }
 
-  const handleSavePayment = () => {
-    const config: PaymentConfig = {
-      type: paymentType,
-      ...(paymentType === 'fixed' ? { fixedValue: parseFloat(fixedValue) } : { percentageValue: parseFloat(percentageValue) })
+  const handleSavePayment = async () => {
+    if (!selectedLinkId) return
+    try {
+      if (paymentType === 'fixed') {
+        await updateLinkDetails(selectedLinkId, { paymentType: 'fixed', fixedMonthly: parseFloat(fixedValue), commission: undefined })
+      } else {
+        await updateLinkDetails(selectedLinkId, { paymentType: 'percentage', commission: parseFloat(percentageValue), fixedMonthly: undefined })
+      }
+      setLinks(prev => prev.map(l => l.id === selectedLinkId ? {
+        ...l,
+        paymentType,
+        commission: paymentType === 'percentage' ? parseFloat(percentageValue) : l.commission,
+        fixedMonthly: paymentType === 'fixed' ? parseFloat(fixedValue) : undefined,
+      } : l))
+      handleClosePaymentModal()
+    } catch (err) {
+      console.error('Erro ao salvar configuração de pagamento:', err)
+      alert('Erro ao salvar. Tente novamente.')
     }
-
-    console.log('Configuração de pagamento salva:', {
-      professionalId: selectedProfessional,
-      config
-    })
-
-    alert('Configuração salva com sucesso!')
-    handleClosePaymentModal()
   }
 
   const handleOpenAddModal = async () => {
     setIsAddProfModalOpen(true)
-
-    // Gerar/obter o código de vinculação
     if (businessId) {
-      try {
-        const code = await getOrCreateLinkCode(businessId)
-        setLinkCode(code)
-      } catch (error) {
-        console.error('Erro ao gerar código:', error)
-      }
+      try { const code = await getOrCreateLinkCode(businessId); setLinkCode(code) }
+      catch (error) { console.error('Erro ao gerar código:', error) }
     }
   }
 
@@ -227,14 +272,9 @@ export function Profissionais() {
   const handleApproveLink = async (linkId: string) => {
     if (!user) return
     setActionLoading(linkId)
-
     try {
       await approveProfessionalLink(linkId, user.uid)
-
-      // Atualizar a lista local
-      setLinks(prev => prev.map(l =>
-        l.id === linkId ? { ...l, status: 'active' as const } : l
-      ))
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, status: 'active' as const } : l))
     } catch (error) {
       console.error('Erro ao aprovar:', error)
       alert('Erro ao aprovar profissional. Tente novamente.')
@@ -246,11 +286,8 @@ export function Profissionais() {
   const handleRejectLink = async (linkId: string) => {
     if (!user) return
     setActionLoading(linkId)
-
     try {
       await rejectProfessionalLink(linkId, user.uid)
-
-      // Remover da lista local
       setLinks(prev => prev.filter(l => l.id !== linkId))
     } catch (error) {
       console.error('Erro ao rejeitar:', error)
@@ -266,7 +303,6 @@ export function Profissionais() {
     setIsProfileModalOpen(true)
   }
 
-  // ---- Gerenciar modo ----
   const handleToggleManageMode = () => {
     setIsManageMode(prev => !prev)
     setSelectedForRemoval(new Set())
@@ -282,11 +318,8 @@ export function Profissionais() {
   }
 
   const handleSelectAll = () => {
-    if (selectedForRemoval.size === activeLinks.length) {
-      setSelectedForRemoval(new Set())
-    } else {
-      setSelectedForRemoval(new Set(activeLinks.map(l => l.id)))
-    }
+    if (selectedForRemoval.size === activeLinks.length) setSelectedForRemoval(new Set())
+    else setSelectedForRemoval(new Set(activeLinks.map(l => l.id)))
   }
 
   const handleConfirmRemove = async () => {
@@ -309,9 +342,9 @@ export function Profissionais() {
   if (loading) {
     return (
       <OwnerPageLayout title="Profissionais" subtitle="Gerencie sua equipe">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-gold" />
-          <span className="ml-3 text-gray-400">Carregando equipe...</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5rem 0' }}>
+          <Loader2 style={{ width: 32, height: 32, color: GOLD, animation: 'spin 1s linear infinite' }} />
+          <span style={{ marginLeft: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Carregando equipe...</span>
         </div>
       </OwnerPageLayout>
     )
@@ -320,98 +353,69 @@ export function Profissionais() {
   return (
     <OwnerPageLayout title="Profissionais" subtitle="Gerencie sua equipe">
       {/* Actions Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem' }}>
         <div>
-          <h2 className={`text-lg md:text-xl font-semibold ${theme.colors.text.primary}`}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', fontWeight: 600, color: '#fff' }}>
             {activeLinks.length} {activeLinks.length === 1 ? 'Profissional' : 'Profissionais'}
           </h2>
-          <p className={`text-xs md:text-sm ${theme.colors.text.secondary} mt-1`}>
-            {pendingLinks.length > 0 && (
-              <span className="text-yellow-400 font-medium">
+          <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>
+            {pendingLinks.length > 0 ? (
+              <span style={{ color: '#facc15', fontWeight: 500 }}>
                 {pendingLinks.length} {pendingLinks.length === 1 ? 'solicitação pendente' : 'solicitações pendentes'}
               </span>
-            )}
-            {pendingLinks.length === 0 && 'Todos os profissionais estão ativos'}
+            ) : 'Todos os profissionais estão ativos'}
           </p>
         </div>
 
-        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-          {/* Botão Aprovações Pendentes */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {pendingLinks.length > 0 && !isManageMode && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="relative flex-1 sm:flex-none border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-              onClick={() => {
-                document.getElementById('pending-section')?.scrollIntoView({ behavior: 'smooth' })
-              }}
+            <button
+              style={{ ...outlineBtn, borderColor: 'rgba(234,179,8,0.4)', color: '#facc15', position: 'relative' }}
+              onClick={() => document.getElementById('pending-section')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              <Clock className="w-4 h-4 mr-2" />
+              <Clock style={{ width: 16, height: 16 }} />
               Aprovações
-              <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
-                {pendingLinks.length}
-              </span>
-            </Button>
+              <span style={{
+                position: 'absolute', top: -8, right: -8, width: 20, height: 20,
+                background: '#ef4444', color: '#fff', fontSize: '0.7rem', fontWeight: 700,
+                borderRadius: '9999px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{pendingLinks.length}</span>
+            </button>
           )}
 
-          {/* Controles do modo gerenciar */}
           {isManageMode ? (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 sm:flex-none border-white/20 text-white/70 hover:bg-white/10"
-                onClick={handleSelectAll}
-              >
-                {selectedForRemoval.size === activeLinks.length ? (
-                  <CheckSquare className="w-4 h-4 mr-2" />
-                ) : (
-                  <Square className="w-4 h-4 mr-2" />
-                )}
+              <button style={outlineBtn} onClick={handleSelectAll}>
+                {selectedForRemoval.size === activeLinks.length
+                  ? <CheckSquare style={{ width: 16, height: 16 }} />
+                  : <Square style={{ width: 16, height: 16 }} />}
                 {selectedForRemoval.size === activeLinks.length ? 'Desmarcar todos' : 'Selecionar todos'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 sm:flex-none border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+              </button>
+              <button
+                style={{ ...dangerBtn, opacity: selectedForRemoval.size === 0 ? 0.4 : 1 }}
                 disabled={selectedForRemoval.size === 0}
                 onClick={() => setIsConfirmRemoveOpen(true)}
               >
-                <Trash2 className="w-4 h-4 mr-2" />
+                <Trash2 style={{ width: 16, height: 16 }} />
                 Desvincular ({selectedForRemoval.size})
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 sm:flex-none border-white/20 text-white/70 hover:bg-white/10"
-                onClick={handleToggleManageMode}
-              >
-                <X className="w-4 h-4 mr-2" />
+              </button>
+              <button style={outlineBtn} onClick={handleToggleManageMode}>
+                <X style={{ width: 16, height: 16 }} />
                 Cancelar
-              </Button>
+              </button>
             </>
           ) : (
             <>
               {activeLinks.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 sm:flex-none border-white/20 text-white/70 hover:bg-white/10"
-                  onClick={handleToggleManageMode}
-                >
-                  <Settings2 className="w-4 h-4 mr-2" />
+                <button style={outlineBtn} onClick={handleToggleManageMode}>
+                  <Settings2 style={{ width: 16, height: 16 }} />
                   Gerenciar Profissional
-                </Button>
+                </button>
               )}
-              <Button
-                variant="gold"
-                size="sm"
-                className="flex-1 sm:flex-none"
-                onClick={handleOpenAddModal}
-              >
-                <Plus className="w-4 h-4 mr-2" />
+              <button style={goldBtn} onClick={handleOpenAddModal}>
+                <Plus style={{ width: 16, height: 16 }} />
                 Adicionar Profissional
-              </Button>
+              </button>
             </>
           )}
         </div>
@@ -423,90 +427,70 @@ export function Profissionais() {
           id="pending-section"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          transition={spring}
+          style={{ marginBottom: '2rem' }}
         >
-          <h3 className="text-lg font-semibold text-yellow-400 mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 600, color: '#facc15', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Clock style={{ width: 20, height: 20 }} />
             Solicitações Pendentes ({pendingLinks.length})
           </h3>
 
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {pendingLinks.map((link, index) => (
               <motion.div
                 key={link.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ ...spring, delay: index * 0.06 }}
               >
-                <Card className={`${theme.colors.card.base} border-l-4 border-l-yellow-500`}>
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      {/* Info do profissional */}
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-white font-bold bg-gradient-to-br from-yellow-500 to-yellow-600">
-                          {link.professionalAvatar ? (
-                            <img src={link.professionalAvatar} alt={link.professionalName} className="w-full h-full object-cover" />
-                          ) : (
-                            link.professionalName.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div>
-                          <h4 className={`font-semibold ${theme.colors.text.primary}`}>
-                            {link.professionalName}
-                          </h4>
-                          <p className={`text-sm ${theme.colors.text.secondary}`}>
-                            {link.professionalEmail}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs text-yellow-400 border-yellow-500/30">
-                              <Clock className="w-3 h-3 mr-1" />
-                              Aguardando aprovação
-                            </Badge>
-                            <span className={`text-xs ${theme.colors.text.tertiary}`}>
-                              via {link.linkedBy === 'code' ? 'código' : link.linkedBy === 'qrcode' ? 'QR Code' : 'convite'}
-                            </span>
-                          </div>
-                        </div>
+                <div style={{ ...card, borderLeft: '4px solid #eab308', padding: '1rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{
+                        width: 48, height: 48, borderRadius: '9999px', overflow: 'hidden',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'linear-gradient(135deg,#D4AF37,#B8941E)', color: '#050400', fontWeight: 700, fontSize: '1.1rem', flexShrink: 0,
+                      }}>
+                        {link.professionalAvatar
+                          ? <img src={link.professionalAvatar} alt={link.professionalName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : link.professionalName.charAt(0).toUpperCase()}
                       </div>
-
-                      {/* Ações */}
-                      <div className="flex gap-2 w-full sm:w-auto">
-                        <Button
-                          size="sm"
-                          onClick={() => handleRejectLink(link.id)}
-                          disabled={actionLoading === link.id}
-                          variant="outline"
-                          className="flex-1 sm:flex-none border-red-500/30 text-red-400 hover:bg-red-500/10"
-                        >
-                          {actionLoading === link.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <UserX className="w-4 h-4 mr-1" />
-                              Recusar
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproveLink(link.id)}
-                          disabled={actionLoading === link.id}
-                          variant="gold"
-                          className="flex-1 sm:flex-none"
-                        >
-                          {actionLoading === link.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <UserCheck className="w-4 h-4 mr-1" />
-                              Aprovar
-                            </>
-                          )}
-                        </Button>
+                      <div>
+                        <h4 style={{ color: '#fff', fontWeight: 600, marginBottom: 2 }}>{link.professionalName}</h4>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>{link.professionalEmail}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                          <span style={badge()}>
+                            <Clock style={{ width: 11, height: 11 }} /> Aguardando aprovação
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
+                            via {link.linkedBy === 'code' ? 'código' : link.linkedBy === 'qrcode' ? 'QR Code' : 'convite'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        style={dangerBtn}
+                        onClick={() => handleRejectLink(link.id)}
+                        disabled={actionLoading === link.id}
+                      >
+                        {actionLoading === link.id
+                          ? <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+                          : <><UserX style={{ width: 16, height: 16 }} /> Recusar</>}
+                      </button>
+                      <button
+                        style={goldBtn}
+                        onClick={() => handleApproveLink(link.id)}
+                        disabled={actionLoading === link.id}
+                      >
+                        {actionLoading === link.id
+                          ? <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+                          : <><UserCheck style={{ width: 16, height: 16 }} /> Aprovar</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -518,7 +502,8 @@ export function Profissionais() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          transition={spring}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem' }}
         >
           {activeLinks.map((link, index) => {
             const profile = profilesData[link.professionalId] || {}
@@ -526,140 +511,110 @@ export function Profissionais() {
             const avatar = profile.avatarUrl || link.professionalAvatar
             const phone = profile.phone
             const specialties = profile.specialties || []
+            const isSelected = selectedForRemoval.has(link.id)
 
             return (
               <motion.div
                 key={link.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ y: isManageMode ? 0 : -5 }}
+                transition={{ ...spring, delay: index * 0.06 }}
+                whileHover={{ y: isManageMode ? 0 : -4 }}
+                onClick={isManageMode ? () => handleToggleSelect(link.id) : undefined}
+                style={{
+                  ...card,
+                  borderLeft: isManageMode && isSelected ? '4px solid #ef4444' : `4px solid ${GOLD}`,
+                  boxShadow: isManageMode && isSelected ? '0 0 0 2px rgba(239,68,68,0.3)' : 'none',
+                  cursor: isManageMode ? 'pointer' : 'default',
+                  display: 'flex', flexDirection: 'column',
+                }}
               >
-                <Card
-                  className={cn(
-                    `h-full ${theme.colors.card.base} hover:shadow-xl transition-all duration-300 group border-l-4`,
-                    isManageMode && selectedForRemoval.has(link.id)
-                      ? 'border-l-red-500 ring-2 ring-red-500/40'
-                      : 'border-l-gold',
-                    isManageMode && 'cursor-pointer'
-                  )}
-                  onClick={isManageMode ? () => handleToggleSelect(link.id) : undefined}
-                >
-                  <CardHeader className="pb-3">
-                    {/* Avatar + Status / Checkbox */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="relative">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-gold to-gold-dark flex-shrink-0">
-                          {avatar ? (
-                            <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
-                          ) : (
-                            <User className="w-8 h-8 text-white/80" />
-                          )}
-                        </div>
-                        {/* Checkbox overlay no modo gerenciar */}
-                        {isManageMode && (
-                          <div className={cn(
-                            'absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors',
-                            selectedForRemoval.has(link.id)
-                              ? 'bg-red-500 border-red-500'
-                              : 'bg-gray-800 border-white/30'
-                          )}>
-                            {selectedForRemoval.has(link.id) && (
-                              <Check className="w-3.5 h-3.5 text-white" />
-                            )}
-                          </div>
-                        )}
+                {/* Header */}
+                <div style={{ padding: '1.25rem 1.25rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div style={{ position: 'relative' }}>
+                      <div style={{
+                        width: 64, height: 64, borderRadius: '0.75rem', overflow: 'hidden',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'linear-gradient(135deg,#D4AF37,#B8941E)', flexShrink: 0,
+                      }}>
+                        {avatar
+                          ? <img src={avatar} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <User style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.8)' }} />}
                       </div>
-                      <Badge variant="success">
-                        Ativo
-                      </Badge>
+                      {isManageMode && (
+                        <div style={{
+                          position: 'absolute', top: -6, left: -6, width: 22, height: 22,
+                          borderRadius: '9999px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: isSelected ? '#ef4444' : 'rgba(20,20,20,0.9)',
+                          border: `2px solid ${isSelected ? '#ef4444' : 'rgba(255,255,255,0.3)'}`,
+                        }}>
+                          {isSelected && <Check style={{ width: 12, height: 12, color: '#fff' }} />}
+                        </div>
+                      )}
                     </div>
+                    <span style={badge(true)}>Ativo</span>
+                  </div>
 
-                    {/* Nome */}
-                    <CardTitle className="text-base text-gold leading-tight">
-                      {displayName}
-                    </CardTitle>
+                  <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: '0.95rem', color: GOLD, fontWeight: 600, lineHeight: 1.3, marginBottom: '0.2rem' }}>
+                    {displayName}
+                  </h4>
+                  <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>{link.role || 'Profissional'}</p>
+                </div>
 
-                    {/* Cargo */}
-                    <p className={`text-sm ${theme.colors.text.secondary}`}>
-                      {link.role || 'Profissional'}
-                    </p>
-                  </CardHeader>
-
-                  <CardContent className="pt-0">
-                    {/* Especialidades */}
-                    {specialties.length > 0 && (
-                      <div className="mb-4">
-                        <p className={`text-xs ${theme.colors.text.tertiary} mb-2`}>Especialidades:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {specialties.map((spec) => (
-                            <span
-                              key={spec}
-                              className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70 border border-white/10"
-                            >
-                              {spec}
-                            </span>
-                          ))}
-                        </div>
+                {/* Body */}
+                <div style={{ padding: '0.75rem 1.25rem 1.25rem', flex: 1 }}>
+                  {specialties.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Especialidades</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                        {specialties.map((spec) => (
+                          <span key={spec} style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            {spec}
+                          </span>
+                        ))}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Botões — ocultos no modo gerenciar */}
-                    {!isManageMode && (
-                      <div className={`space-y-2 pt-3 border-t ${theme.colors.border.light}`}>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full bg-white/5 border-white/10 text-white hover:bg-white/15 text-xs"
-                            onClick={() => window.open(`mailto:${link.professionalEmail}`, '_blank')}
-                          >
-                            <Mail className="w-3 h-3 mr-1" />
-                            Email
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full bg-white/5 border-white/10 text-white hover:bg-white/15 text-xs disabled:opacity-40"
-                            disabled={!phone}
-                            onClick={() => phone && window.open(`tel:${phone}`, '_blank')}
-                          >
-                            <Phone className="w-3 h-3 mr-1" />
-                            Ligar
-                          </Button>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-gold text-gold hover:bg-gold/10"
-                          onClick={() => handleOpenPaymentModal(link.id)}
-                        >
-                          <DollarSign className="w-3 h-3 mr-1" />
-                          Configurar Pagamento
-                        </Button>
+                  {!isManageMode && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                         <button
-                          className="w-full text-sm text-gold hover:text-gold-dark transition-colors py-1 font-medium"
-                          onClick={() => handleOpenProfileModal(link)}
+                          style={{ ...outlineBtn, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem' }}
+                          onClick={() => window.open(`mailto:${link.professionalEmail}`, '_blank')}
                         >
-                          Ver Perfil Completo
+                          <Mail style={{ width: 13, height: 13 }} /> Email
+                        </button>
+                        <button
+                          style={{ ...outlineBtn, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem', opacity: phone ? 1 : 0.4 }}
+                          disabled={!phone}
+                          onClick={() => phone && window.open(`tel:${phone}`, '_blank')}
+                        >
+                          <Phone style={{ width: 13, height: 13 }} /> Ligar
                         </button>
                       </div>
-                    )}
+                      <button
+                        style={{ ...outlineBtn, justifyContent: 'center', borderColor: `${GOLD}60`, color: GOLD, fontSize: '0.78rem', padding: '0.4rem 0.5rem' }}
+                        onClick={() => handleOpenPaymentModal(link)}
+                      >
+                        <DollarSign style={{ width: 13, height: 13 }} /> Configurar Pagamento
+                      </button>
+                      <button
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: GOLD, fontSize: '0.85rem', fontWeight: 500, padding: '0.25rem 0', textAlign: 'center' }}
+                        onClick={() => handleOpenProfileModal(link)}
+                      >
+                        Ver Perfil Completo
+                      </button>
+                    </div>
+                  )}
 
-                    {/* Indicador no modo gerenciar */}
-                    {isManageMode && (
-                      <div className={cn(
-                        'mt-3 pt-3 border-t text-center text-xs py-1 rounded-md transition-colors',
-                        theme.colors.border.light,
-                        selectedForRemoval.has(link.id)
-                          ? 'text-red-400'
-                          : 'text-white/40'
-                      )}>
-                        {selectedForRemoval.has(link.id) ? 'Selecionado para desvincular' : 'Clique para selecionar'}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  {isManageMode && (
+                    <p style={{ textAlign: 'center', fontSize: '0.78rem', color: isSelected ? '#f87171' : 'rgba(255,255,255,0.3)', marginTop: '0.5rem' }}>
+                      {isSelected ? 'Selecionado para desvincular' : 'Clique para selecionar'}
+                    </p>
+                  )}
+                </div>
               </motion.div>
             )
           })}
@@ -668,19 +623,20 @@ export function Profissionais() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center py-16 bg-white/5 rounded-xl border border-white/10"
+          transition={spring}
+          style={{ textAlign: 'center', padding: '4rem 2rem', ...card }}
         >
-          <Users className="w-20 h-20 mx-auto text-gray-600 mb-6" />
-          <h3 className={`text-2xl font-bold ${theme.colors.text.primary} mb-2`}>
+          <Users style={{ width: 64, height: 64, color: 'rgba(255,255,255,0.15)', margin: '0 auto 1.5rem' }} />
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#fff', fontWeight: 700, marginBottom: '0.5rem' }}>
             Nenhum profissional na equipe
           </h3>
-          <p className={`${theme.colors.text.secondary} mb-8`}>
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2rem' }}>
             Adicione profissionais compartilhando o código de vinculação
           </p>
-          <Button variant="gold" onClick={handleOpenAddModal}>
-            <Plus className="w-4 h-4 mr-2" />
+          <button style={goldBtn} onClick={handleOpenAddModal}>
+            <Plus style={{ width: 16, height: 16 }} />
             Adicionar Profissional
-          </Button>
+          </button>
         </motion.div>
       ) : null}
 
@@ -689,61 +645,43 @@ export function Profissionais() {
         {isConfirmRemoveOpen && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => !removeLoading && setIsConfirmRemoveOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 50 }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              transition={spring}
+              style={{ position: 'fixed', inset: 0, zIndex: 51, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
             >
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl max-w-sm w-full border border-white/10 p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="w-6 h-6 text-red-400" />
+              <div style={{ background: '#0d0c0a', ...card, maxWidth: 400, width: '100%', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '9999px', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <AlertTriangle style={{ width: 24, height: 24, color: '#f87171' }} />
                   </div>
                   <div>
-                    <h3 className={`text-lg font-bold ${theme.colors.text.primary}`}>
+                    <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>
                       Desvincular Profissional{selectedForRemoval.size > 1 ? 'is' : ''}
                     </h3>
-                    <p className={`text-sm ${theme.colors.text.secondary}`}>
-                      Esta ação não pode ser desfeita
-                    </p>
+                    <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>Esta ação não pode ser desfeita</p>
                   </div>
                 </div>
-
-                <p className={`text-sm ${theme.colors.text.secondary} mb-2`}>
-                  Você está prestes a desvincular <span className="text-white font-semibold">{selectedForRemoval.size} profissional{selectedForRemoval.size > 1 ? 'is' : ''}</span> do seu estabelecimento.
+                <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>
+                  Você está prestes a desvincular <span style={{ color: '#fff', fontWeight: 600 }}>{selectedForRemoval.size} profissional{selectedForRemoval.size > 1 ? 'is' : ''}</span> do seu estabelecimento.
                 </p>
-                <p className={`text-xs ${theme.colors.text.tertiary} mb-6`}>
+                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', marginBottom: '1.5rem' }}>
                   O vínculo será removido do banco de dados. O profissional poderá se vincular novamente no futuro se necessário.
                 </p>
-
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-white/20 text-white/70"
-                    onClick={() => setIsConfirmRemoveOpen(false)}
-                    disabled={removeLoading}
-                  >
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button style={{ ...outlineBtn, flex: 1, justifyContent: 'center' }} onClick={() => setIsConfirmRemoveOpen(false)} disabled={removeLoading}>
                     Cancelar
-                  </Button>
-                  <Button
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white border-0"
-                    onClick={handleConfirmRemove}
-                    disabled={removeLoading}
-                  >
-                    {removeLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Trash2 className="w-4 h-4 mr-2" />
-                    )}
+                  </button>
+                  <button style={{ ...dangerBtn, flex: 1, justifyContent: 'center', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none' }} onClick={handleConfirmRemove} disabled={removeLoading}>
+                    {removeLoading ? <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> : <Trash2 style={{ width: 16, height: 16 }} />}
                     {removeLoading ? 'Desvinculando...' : 'Confirmar'}
-                  </Button>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -756,87 +694,67 @@ export function Profissionais() {
         {isProfileModalOpen && selectedProfileModal && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsProfileModalOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 50 }}
             />
-
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              transition={spring}
+              style={{ position: 'fixed', inset: 0, zIndex: 51, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
             >
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-white/10">
+              <div style={{ background: '#0d0c0a', ...card, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
-                  <h3 className={`text-xl font-bold ${theme.colors.text.primary}`}>
-                    Perfil Completo
-                  </h3>
-                  <button
-                    onClick={() => setIsProfileModalOpen(false)}
-                    className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
-                  >
-                    <X className={`w-5 h-5 ${theme.colors.text.tertiary}`} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>Perfil Completo</h3>
+                  <button onClick={() => setIsProfileModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', display: 'flex', padding: '0.25rem', borderRadius: '0.375rem' }}>
+                    <X style={{ width: 20, height: 20 }} />
                   </button>
                 </div>
 
-                {/* Content */}
-                <div className="p-6 space-y-6">
+                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {/* Avatar + Nome */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center text-white font-bold text-2xl bg-gradient-to-br from-gold to-gold-dark flex-shrink-0">
-                      {selectedProfileModal.profile.avatarUrl || selectedProfileModal.link.professionalAvatar ? (
-                        <img
-                          src={selectedProfileModal.profile.avatarUrl || selectedProfileModal.link.professionalAvatar}
-                          alt={selectedProfileModal.profile.name || selectedProfileModal.link.professionalName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-10 h-10 text-white/80" />
-                      )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{
+                      width: 80, height: 80, borderRadius: '1rem', overflow: 'hidden', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+                    }}>
+                      {selectedProfileModal.profile.avatarUrl || selectedProfileModal.link.professionalAvatar
+                        ? <img src={selectedProfileModal.profile.avatarUrl || selectedProfileModal.link.professionalAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <User style={{ width: 40, height: 40, color: 'rgba(255,255,255,0.8)' }} />}
                     </div>
                     <div>
-                      <h4 className={`text-xl font-bold ${theme.colors.text.primary}`}>
+                      <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '0.2rem' }}>
                         {selectedProfileModal.profile.name || selectedProfileModal.link.professionalName}
                       </h4>
-                      <p className={`text-sm ${theme.colors.text.secondary}`}>
-                        {selectedProfileModal.link.role || 'Profissional'}
-                      </p>
-                      <Badge variant="success" className="mt-1">Ativo</Badge>
+                      <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem' }}>{selectedProfileModal.link.role || 'Profissional'}</p>
+                      <span style={badge(true)}>Ativo</span>
                     </div>
                   </div>
 
-                  {/* Informações de Contato */}
+                  {/* Contato */}
                   <div>
-                    <h5 className={`text-sm font-semibold ${theme.colors.text.secondary} mb-3 uppercase tracking-wider`}>
-                      Contato
-                    </h5>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
-                        <Mail className="w-4 h-4 text-gold flex-shrink-0" />
-                        <span className={`text-sm ${theme.colors.text.primary} break-all`}>
-                          {selectedProfileModal.link.professionalEmail}
-                        </span>
+                    <h5 style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Contato</h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.625rem' }}>
+                        <Mail style={{ width: 16, height: 16, color: GOLD, flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.875rem', color: '#fff', wordBreak: 'break-all' }}>{selectedProfileModal.link.professionalEmail}</span>
                       </div>
                       {selectedProfileModal.profile.phone && (
-                        <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
-                          <Phone className="w-4 h-4 text-gold flex-shrink-0" />
-                          <span className={`text-sm ${theme.colors.text.primary}`}>
-                            {selectedProfileModal.profile.phone}
-                          </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.625rem' }}>
+                          <Phone style={{ width: 16, height: 16, color: GOLD, flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.875rem', color: '#fff' }}>{selectedProfileModal.profile.phone}</span>
                         </div>
                       )}
                       {selectedProfileModal.profile.pix && (
-                        <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
-                          <DollarSign className="w-4 h-4 text-gold flex-shrink-0" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.625rem' }}>
+                          <DollarSign style={{ width: 16, height: 16, color: GOLD, flexShrink: 0 }} />
                           <div>
-                            <p className={`text-xs ${theme.colors.text.tertiary}`}>PIX</p>
-                            <p className={`text-sm ${theme.colors.text.primary}`}>
-                              {selectedProfileModal.profile.pix}
-                            </p>
+                            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>PIX</p>
+                            <p style={{ fontSize: '0.875rem', color: '#fff' }}>{selectedProfileModal.profile.pix}</p>
                           </div>
                         </div>
                       )}
@@ -846,59 +764,39 @@ export function Profissionais() {
                   {/* Especialidades */}
                   {selectedProfileModal.profile.specialties && selectedProfileModal.profile.specialties.length > 0 && (
                     <div>
-                      <h5 className={`text-sm font-semibold ${theme.colors.text.secondary} mb-3 uppercase tracking-wider`}>
-                        Especialidades
-                      </h5>
-                      <div className="flex flex-wrap gap-2">
+                      <h5 style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Especialidades</h5>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                         {selectedProfileModal.profile.specialties.map((spec) => (
-                          <span
-                            key={spec}
-                            className="text-sm px-3 py-1 rounded-full bg-gold/10 text-gold border border-gold/20"
-                          >
-                            {spec}
-                          </span>
+                          <span key={spec} style={{ ...badge(), border: `1px solid rgba(212,175,55,0.25)` }}>{spec}</span>
                         ))}
                       </div>
                     </div>
                   )}
 
                   {/* Endereço */}
-                  {selectedProfileModal.profile.endereco && (
-                    selectedProfileModal.profile.endereco.endereco ||
-                    selectedProfileModal.profile.endereco.cep
-                  ) && (
+                  {selectedProfileModal.profile.endereco && (selectedProfileModal.profile.endereco.endereco || selectedProfileModal.profile.endereco.cep) && (
                     <div>
-                      <h5 className={`text-sm font-semibold ${theme.colors.text.secondary} mb-3 uppercase tracking-wider`}>
-                        Endereço
-                      </h5>
-                      <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
-                        <MapPin className="w-4 h-4 text-gold flex-shrink-0 mt-0.5" />
-                        <div className={`text-sm ${theme.colors.text.primary} space-y-0.5`}>
+                      <h5 style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Endereço</h5>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.625rem' }}>
+                        <MapPin style={{ width: 16, height: 16, color: GOLD, flexShrink: 0, marginTop: 2 }} />
+                        <div style={{ fontSize: '0.875rem', color: '#fff' }}>
                           {selectedProfileModal.profile.endereco.endereco && (
-                            <p>
-                              {selectedProfileModal.profile.endereco.endereco}
-                              {selectedProfileModal.profile.endereco.numero && `, ${selectedProfileModal.profile.endereco.numero}`}
-                            </p>
+                            <p>{selectedProfileModal.profile.endereco.endereco}{selectedProfileModal.profile.endereco.numero && `, ${selectedProfileModal.profile.endereco.numero}`}</p>
                           )}
                           {selectedProfileModal.profile.endereco.complemento && (
-                            <p className={theme.colors.text.secondary}>
-                              {selectedProfileModal.profile.endereco.complemento}
-                            </p>
+                            <p style={{ color: 'rgba(255,255,255,0.5)' }}>{selectedProfileModal.profile.endereco.complemento}</p>
                           )}
                           {selectedProfileModal.profile.endereco.cep && (
-                            <p className={theme.colors.text.secondary}>
-                              CEP: {selectedProfileModal.profile.endereco.cep}
-                            </p>
+                            <p style={{ color: 'rgba(255,255,255,0.5)' }}>CEP: {selectedProfileModal.profile.endereco.cep}</p>
                           )}
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Vincular desde */}
-                  <div className={`text-xs ${theme.colors.text.tertiary} pt-2 border-t border-white/10`}>
+                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     Vinculado via {selectedProfileModal.link.linkedBy === 'code' ? 'código' : selectedProfileModal.link.linkedBy === 'qrcode' ? 'QR Code' : 'convite'}
-                  </div>
+                  </p>
                 </div>
               </div>
             </motion.div>
@@ -910,94 +808,72 @@ export function Profissionais() {
       <AnimatePresence>
         {isAddProfModalOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsAddProfModalOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 50 }}
             />
-
-            {/* Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              transition={spring}
+              style={{ position: 'fixed', inset: 0, zIndex: 51, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
             >
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-white/10">
-                {/* Modal Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div style={{ background: '#0d0c0a', ...card, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   <div>
-                    <h3 className={`text-2xl font-bold ${theme.colors.text.primary}`}>
-                      Vincular Profissional
-                    </h3>
-                    <p className={`text-sm ${theme.colors.text.secondary} mt-1`}>
-                      Compartilhe o QR Code ou código
-                    </p>
+                    <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>Vincular Profissional</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>Compartilhe o QR Code ou código</p>
                   </div>
-                  <button
-                    onClick={() => setIsAddProfModalOpen(false)}
-                    className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
-                  >
-                    <X className={`w-5 h-5 ${theme.colors.text.tertiary}`} />
+                  <button onClick={() => setIsAddProfModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', display: 'flex', padding: '0.25rem', borderRadius: '0.375rem' }}>
+                    <X style={{ width: 20, height: 20 }} />
                   </button>
                 </div>
 
-                {/* Modal Content */}
-                <div className="p-6 space-y-6">
+                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {/* QR Code */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-64 h-64 bg-white/5 rounded-xl flex items-center justify-center mb-4 border border-white/10">
-                      <QrCode className={`w-32 h-32 ${theme.colors.text.tertiary}`} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ width: 256, height: 256, background: 'rgba(255,255,255,0.03)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <QrCode style={{ width: 128, height: 128, color: 'rgba(255,255,255,0.3)' }} />
                     </div>
-                    <p className={`text-sm ${theme.colors.text.secondary} text-center`}>
-                      O profissional deve escanear este QR Code com o app
-                    </p>
+                    <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>O profissional deve escanear este QR Code com o app</p>
                   </div>
 
                   {/* Divider */}
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-white/10"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className={`px-2 bg-gray-900 ${theme.colors.text.tertiary}`}>ou</span>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+                    <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)' }}>ou</span>
+                    <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
                   </div>
 
                   {/* Code */}
                   <div>
-                    <Label className={`${theme.colors.text.secondary} mb-2 block`}>Código de Vinculação</Label>
-                    <div className="flex gap-2">
-                      <Input
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>Código de Vinculação</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
                         value={linkCode || 'Gerando...'}
                         readOnly
-                        className="font-mono text-center text-lg tracking-wider"
+                        style={{ ...inputStyle, fontFamily: 'monospace', textAlign: 'center', fontSize: '1.1rem', letterSpacing: '0.15em' }}
                       />
-                      <Button
-                        variant="outline"
+                      <button
+                        style={{ ...outlineBtn, padding: '0.5rem 1rem', flexShrink: 0 }}
                         onClick={handleCopyCode}
                         disabled={!linkCode}
-                        className="px-4"
                       >
-                        {copied ? (
-                          <Check className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </Button>
+                        {copied ? <Check style={{ width: 16, height: 16, color: '#4ade80' }} /> : <Copy style={{ width: 16, height: 16 }} />}
+                      </button>
                     </div>
-                    <p className={`text-xs ${theme.colors.text.tertiary} mt-2`}>
+                    <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem' }}>
                       O profissional pode inserir este código manualmente na área dele
                     </p>
                   </div>
 
                   {/* Info */}
-                  <div className="bg-gold/10 border border-gold/20 rounded-lg p-4">
-                    <p className="text-sm text-gold font-medium mb-1">Como funciona?</p>
-                    <ol className={`text-xs ${theme.colors.text.secondary} space-y-1 list-decimal list-inside`}>
+                  <div style={{ background: 'rgba(212,175,55,0.07)', border: `1px solid rgba(212,175,55,0.2)`, borderRadius: '0.75rem', padding: '1rem' }}>
+                    <p style={{ fontSize: '0.875rem', color: GOLD, fontWeight: 500, marginBottom: '0.4rem' }}>Como funciona?</p>
+                    <ol style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                       <li>Compartilhe o código ou QR Code com o profissional</li>
                       <li>Ele insere o código na área "Associar Estabelecimento"</li>
                       <li>A solicitação aparece aqui para você aprovar</li>
@@ -1015,170 +891,114 @@ export function Profissionais() {
       <AnimatePresence>
         {isPaymentModalOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={handleClosePaymentModal}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 50 }}
             />
-
-            {/* Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              transition={spring}
+              style={{ position: 'fixed', inset: 0, zIndex: 51, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
             >
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-white/10">
-                {/* Modal Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div style={{ background: '#0d0c0a', ...card, maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   <div>
-                    <h3 className={`text-2xl font-bold ${theme.colors.text.primary}`}>
-                      Configurar Pagamento
-                    </h3>
-                    <p className={`text-sm ${theme.colors.text.secondary} mt-1`}>
-                      Defina como o profissional será remunerado
-                    </p>
+                    <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>Configurar Pagamento</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>Defina como o profissional será remunerado</p>
                   </div>
-                  <button
-                    onClick={handleClosePaymentModal}
-                    className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
-                  >
-                    <X className={`w-5 h-5 ${theme.colors.text.tertiary}`} />
+                  <button onClick={handleClosePaymentModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', display: 'flex', padding: '0.25rem', borderRadius: '0.375rem' }}>
+                    <X style={{ width: 20, height: 20 }} />
                   </button>
                 </div>
 
-                {/* Modal Content */}
-                <div className="p-6 space-y-6">
+                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {/* Tipo de Pagamento */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      onClick={() => setPaymentType('percentage')}
-                      className={cn(
-                        "p-6 rounded-xl border-2 transition-all group",
-                        paymentType === 'percentage'
-                          ? "border-gold bg-gold/10"
-                          : "border-white/20 hover:border-gold/50 hover:bg-gold/5"
-                      )}
-                    >
-                      <div className="flex flex-col items-center gap-3">
-                        <div className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center",
-                          paymentType === 'percentage' ? "bg-gold" : "bg-white/5 group-hover:bg-gold/20"
-                        )}>
-                          <Percent className={cn(
-                            "w-6 h-6",
-                            paymentType === 'percentage' ? "text-white" : `${theme.colors.text.secondary} group-hover:text-gold`
-                          )} />
-                        </div>
-                        <div className="text-center">
-                          <h4 className={cn(
-                            "font-semibold",
-                            paymentType === 'percentage' ? "text-gold" : theme.colors.text.primary
-                          )}>
-                            Porcentagem
-                          </h4>
-                          <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>Por serviço</p>
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => setPaymentType('fixed')}
-                      className={cn(
-                        "p-6 rounded-xl border-2 transition-all group",
-                        paymentType === 'fixed'
-                          ? "border-gold bg-gold/10"
-                          : "border-white/20 hover:border-gold/50 hover:bg-gold/5"
-                      )}
-                    >
-                      <div className="flex flex-col items-center gap-3">
-                        <div className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center",
-                          paymentType === 'fixed' ? "bg-gold" : "bg-white/5 group-hover:bg-gold/20"
-                        )}>
-                          <DollarSign className={cn(
-                            "w-6 h-6",
-                            paymentType === 'fixed' ? "text-white" : `${theme.colors.text.secondary} group-hover:text-gold`
-                          )} />
-                        </div>
-                        <div className="text-center">
-                          <h4 className={cn(
-                            "font-semibold",
-                            paymentType === 'fixed' ? "text-gold" : theme.colors.text.primary
-                          )}>
-                            Valor Fixo
-                          </h4>
-                          <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>Mensal</p>
-                        </div>
-                      </div>
-                    </button>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    {([
+                      { value: 'percentage' as PaymentType, label: 'Porcentagem', sub: 'Por serviço', icon: <Percent style={{ width: 24, height: 24 }} /> },
+                      { value: 'fixed' as PaymentType, label: 'Valor Fixo', sub: 'Mensal', icon: <DollarSign style={{ width: 24, height: 24 }} /> },
+                    ]).map(opt => {
+                      const active = paymentType === opt.value
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => setPaymentType(opt.value)}
+                          style={{
+                            padding: '1.5rem',
+                            borderRadius: '0.75rem',
+                            border: active ? `2px solid ${GOLD}` : '2px solid rgba(255,255,255,0.12)',
+                            background: active ? 'rgba(212,175,55,0.08)' : 'transparent',
+                            cursor: 'pointer',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+                            transition: 'border-color 0.2s, background 0.2s',
+                          }}
+                        >
+                          <div style={{
+                            width: 48, height: 48, borderRadius: '9999px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: active ? GOLD : 'rgba(255,255,255,0.05)',
+                            color: active ? BG : 'rgba(255,255,255,0.5)',
+                          }}>
+                            {opt.icon}
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <p style={{ fontWeight: 600, color: active ? GOLD : '#fff', fontSize: '0.9rem' }}>{opt.label}</p>
+                            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>{opt.sub}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
 
-                  {/* Configuração de Valor */}
+                  {/* Valor */}
                   {paymentType === 'percentage' ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="percentage" className={theme.colors.text.secondary}>
-                        Porcentagem do Profissional (%)
-                      </Label>
-                      <div className="flex items-center gap-4">
-                        <Input
-                          id="percentage"
-                          type="number"
-                          min="0"
-                          max="100"
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Porcentagem do Profissional (%)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <input
+                          type="number" min="0" max="100"
                           value={percentageValue}
                           onChange={(e) => setPercentageValue(e.target.value)}
-                          className="text-lg"
+                          style={{ ...inputStyle, fontSize: '1.1rem' }}
                         />
-                        <span className={`text-sm ${theme.colors.text.tertiary} whitespace-nowrap`}>
+                        <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>
                           Estabelecimento: {100 - parseFloat(percentageValue || '0')}%
                         </span>
                       </div>
-                      <p className={`text-xs ${theme.colors.text.tertiary}`}>
+                      <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)' }}>
                         Exemplo: Serviço de R$ 100 → Profissional recebe R$ {parseFloat(percentageValue || '0')} e estabelecimento recebe R$ {100 - parseFloat(percentageValue || '0')}
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <Label htmlFor="fixed" className={theme.colors.text.secondary}>
-                        Valor Mensal Fixo (R$)
-                      </Label>
-                      <Input
-                        id="fixed"
-                        type="number"
-                        min="0"
-                        step="0.01"
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Valor Mensal Fixo (R$)</label>
+                      <input
+                        type="number" min="0" step="0.01"
                         value={fixedValue}
                         onChange={(e) => setFixedValue(e.target.value)}
                         placeholder="Ex: 3000.00"
-                        className="text-lg"
+                        style={{ ...inputStyle, fontSize: '1.1rem' }}
                       />
-                      <p className={`text-xs ${theme.colors.text.tertiary}`}>
+                      <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)' }}>
                         O profissional receberá este valor fixo mensalmente, independente do número de serviços
                       </p>
                     </div>
                   )}
 
                   {/* Actions */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={handleClosePaymentModal}
-                      className="flex-1"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      variant="gold"
+                  <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
+                    <button style={{ ...outlineBtn, flex: 1, justifyContent: 'center' }} onClick={handleClosePaymentModal}>Cancelar</button>
+                    <button
+                      style={{ ...goldBtn, flex: 1, justifyContent: 'center', opacity: paymentType === 'fixed' && !fixedValue ? 0.5 : 1 }}
                       onClick={handleSavePayment}
-                      className="flex-1"
                       disabled={paymentType === 'fixed' && !fixedValue}
                     >
                       Salvar Configuração
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </div>

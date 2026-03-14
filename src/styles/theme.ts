@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 /**
  * Sistema de Design - BarberPro
  *
@@ -257,3 +259,31 @@ export const formClasses = {
   label: () => theme.components.input.label,
   textarea: () => `${theme.components.input.base} min-h-[120px]`,
 }
+
+// ─── Shared visual primitives ─────────────────────────────────────────────────
+
+/** SVG grain texture – use as inline style on a fixed overlay div */
+export const grainStyle: CSSProperties = {
+  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+  backgroundSize: '256px 256px',
+}
+
+/** Frosted-glass card base class used in dashboard pages */
+export const CARD = 'relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.04] backdrop-blur-sm shadow-[0_2px_20px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.04)]'
+
+/** Accent colour tokens used in KPI cards and charts */
+export const ACCENT = {
+  blue:    { hex: '#3b82f6', text: 'text-blue-400',    icon: 'bg-blue-500/10',    badge: 'bg-blue-500/10 text-blue-400' },
+  emerald: { hex: '#10b981', text: 'text-emerald-400', icon: 'bg-emerald-500/10', badge: 'bg-emerald-500/15 text-emerald-400' },
+  violet:  { hex: '#8b5cf6', text: 'text-violet-400',  icon: 'bg-violet-500/10',  badge: 'bg-violet-500/10 text-violet-400' },
+  amber:   { hex: '#D4AF37', text: 'text-amber-400',   icon: 'bg-amber-500/10',   badge: 'bg-amber-500/10 text-amber-400' },
+  red:     { hex: '#ef4444', text: 'text-red-400',     icon: 'bg-red-500/10',     badge: 'bg-red-500/10 text-red-400' },
+} as const
+
+/** Appointment status display config shared across dashboard pages */
+export const STATUS_CFG = {
+  confirmed: { label: 'Confirmado', textCls: 'text-emerald-400', bgCls: 'bg-emerald-500/10', hex: '#10b981' },
+  pending:   { label: 'Pendente',   textCls: 'text-amber-400',   bgCls: 'bg-amber-500/10',   hex: '#f59e0b' },
+  completed: { label: 'Concluído',  textCls: 'text-blue-400',    bgCls: 'bg-blue-500/10',    hex: '#3b82f6' },
+  cancelled: { label: 'Cancelado',  textCls: 'text-red-400',     bgCls: 'bg-red-500/10',     hex: '#ef4444' },
+} as const

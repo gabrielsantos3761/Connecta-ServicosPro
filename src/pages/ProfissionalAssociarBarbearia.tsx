@@ -1,12 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Building2, MapPin, Star, ArrowRight, Check, QrCode, Hash, X, Link as LinkIcon, Clock, Loader2 } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useState, useEffect } from 'react'
-import { Label } from '@/components/ui/label'
 import { ProfissionalPageLayout } from '@/components/layout/ProfissionalPageLayout'
 import {
   createProfessionalLink,
@@ -18,6 +14,53 @@ import { getBusinessById } from '@/services/businessService'
 
 type LinkMethod = 'qrcode' | 'code' | null
 
+const CARD_STYLE = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+}
+
+const BADGE_GOLD = {
+  background: 'rgba(212,175,55,0.15)',
+  color: '#D4AF37',
+  borderRadius: '9999px',
+  padding: '2px 10px',
+  fontSize: '0.75rem',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+}
+
+const BTN_GOLD = {
+  background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+  color: '#050400',
+  fontWeight: 600,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.5rem',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  fontSize: '0.95rem',
+}
+
+const BTN_OUTLINE = {
+  background: 'rgba(255,255,255,0.03)',
+  color: '#fff',
+  fontWeight: 500,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.5rem',
+  border: '1px solid rgba(255,255,255,0.1)',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  fontSize: '0.9rem',
+}
+
+const SPRING = { type: 'spring', stiffness: 320, damping: 36 }
+
 export function ProfissionalAssociarBarbearia() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -27,11 +70,9 @@ export function ProfissionalAssociarBarbearia() {
   const [linking, setLinking] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Links do profissional (vindos do Firestore)
   const [links, setLinks] = useState<ProfessionalLink[]>([])
   const [businessDetails, setBusinessDetails] = useState<Record<string, any>>({})
 
-  // Carregar vínculos do Firestore
   useEffect(() => {
     async function loadLinks() {
       if (!user) return
@@ -40,7 +81,6 @@ export function ProfissionalAssociarBarbearia() {
         const professionalLinks = await getLinksByProfessional(user.uid)
         setLinks(professionalLinks)
 
-        // Carregar detalhes dos estabelecimentos vinculados
         const details: Record<string, any> = {}
         for (const link of professionalLinks) {
           if (link.status === 'active' || link.status === 'pending') {
@@ -93,7 +133,6 @@ export function ProfissionalAssociarBarbearia() {
     setLinking(true)
 
     try {
-      // Buscar o estabelecimento pelo código
       const business = await getBusinessByLinkCode(businessCode.trim())
 
       if (!business) {
@@ -102,7 +141,6 @@ export function ProfissionalAssociarBarbearia() {
         return
       }
 
-      // Criar o vínculo com status pending
       await createProfessionalLink({
         professionalId: user.uid,
         professionalName: user.name,
@@ -116,7 +154,6 @@ export function ProfissionalAssociarBarbearia() {
       alert('Solicitação enviada! Aguarde a aprovação do proprietário.')
       handleCloseModal()
 
-      // Recarregar os vínculos
       const updatedLinks = await getLinksByProfessional(user.uid)
       setLinks(updatedLinks)
     } catch (error: any) {
@@ -134,9 +171,9 @@ export function ProfissionalAssociarBarbearia() {
   if (loading) {
     return (
       <ProfissionalPageLayout title="Meus Estabelecimentos" subtitle="Gerencie seus vínculos com estabelecimentos">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-          <span className="ml-3 text-gray-400">Carregando vínculos...</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5rem 0' }}>
+          <Loader2 size={32} color="#D4AF37" style={{ animation: 'spin 1s linear infinite' }} />
+          <span style={{ marginLeft: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Carregando vínculos...</span>
         </div>
       </ProfissionalPageLayout>
     )
@@ -144,25 +181,20 @@ export function ProfissionalAssociarBarbearia() {
 
   return (
     <ProfissionalPageLayout title="Meus Estabelecimentos" subtitle="Gerencie seus vínculos com estabelecimentos">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1.5rem' }}>
+
         {/* Botão Vincular */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-center mb-12"
+          transition={{ ...SPRING, delay: 0.1 }}
+          style={{ textAlign: 'center', marginBottom: '3rem' }}
         >
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Button
-              onClick={handleOpenModal}
-              className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-green-600 hover:to-emerald-500 text-white font-semibold px-8 py-6 text-lg shadow-lg shadow-emerald-500/30"
-            >
-              <LinkIcon className="w-5 h-5 mr-2" />
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ display: 'inline-block' }}>
+            <button style={{ ...BTN_GOLD, padding: '0.875rem 2.25rem', fontSize: '1.05rem' }} onClick={handleOpenModal}>
+              <LinkIcon size={20} />
               Vincular a um estabelecimento
-            </Button>
+            </button>
           </motion.div>
         </motion.div>
 
@@ -170,35 +202,40 @@ export function ProfissionalAssociarBarbearia() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-3xl mx-auto"
+          transition={{ ...SPRING, delay: 0.2 }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', gap: '1.5rem', marginBottom: '3rem', maxWidth: '48rem', margin: '0 auto 3rem' }}
         >
+          {/* Vinculados */}
           <motion.div
             whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-emerald-500/50 transition-all"
+            style={{ ...CARD_STYLE, padding: '1.5rem', textAlign: 'center', cursor: 'default' }}
           >
-            <Building2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-            <p className="text-3xl font-bold text-white">{activeLinks.length}</p>
-            <p className="text-sm text-gray-400">
+            <Building2 size={32} color="#D4AF37" style={{ margin: '0 auto 0.5rem' }} />
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.875rem', fontWeight: 700, color: '#fff' }}>{activeLinks.length}</p>
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>
               {activeLinks.length === 1 ? 'Vinculado' : 'Vinculados'}
             </p>
           </motion.div>
+
+          {/* Pendentes */}
           <motion.div
             whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-yellow-500/50 transition-all"
+            style={{ ...CARD_STYLE, padding: '1.5rem', textAlign: 'center', cursor: 'default' }}
           >
-            <Clock className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-            <p className="text-3xl font-bold text-white">{pendingLinks.length}</p>
-            <p className="text-sm text-gray-400">
+            <Clock size={32} color="#D4AF37" style={{ margin: '0 auto 0.5rem' }} />
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.875rem', fontWeight: 700, color: '#fff' }}>{pendingLinks.length}</p>
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>
               {pendingLinks.length === 1 ? 'Pendente' : 'Pendentes'}
             </p>
           </motion.div>
+
+          {/* Avaliação Média */}
           <motion.div
             whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 text-center hover:border-emerald-500/50 transition-all"
+            style={{ ...CARD_STYLE, padding: '1.5rem', textAlign: 'center', cursor: 'default' }}
           >
-            <Star className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-            <p className="text-3xl font-bold text-white">
+            <Star size={32} color="#D4AF37" style={{ margin: '0 auto 0.5rem' }} />
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.875rem', fontWeight: 700, color: '#fff' }}>
               {activeLinks.length > 0
                 ? (
                     activeLinks.reduce((acc, l) => {
@@ -208,7 +245,7 @@ export function ProfissionalAssociarBarbearia() {
                   ).toFixed(1)
                 : '0.0'}
             </p>
-            <p className="text-sm text-gray-400">Avaliação Média</p>
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Avaliação Média</p>
           </motion.div>
         </motion.div>
 
@@ -217,14 +254,23 @@ export function ProfissionalAssociarBarbearia() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="mb-12"
+            transition={{ ...SPRING, delay: 0.25 }}
+            style={{ marginBottom: '3rem' }}
           >
-            <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5" />
+            <h3 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              color: '#D4AF37',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}>
+              <Clock size={20} />
               Aguardando Aprovação
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(18rem, 1fr))', gap: '1.5rem' }}>
               {pendingLinks.map((link, index) => {
                 const business = businessDetails[link.businessId]
                 return (
@@ -232,32 +278,32 @@ export function ProfissionalAssociarBarbearia() {
                     key={link.id}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ ...SPRING, delay: index * 0.08 }}
                   >
-                    <Card className="h-full border-2 border-yellow-500/30 bg-white/5 backdrop-blur-sm overflow-hidden">
-                      <div className="relative h-32 bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 overflow-hidden">
+                    <div style={{ ...CARD_STYLE, overflow: 'hidden', border: '1px solid rgba(212,175,55,0.2)' }}>
+                      <div style={{ position: 'relative', height: '8rem', background: 'rgba(212,175,55,0.07)', overflow: 'hidden' }}>
                         {business?.image && (
                           <img
                             src={business.image}
                             alt={link.businessName}
-                            className="w-full h-full object-cover opacity-60"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
                           />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                        <div className="absolute top-3 right-3">
-                          <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                            <Clock className="w-3 h-3 mr-1" />
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #050400 0%, transparent 100%)' }} />
+                        <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem' }}>
+                          <span style={BADGE_GOLD}>
+                            <Clock size={11} />
                             Pendente
-                          </Badge>
+                          </span>
                         </div>
                       </div>
-                      <CardContent className="p-5">
-                        <h4 className="text-lg font-bold text-white mb-1">{link.businessName}</h4>
-                        <p className="text-sm text-gray-400">
+                      <div style={{ padding: '1.25rem' }}>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>{link.businessName}</h4>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>
                           Aguardando aprovação do proprietário
                         </p>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   </motion.div>
                 )
               })}
@@ -270,13 +316,19 @@ export function ProfissionalAssociarBarbearia() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-12"
+            transition={{ ...SPRING, delay: 0.3 }}
+            style={{ marginBottom: '3rem' }}
           >
-            <h3 className="text-2xl font-bold text-white mb-6">
+            <h3 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              marginBottom: '1.5rem',
+            }}>
               Estabelecimentos Vinculados
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(20rem, 1fr))', gap: '2rem' }}>
               {activeLinks.map((link, index) => {
                 const business = businessDetails[link.businessId]
                 return (
@@ -284,74 +336,78 @@ export function ProfissionalAssociarBarbearia() {
                     key={link.id}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ ...SPRING, delay: index * 0.08 }}
                     whileHover={{ y: -8 }}
                     onClick={() => handleSelectBusiness(link.businessId)}
+                    style={{ cursor: 'pointer' }}
                   >
-                    <Card className="h-full cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 border-2 border-emerald-500/30 hover:border-emerald-500/50 group overflow-hidden bg-white/5 backdrop-blur-sm">
+                    <div style={{ ...CARD_STYLE, overflow: 'hidden', border: '1px solid rgba(212,175,55,0.18)', height: '100%' }}>
                       {/* Image/Banner */}
-                      <div className="relative h-40 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 overflow-hidden">
+                      <div style={{ position: 'relative', height: '10rem', background: 'rgba(212,175,55,0.07)', overflow: 'hidden' }}>
                         {business?.image && (
                           <img
                             src={business.image}
                             alt={link.businessName}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.6s ease' }}
                           />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                        <div className="absolute top-3 right-3">
-                          <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0">
-                            <Check className="w-3 h-3 mr-1" />
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #050400 0%, transparent 100%)' }} />
+                        <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem' }}>
+                          <span style={BADGE_GOLD}>
+                            <Check size={11} />
                             Vinculado
-                          </Badge>
+                          </span>
                         </div>
                         {business?.rating && (
-                          <div className="absolute top-3 left-3">
-                            <Badge className="bg-gradient-to-r from-gold to-yellow-600 text-black border-0">
-                              <Star className="w-3 h-3 mr-1 fill-black" />
+                          <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem' }}>
+                            <span style={{ ...BADGE_GOLD, background: 'rgba(212,175,55,0.25)' }}>
+                              <Star size={11} />
                               {business.rating.toFixed(1)}
-                            </Badge>
+                            </span>
                           </div>
                         )}
                         {business?.category && (
-                          <div className="absolute bottom-3 left-3 right-3">
-                            <Badge
-                              variant="outline"
-                              className="bg-white/10 backdrop-blur-sm text-white border-white/20"
-                            >
+                          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', right: '0.75rem' }}>
+                            <span style={{
+                              background: 'rgba(255,255,255,0.08)',
+                              color: 'rgba(255,255,255,0.8)',
+                              borderRadius: '9999px',
+                              padding: '2px 10px',
+                              fontSize: '0.75rem',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                            }}>
                               {business.category}
-                            </Badge>
+                            </span>
                           </div>
                         )}
                       </div>
 
-                      <CardContent className="p-6">
-                        <h3 className="text-xl font-bold text-white mb-2 group-hover:bg-gradient-to-r group-hover:from-emerald-500 group-hover:to-green-600 group-hover:bg-clip-text group-hover:text-transparent transition-all">
+                      <div style={{ padding: '1.5rem' }}>
+                        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
                           {link.businessName}
                         </h3>
 
                         {business?.description && (
-                          <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                             {business.description}
                           </p>
                         )}
 
                         {business?.address && (
-                          <div className="flex items-start gap-2 text-sm text-gray-400 mb-4">
-                            <MapPin className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                            <p className="line-clamp-2">
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1rem' }}>
+                            <MapPin size={16} color="#D4AF37" style={{ flexShrink: 0, marginTop: '1px' }} />
+                            <p style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                               {business.address.neighborhood}, {business.address.city} - {business.address.state}
                             </p>
                           </div>
                         )}
 
-                        {/* Action Button */}
-                        <div className="flex items-center justify-center gap-2 text-emerald-400 font-semibold">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#D4AF37', fontWeight: 600, fontSize: '0.9rem' }}>
                           <span>Acessar Painel</span>
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          <ArrowRight size={16} />
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   </motion.div>
                 )
               })}
@@ -361,24 +417,21 @@ export function ProfissionalAssociarBarbearia() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-center py-16 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10"
+            transition={{ ...SPRING, delay: 0.3 }}
+            style={{ ...CARD_STYLE, textAlign: 'center', padding: '4rem 2rem' }}
           >
-            <Building2 className="w-20 h-20 mx-auto text-gray-600 mb-6" />
-            <h3 className="text-2xl font-bold text-white mb-2">
+            <Building2 size={72} color="rgba(255,255,255,0.15)" style={{ margin: '0 auto 1.5rem' }} />
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
               Nenhum estabelecimento vinculado
             </h3>
-            <p className="text-gray-400 mb-8">
+            <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2rem', fontSize: '0.95rem' }}>
               Vincule-se a um estabelecimento para começar a trabalhar
             </p>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                onClick={handleOpenModal}
-                className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-green-600 hover:to-emerald-500 text-white font-semibold px-8 py-6 text-lg shadow-lg shadow-emerald-500/30"
-              >
-                <LinkIcon className="w-5 h-5 mr-2" />
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ display: 'inline-block' }}>
+              <button style={{ ...BTN_GOLD, padding: '0.875rem 2.25rem', fontSize: '1.05rem' }} onClick={handleOpenModal}>
+                <LinkIcon size={20} />
                 Vincular ao primeiro estabelecimento
-              </Button>
+              </button>
             </motion.div>
           </motion.div>
         ) : null}
@@ -394,7 +447,7 @@ export function ProfissionalAssociarBarbearia() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={handleCloseModal}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+              style={{ position: 'fixed', inset: 0, background: 'rgba(5,4,0,0.85)', backdropFilter: 'blur(4px)', zIndex: 50 }}
             />
 
             {/* Modal */}
@@ -402,18 +455,27 @@ export function ProfissionalAssociarBarbearia() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              transition={SPRING}
+              style={{ position: 'fixed', inset: 0, zIndex: 51, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
             >
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div style={{
+                background: '#0d0c08',
+                border: '1px solid rgba(212,175,55,0.18)',
+                borderRadius: '1.25rem',
+                maxWidth: '32rem',
+                width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+              }}>
                 {/* Modal Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   <div>
-                    <h3 className="text-2xl font-bold text-white">
+                    <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>
                       {linkMethod === null && 'Vincular a um estabelecimento'}
                       {linkMethod === 'qrcode' && 'Escanear QR Code'}
                       {linkMethod === 'code' && 'Inserir Código'}
                     </h3>
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>
                       {linkMethod === null && 'Escolha como deseja se vincular'}
                       {linkMethod === 'qrcode' && 'Aponte a câmera para o QR Code'}
                       {linkMethod === 'code' && 'Digite o código fornecido pelo proprietário'}
@@ -421,122 +483,125 @@ export function ProfissionalAssociarBarbearia() {
                   </div>
                   <button
                     onClick={handleCloseModal}
-                    className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                    style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}
                   >
-                    <X className="w-5 h-5 text-gray-400" />
+                    <X size={18} color="rgba(255,255,255,0.6)" />
                   </button>
                 </div>
 
                 {/* Modal Content */}
-                <div className="p-6">
+                <div style={{ padding: '1.5rem' }}>
                   {linkMethod === null ? (
-                    // Seleção do método
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Opção QR Code */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      {/* QR Code */}
                       <motion.button
-                        whileHover={{ scale: 1.05, y: -5 }}
+                        whileHover={{ scale: 1.05, y: -4 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleSelectLinkMethod('qrcode')}
-                        className="p-6 rounded-xl border-2 border-white/10 hover:border-emerald-500/50 bg-white/5 hover:bg-emerald-500/10 transition-all group"
+                        style={{ padding: '1.5rem', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', cursor: 'pointer', textAlign: 'center' }}
                       >
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                          <QrCode className="w-8 h-8 text-white" />
+                        <div style={{ width: '4rem', height: '4rem', margin: '0 auto 1rem', background: 'linear-gradient(135deg,#D4AF37,#B8941E)', borderRadius: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <QrCode size={30} color="#050400" />
                         </div>
-                        <h4 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                        <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
                           Escanear QR Code
                         </h4>
-                        <p className="text-sm text-gray-400">
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
                           Use a câmera para ler o código do estabelecimento
                         </p>
                       </motion.button>
 
-                      {/* Opção Código */}
+                      {/* Code */}
                       <motion.button
-                        whileHover={{ scale: 1.05, y: -5 }}
+                        whileHover={{ scale: 1.05, y: -4 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleSelectLinkMethod('code')}
-                        className="p-6 rounded-xl border-2 border-white/10 hover:border-emerald-500/50 bg-white/5 hover:bg-emerald-500/10 transition-all group"
+                        style={{ padding: '1.5rem', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', cursor: 'pointer', textAlign: 'center' }}
                       >
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                          <Hash className="w-8 h-8 text-white" />
+                        <div style={{ width: '4rem', height: '4rem', margin: '0 auto 1rem', background: 'linear-gradient(135deg,#D4AF37,#B8941E)', borderRadius: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Hash size={30} color="#050400" />
                         </div>
-                        <h4 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                        <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
                           Inserir Código
                         </h4>
-                        <p className="text-sm text-gray-400">
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
                           Digite o código fornecido pelo proprietário
                         </p>
                       </motion.button>
                     </div>
                   ) : linkMethod === 'qrcode' ? (
-                    // Leitor de QR Code
-                    <div className="space-y-6">
-                      <div className="aspect-square bg-white/5 rounded-xl border-2 border-dashed border-white/20 flex items-center justify-center">
-                        <div className="text-center">
-                          <QrCode className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                          <p className="text-gray-400">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <div style={{ aspectRatio: '1', background: 'rgba(255,255,255,0.02)', borderRadius: '0.75rem', border: '2px dashed rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <QrCode size={72} color="rgba(255,255,255,0.2)" style={{ margin: '0 auto 1rem' }} />
+                          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
                             Leitor de QR Code será implementado aqui
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-3">
-                        <Button
-                          variant="outline"
-                          onClick={() => setLinkMethod(null)}
-                          className="flex-1 border-white/10 text-white hover:bg-white/5"
-                        >
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button style={{ ...BTN_OUTLINE, flex: 1, justifyContent: 'center' }} onClick={() => setLinkMethod(null)}>
                           Voltar
-                        </Button>
-                        <Button
-                          onClick={handleScanQRCode}
-                          className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-green-600 hover:to-emerald-500 text-white font-semibold"
-                        >
-                          <QrCode className="w-4 h-4 mr-2" />
+                        </button>
+                        <button style={{ ...BTN_GOLD, flex: 1, justifyContent: 'center' }} onClick={handleScanQRCode}>
+                          <QrCode size={16} />
                           Iniciar Scanner
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   ) : (
-                    // Input de Código
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="business-code" className="text-sm font-medium text-gray-300">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label htmlFor="business-code" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>
                           Código do Estabelecimento
-                        </Label>
+                        </label>
                         <input
                           id="business-code"
                           type="text"
                           placeholder="Ex: ABC123XYZ"
                           value={businessCode}
                           onChange={(e) => setBusinessCode(e.target.value.toUpperCase())}
-                          className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all text-center text-lg font-mono tracking-wider"
+                          style={{
+                            width: '100%',
+                            height: '3rem',
+                            padding: '0 1rem',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '0.75rem',
+                            color: '#fff',
+                            fontSize: '1.1rem',
+                            fontFamily: 'monospace',
+                            letterSpacing: '0.15em',
+                            textAlign: 'center',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
                         />
-                        <p className="text-xs text-gray-400">
+                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
                           Digite o código fornecido pelo proprietário do estabelecimento
                         </p>
                       </div>
 
-                      <div className="flex gap-3">
-                        <Button
-                          variant="outline"
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button
+                          style={{ ...BTN_OUTLINE, flex: 1, justifyContent: 'center', opacity: linking ? 0.6 : 1, cursor: linking ? 'not-allowed' : 'pointer' }}
                           onClick={() => setLinkMethod(null)}
                           disabled={linking}
-                          className="flex-1 border-white/10 text-white hover:bg-white/5"
                         >
                           Voltar
-                        </Button>
-                        <Button
+                        </button>
+                        <button
+                          style={{ ...BTN_GOLD, flex: 1, justifyContent: 'center', opacity: (!businessCode.trim() || linking) ? 0.5 : 1, cursor: (!businessCode.trim() || linking) ? 'not-allowed' : 'pointer' }}
                           onClick={handleSubmitCode}
                           disabled={!businessCode.trim() || linking}
-                          className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-green-600 hover:to-emerald-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {linking ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
                           ) : (
-                            <Check className="w-4 h-4 mr-2" />
+                            <Check size={16} />
                           )}
                           {linking ? 'Vinculando...' : 'Vincular'}
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   )}

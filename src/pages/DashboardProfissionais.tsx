@@ -1,14 +1,57 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Star, DollarSign, Calendar, TrendingUp, AlertCircle, Award } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { DateRangePicker } from '@/components/DateRangePicker'
 import { mockAppointments, mockProfessionals } from '@/data/mockData'
 import { formatCurrency } from '@/lib/utils'
-import { theme, cardClasses, iconClasses } from '@/styles/theme'
 import { OwnerPageLayout } from "@/components/layout/OwnerPageLayout"
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const gold = "#D4AF37"
+const card = {
+  background: "rgba(255,255,255,0.02)",
+  border: "1px solid rgba(255,255,255,0.07)",
+  borderRadius: "1.125rem",
+}
+const divLine = { borderBottom: "1px solid rgba(255,255,255,0.06)" }
+
+const medalGradients = [
+  "linear-gradient(135deg,#D4AF37,#B8941E)",
+  "linear-gradient(135deg,#9ca3af,#6b7280)",
+  "linear-gradient(135deg,#b45309,#92400e)",
+]
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function RingChart({
+  value,
+  max,
+  color,
+  size = 52,
+  sw = 4,
+}: {
+  value: number
+  max: number
+  color: string
+  size?: number
+  sw?: number
+}) {
+  const r = (size - sw * 2) / 2
+  const circ = 2 * Math.PI * r
+  const pct = max > 0 ? Math.min(value / max, 1) : 0
+  const cx = size / 2
+  const cy = size / 2
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)", display: "block" }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
+      <circle
+        cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+        strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)} strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 type DateRange = { from?: Date; to?: Date }
 
 interface ProfessionalStats {
@@ -24,6 +67,7 @@ interface ProfessionalStats {
   services: { [key: string]: number }
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
 export function DashboardProfissionais() {
   const today = new Date()
 
@@ -136,322 +180,587 @@ export function DashboardProfissionais() {
     }).sort((a, b) => b.total - a.total)
   }, [professionalStats])
 
+  const maxRevenue = topProfessionals[0]?.totalRevenue || 1
+
+  // Per-professional bar colors for service distribution
+  const profColors = ["#D4AF37", "#818cf8", "#22c55e", "#60a5fa", "#f87171", "#fb923c", "#c084fc"]
+
   return (
     <OwnerPageLayout
       title="Dashboard de Profissionais"
       subtitle="Análise de desempenho e estatísticas dos profissionais"
     >
       {/* Filtros */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-3">
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            className="w-full sm:w-auto"
-          />
-        </div>
+      <div className="mb-6 flex flex-col sm:flex-row gap-3">
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          className="w-full sm:w-auto"
+        />
+      </div>
 
-        {/* Cards de Estatísticas Gerais */}
+      {/* ── 4 KPI Cards ── */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.08 } },
+        }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+      >
+        {/* Receita Total */}
         <motion.div
-          variants={theme.animations.container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
         >
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('green')}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                      Receita Total
-                    </p>
-                    <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                      {formatCurrency(totalStats.revenue)}
-                    </h3>
-                    <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                      {totalStats.completed} atendimentos
-                    </p>
-                  </div>
-                  <div className={iconClasses.container('green')}>
-                    <DollarSign className={iconClasses.icon('green')} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('yellow')}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                      Avaliação Média
-                    </p>
-                    <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                      {totalStats.avgRating.toFixed(1)}
-                    </h3>
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < Math.floor(totalStats.avgRating)
-                              ? 'text-gold fill-gold'
-                              : 'text-gray-600'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className={iconClasses.container('gold')}>
-                    <Award className={iconClasses.icon('gold')} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('blue')}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                      Total de Agendamentos
-                    </p>
-                    <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                      {totalStats.appointments}
-                    </h3>
-                    <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                      {mockProfessionals.length} profissionais ativos
-                    </p>
-                  </div>
-                  <div className={iconClasses.container('blue')}>
-                    <Calendar className={iconClasses.icon('blue')} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={theme.animations.item}>
-            <Card className={cardClasses.statCard('red')}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary} mb-1`}>
-                      Taxa de Cancelamento
-                    </p>
-                    <h3 className={`text-3xl font-bold ${theme.colors.text.primary} mb-2`}>
-                      {totalStats.avgCancellationRate.toFixed(1)}%
-                    </h3>
-                    <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                      {totalStats.cancelled} cancelamentos
-                    </p>
-                  </div>
-                  <div className={iconClasses.container('red')}>
-                    <AlertCircle className={iconClasses.icon('red')} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+          <div style={card} className="p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(34,197,94,0.12)" }}
+              >
+                <DollarSign className="w-5 h-5" style={{ color: "#22c55e" }} />
+              </div>
+            </div>
+            <p
+              className="text-xs mb-0.5"
+              style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.04em" }}
+            >
+              Receita Total
+            </p>
+            <p
+              className="text-2xl font-bold text-white mb-1 leading-tight"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {formatCurrency(totalStats.revenue)}
+            </p>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+              {totalStats.completed} atendimentos
+            </p>
+          </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Ranking de Profissionais */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className={cardClasses.container('base')}>
-              <CardHeader className={theme.components.cardHeader}>
-                <CardTitle className={`flex items-center gap-2 ${theme.components.cardTitle}`}>
-                  <TrendingUp className={`w-5 h-5 ${theme.colors.icon.gold}`} />
-                  Ranking por Receita
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className={theme.colors.divider.light}>
-                  {topProfessionals.map((prof, index) => (
-                    <div
-                      key={prof.id}
-                      className={`p-6 ${theme.components.table.row}`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex gap-4 items-center flex-1">
-                          <div className={`
-                            w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg
-                            ${index === 0 ? 'bg-gold text-black' : ''}
-                            ${index === 1 ? 'bg-gray-700 text-white' : ''}
-                            ${index === 2 ? 'bg-amber-600 text-white' : ''}
-                            ${index > 2 ? 'bg-white/10 text-gray-400' : ''}
-                          `}>
-                            {index + 1}
+        {/* Avaliação Média */}
+        <motion.div
+          variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+        >
+          <div style={card} className="p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(212,175,55,0.12)" }}
+              >
+                <Award className="w-5 h-5" style={{ color: gold }} />
+              </div>
+              <div className="relative flex-shrink-0">
+                <RingChart
+                  value={totalStats.avgRating}
+                  max={5}
+                  color={gold}
+                  size={48}
+                  sw={4}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-bold" style={{ color: gold }}>
+                    {totalStats.avgRating.toFixed(1)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p
+              className="text-xs mb-0.5"
+              style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.04em" }}
+            >
+              Avaliação Média
+            </p>
+            <p
+              className="text-2xl font-bold text-white mb-1 leading-tight"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {totalStats.avgRating.toFixed(1)}
+              <span className="text-base font-normal ml-1" style={{ color: "rgba(255,255,255,0.25)" }}>
+                / 5
+              </span>
+            </p>
+            <div className="flex items-center gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className="w-3 h-3"
+                  style={{
+                    color: i < Math.floor(totalStats.avgRating) ? gold : "rgba(255,255,255,0.15)",
+                    fill: i < Math.floor(totalStats.avgRating) ? gold : "none",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Total Agendamentos */}
+        <motion.div
+          variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+        >
+          <div style={card} className="p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(129,140,248,0.12)" }}
+              >
+                <Calendar className="w-5 h-5" style={{ color: "#818cf8" }} />
+              </div>
+            </div>
+            <p
+              className="text-xs mb-0.5"
+              style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.04em" }}
+            >
+              Total Agendamentos
+            </p>
+            <p
+              className="text-2xl font-bold text-white mb-1 leading-tight"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {totalStats.appointments}
+            </p>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+              {mockProfessionals.length} profissionais ativos
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Taxa Cancelamento */}
+        <motion.div
+          variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+        >
+          <div style={card} className="p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(248,113,113,0.12)" }}
+              >
+                <AlertCircle className="w-5 h-5" style={{ color: "#f87171" }} />
+              </div>
+              <div className="relative flex-shrink-0">
+                <RingChart
+                  value={totalStats.avgCancellationRate}
+                  max={100}
+                  color="#f87171"
+                  size={48}
+                  sw={4}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-bold" style={{ color: "#f87171" }}>
+                    {totalStats.avgCancellationRate.toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p
+              className="text-xs mb-0.5"
+              style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.04em" }}
+            >
+              Taxa Cancelamento
+            </p>
+            <p
+              className="text-2xl font-bold text-white mb-1 leading-tight"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {totalStats.avgCancellationRate.toFixed(1)}%
+            </p>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+              {totalStats.cancelled} cancelamentos
+            </p>
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* ── Asymmetric 3/5 + 2/5 grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-8">
+        {/* Left col-span-3: Ranking por Receita */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4 }}
+          className="lg:col-span-3"
+        >
+          <div style={card} className="h-full">
+            <div className="px-5 py-4 flex items-center gap-2" style={divLine}>
+              <TrendingUp className="w-4 h-4" style={{ color: gold }} />
+              <span className="text-sm font-semibold text-white">Ranking por Receita</span>
+            </div>
+            <div className="p-5 space-y-4">
+              {topProfessionals.map((prof, index) => {
+                const revPct = maxRevenue > 0 ? (prof.totalRevenue / maxRevenue) * 100 : 0
+                const completionColor =
+                  prof.completionRate >= 80
+                    ? "#22c55e"
+                    : prof.completionRate >= 50
+                    ? "#fbbf24"
+                    : "#f87171"
+                const medalBg =
+                  index < 3
+                    ? medalGradients[index]
+                    : "rgba(255,255,255,0.06)"
+                const medalTextColor =
+                  index < 3 ? "#050400" : "rgba(255,255,255,0.35)"
+
+                return (
+                  <div
+                    key={prof.id}
+                    style={{
+                      background: "rgba(255,255,255,0.015)",
+                      border: "1px solid rgba(255,255,255,0.05)",
+                      borderRadius: "0.875rem",
+                    }}
+                    className="p-4"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Medal badge */}
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                        style={{
+                          background: medalBg,
+                          color: index < 3 ? "#050400" : "rgba(255,255,255,0.4)",
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+
+                      {/* Main content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p
+                            className="font-semibold text-white leading-tight"
+                            style={{ fontFamily: "'Playfair Display', serif" }}
+                          >
+                            {prof.name}
+                          </p>
+                          <p
+                            className="font-bold text-white flex-shrink-0"
+                            style={{ fontFamily: "'Playfair Display', serif" }}
+                          >
+                            {formatCurrency(prof.totalRevenue)}
+                          </p>
+                        </div>
+
+                        {/* Stats row */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className="w-3 h-3"
+                                style={{
+                                  color: i < Math.floor(prof.rating) ? gold : "rgba(255,255,255,0.15)",
+                                  fill: i < Math.floor(prof.rating) ? gold : "none",
+                                }}
+                              />
+                            ))}
+                            <span className="text-xs ml-1" style={{ color: gold }}>
+                              {prof.rating.toFixed(1)}
+                            </span>
                           </div>
+                          <span
+                            className="text-xs"
+                            style={{ color: "rgba(255,255,255,0.25)" }}
+                          >
+                            |
+                          </span>
+                          <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                            {prof.appointmentsCount} agend.
+                          </span>
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                            style={{
+                              background: `${completionColor}18`,
+                              color: completionColor,
+                            }}
+                          >
+                            {prof.completionRate.toFixed(0)}% conclusão
+                          </span>
+                        </div>
+
+                        {/* Revenue progress bar + ring chart */}
+                        <div className="flex items-center gap-3">
                           <div className="flex-1">
-                            <h4 className={`font-semibold ${theme.colors.text.primary} mb-1`}>
-                              {prof.name}
-                            </h4>
-                            <div className={`flex items-center gap-3 text-sm ${theme.colors.text.tertiary}`}>
-                              <span className="flex items-center gap-1">
-                                <Star className="w-4 h-4 text-gold fill-gold" />
-                                {prof.rating.toFixed(1)}
-                              </span>
-                              <span>
-                                {prof.completedCount} atendimentos
+                            <div
+                              className="relative w-full h-2.5 rounded-full overflow-hidden"
+                              style={{ background: "rgba(255,255,255,0.06)" }}
+                            >
+                              <motion.div
+                                className="absolute left-0 top-0 h-full rounded-full"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${revPct}%` }}
+                                transition={{ duration: 0.7, delay: 0.1 * index }}
+                                style={{
+                                  background:
+                                    index === 0
+                                      ? gold
+                                      : index === 1
+                                      ? "#9ca3af"
+                                      : index === 2
+                                      ? "#b45309"
+                                      : "rgba(255,255,255,0.2)",
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="relative flex-shrink-0">
+                            <RingChart
+                              value={prof.completionRate}
+                              max={100}
+                              color={completionColor}
+                              size={48}
+                              sw={4}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span
+                                className="text-xs font-bold"
+                                style={{ color: completionColor }}
+                              >
+                                {prof.completionRate.toFixed(0)}%
                               </span>
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-xl font-bold ${theme.colors.text.primary}`}>
-                            {formatCurrency(prof.totalRevenue)}
-                          </p>
-                          <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>
-                            {prof.completionRate.toFixed(0)}% conclusão
-                          </p>
-                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </motion.div>
 
-          {/* Distribuição de Serviços */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Card className={cardClasses.container('base')}>
-              <CardHeader className={theme.components.cardHeader}>
-                <CardTitle className={`flex items-center gap-2 ${theme.components.cardTitle}`}>
-                  <Calendar className={`w-5 h-5 ${theme.colors.icon.gold}`} />
-                  Serviços por Profissional
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {serviceDistribution.slice(0, 8).map((service) => (
-                    <div key={service.service}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className={`text-sm font-medium ${theme.colors.text.secondary}`}>
-                          {service.service}
-                        </span>
-                        <span className={`text-sm font-bold ${theme.colors.text.primary}`}>
-                          {service.total} atendimentos
-                        </span>
-                      </div>
-                      <div className="flex gap-1 mb-1">
-                        {service.professionals.map((prof) => {
-                          const percentage = (prof.count / service.total) * 100
-                          return (
-                            <div
-                              key={prof.name}
-                              className="h-2 bg-gold rounded"
-                              style={{ width: `${percentage}%` }}
-                              title={`${prof.name}: ${prof.count}`}
-                            />
-                          )
-                        })}
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {service.professionals.map((prof) => (
-                          <Badge
+        {/* Right col-span-2: Service distribution */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 }}
+          className="lg:col-span-2"
+        >
+          <div style={card} className="h-full">
+            <div className="px-5 py-4 flex items-center gap-2" style={divLine}>
+              <Calendar className="w-4 h-4" style={{ color: gold }} />
+              <span className="text-sm font-semibold text-white">
+                Serviços por Profissional
+              </span>
+            </div>
+            <div className="p-5">
+              <div className="space-y-5">
+                {serviceDistribution.slice(0, 8).map((service) => (
+                  <div key={service.service}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className="text-sm font-medium"
+                        style={{ color: "rgba(255,255,255,0.55)" }}
+                      >
+                        {service.service}
+                      </span>
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: "rgba(255,255,255,0.35)" }}
+                      >
+                        {service.total} atend.
+                      </span>
+                    </div>
+                    {/* Grouped bars per professional */}
+                    <div className="flex gap-0.5 mb-2 h-5 items-end">
+                      {service.professionals.map((prof, pIdx) => {
+                        const pct = service.total > 0
+                          ? (prof.count / service.total) * 100
+                          : 0
+                        const pColor = profColors[
+                          topProfessionals.findIndex(p => p.name === prof.name) % profColors.length
+                        ]
+                        return (
+                          <div
                             key={prof.name}
-                            variant="outline"
-                            className="text-xs"
+                            className="rounded-sm"
+                            style={{
+                              width: `${pct}%`,
+                              height: "100%",
+                              background: pColor,
+                              opacity: 0.7 + pIdx * 0.1,
+                            }}
+                            title={`${prof.name}: ${prof.count}`}
+                          />
+                        )
+                      })}
+                    </div>
+                    {/* Legend chips */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {service.professionals.map((prof) => {
+                        const pColor = profColors[
+                          topProfessionals.findIndex(p => p.name === prof.name) % profColors.length
+                        ]
+                        return (
+                          <span
+                            key={prof.name}
+                            className="text-xs px-2 py-0.5 rounded-full font-medium"
+                            style={{
+                              background: `${pColor}18`,
+                              color: pColor,
+                            }}
                           >
                             {prof.name}: {prof.count}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Detalhes por Profissional */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <Card className={cardClasses.container('base')}>
-            <CardHeader className={theme.components.cardHeader}>
-              <CardTitle className={theme.components.cardTitle}>Análise Detalhada por Profissional</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className={theme.components.table.header}>
-                    <tr>
-                      <th className={theme.components.table.headerCell}>
-                        Profissional
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Avaliação
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Agendamentos
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Concluídos
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Cancelados
-                      </th>
-                      <th className={theme.components.table.headerCell}>
-                        Receita
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className={theme.components.table.body}>
-                    {topProfessionals.map((prof) => (
-                      <tr key={prof.id} className={theme.components.table.row}>
-                        <td className={`${theme.components.table.cell} whitespace-nowrap`}>
-                          <div className={`font-medium ${theme.colors.text.primary}`}>{prof.name}</div>
-                        </td>
-                        <td className={`${theme.components.table.cell} whitespace-nowrap`}>
-                          <div className="flex items-center gap-1">
-                            <Star className="w-4 h-4 text-gold fill-gold" />
-                            <span className={`font-semibold ${theme.colors.text.primary}`}>{prof.rating.toFixed(1)}</span>
-                          </div>
-                        </td>
-                        <td className={`${theme.components.table.cell} whitespace-nowrap`}>
-                          <span className={`font-semibold ${theme.colors.text.primary}`}>{prof.appointmentsCount}</span>
-                        </td>
-                        <td className={`${theme.components.table.cell} whitespace-nowrap`}>
-                          <Badge variant="default" className="bg-green-500">
-                            {prof.completedCount} ({prof.completionRate.toFixed(0)}%)
-                          </Badge>
-                        </td>
-                        <td className={`${theme.components.table.cell} whitespace-nowrap`}>
-                          <Badge variant="destructive">
-                            {prof.cancelledCount} ({prof.cancellationRate.toFixed(0)}%)
-                          </Badge>
-                        </td>
-                        <td className={`${theme.components.table.cell} whitespace-nowrap`}>
-                          <span className={`font-bold ${theme.colors.text.primary}`}>
-                            {formatCurrency(prof.totalRevenue)}
                           </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </motion.div>
+      </div>
+
+      {/* ── Detailed Analysis Table ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+      >
+        <div style={card}>
+          <div className="px-5 py-4 flex items-center gap-2" style={divLine}>
+            <Award className="w-4 h-4" style={{ color: gold }} />
+            <span className="text-sm font-semibold text-white">
+              Análise Detalhada por Profissional
+            </span>
+          </div>
+
+          {/* Header row */}
+          <div
+            className="grid px-5 py-2.5"
+            style={{
+              gridTemplateColumns: "3fr 1fr 1fr 2fr 2fr 2fr",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            {["Profissional", "Aval.", "Agend.", "Concluídos", "Cancelados", "Receita"].map(h => (
+              <span
+                key={h}
+                className="text-xs uppercase"
+                style={{ color: "rgba(255,255,255,0.2)", letterSpacing: "0.06em" }}
+              >
+                {h}
+              </span>
+            ))}
+          </div>
+
+          {/* Data rows */}
+          {topProfessionals.map((prof, index) => {
+            const completionColor =
+              prof.completionRate >= 80
+                ? "#22c55e"
+                : prof.completionRate >= 50
+                ? "#fbbf24"
+                : "#f87171"
+            const revPct = maxRevenue > 0 ? (prof.totalRevenue / maxRevenue) * 100 : 0
+            const rowMedalColor =
+              index === 0 ? gold : index === 1 ? "#9ca3af" : index === 2 ? "#b45309" : "transparent"
+
+            return (
+              <div
+                key={prof.id}
+                className="hover:bg-white/[0.015] transition-colors"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+              >
+                <div
+                  className="grid px-5 py-3 items-center"
+                  style={{
+                    gridTemplateColumns: "3fr 1fr 1fr 2fr 2fr 2fr",
+                    borderLeft: `3px solid ${index < 3 ? rowMedalColor : "transparent"}`,
+                  }}
+                >
+                  {/* Name */}
+                  <div>
+                    <span
+                      className="text-sm font-medium text-white"
+                    >
+                      {prof.name}
+                    </span>
+                  </div>
+
+                  {/* Rating */}
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5" style={{ color: gold, fill: gold }} />
+                    <span className="text-sm font-semibold text-white">
+                      {prof.rating.toFixed(1)}
+                    </span>
+                  </div>
+
+                  {/* Appointments */}
+                  <div>
+                    <span className="text-sm font-semibold text-white">
+                      {prof.appointmentsCount}
+                    </span>
+                  </div>
+
+                  {/* Completed */}
+                  <div>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        background: "#22c55e18",
+                        color: "#22c55e",
+                      }}
+                    >
+                      {prof.completedCount} ({prof.completionRate.toFixed(0)}%)
+                    </span>
+                  </div>
+
+                  {/* Cancelled */}
+                  <div>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        background: "#f8717118",
+                        color: "#f87171",
+                      }}
+                    >
+                      {prof.cancelledCount} ({prof.cancellationRate.toFixed(0)}%)
+                    </span>
+                  </div>
+
+                  {/* Revenue */}
+                  <div>
+                    <span className="text-sm font-bold text-white">
+                      {formatCurrency(prof.totalRevenue)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mini revenue bar below each row */}
+                <div className="px-5 pb-2">
+                  <div
+                    className="relative w-full h-1 rounded-full overflow-hidden"
+                    style={{ background: "rgba(255,255,255,0.04)" }}
+                  >
+                    <motion.div
+                      className="absolute left-0 top-0 h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${revPct}%` }}
+                      transition={{ duration: 0.7, delay: 0.05 * index }}
+                      style={{
+                        background:
+                          index === 0
+                            ? gold
+                            : index === 1
+                            ? "#9ca3af"
+                            : index === 2
+                            ? "#b45309"
+                            : "rgba(255,255,255,0.15)",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </motion.div>
     </OwnerPageLayout>
   )
 }

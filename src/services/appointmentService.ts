@@ -33,6 +33,10 @@ export interface Appointment {
   scheduledAt: Timestamp
   paymentMethod: string
   status: AppointmentStatus
+  paymentType?: 'fixed' | 'percentage' | null
+  commissionPercent?: number | null
+  professionalAmount?: number
+  businessAmount?: number
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -52,6 +56,10 @@ export interface CreateAppointmentData {
   date: string
   time: string
   paymentMethod: string
+  paymentType?: 'fixed' | 'percentage' | null
+  commissionPercent?: number | null
+  professionalAmount?: number | null
+  businessAmount?: number | null
 }
 
 // ============================================
@@ -97,6 +105,10 @@ export async function createAppointment(data: CreateAppointmentData): Promise<st
     scheduledAt,
     paymentMethod: data.paymentMethod,
     status: 'pending' as AppointmentStatus,
+    paymentType: data.paymentType ?? null,
+    commissionPercent: data.commissionPercent ?? null,
+    professionalAmount: data.professionalAmount ?? null,
+    businessAmount: data.businessAmount ?? null,
     createdAt: now,
     updatedAt: now,
   })

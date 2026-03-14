@@ -12,6 +12,7 @@ import {
   where,
   updateDoc,
   deleteDoc,
+  deleteField,
   serverTimestamp,
   Timestamp,
   orderBy
@@ -45,6 +46,8 @@ export interface ProfessionalLink {
   servicesOffered?: string[]       // IDs dos serviços que oferece naquele local
   workSchedule?: WorkScheduleDay[]
   commission?: number              // % de comissão
+  paymentType?: 'fixed' | 'percentage' // tipo de pagamento do profissional
+  fixedMonthly?: number            // valor do salário fixo mensal (quando paymentType === 'fixed')
   linkedBy: LinkedBy
   linkedAt: Timestamp
   updatedAt: Timestamp
@@ -306,14 +309,38 @@ export async function getLinkById(linkId: string): Promise<ProfessionalLink | nu
 
 export async function updateLinkDetails(
   linkId: string,
-  data: Partial<Pick<ProfessionalLink, 'role' | 'servicesOffered' | 'workSchedule' | 'commission'>>
+  data: Partial<Pick<ProfessionalLink, 'role' | 'servicesOffered' | 'workSchedule' | 'commission' | 'paymentType' | 'fixedMonthly'>>
 ): Promise<void> {
   const linkRef = doc(db, COLLECTION_NAME, linkId)
 
-  await updateDoc(linkRef, {
-    ...data,
-    updatedAt: serverTimestamp(),
-  })
+  // Replace undefined values with deleteField() to clean up Firestore
+  const updateData: Record<string, unknown> = { updatedAt: serverTimestamp() }
+  for (const [key, value] of Object.entries(data)) {
+    updateData[key] = value === undefined ? deleteField() : value
+  }
+
+  await updateDoc(linkRef, updateData)
+}
+
+// ============================================
+// BUSCAR VÍNCULO POR PROFISSIONAL + ESTABELECIMENTO (read-only)
+// ============================================
+
+export async function getLinkByProfessionalAndBusiness(
+  professionalId: string,
+  businessId: string
+): Promise<ProfessionalLink | null> {
+  const q = query(
+    linksCollection,
+    where('professionalId', '==', professionalId),
+    where('businessId', '==', businessId)
+  )
+
+  const snapshot = await getDocs(q)
+  if (snapshot.empty) return null
+
+  const docSnap = snapshot.docs[0]
+  return { id: docSnap.id, ...docSnap.data() } as ProfessionalLink
 }
 
 // ============================================

@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, Filter, Plus, Kanban, CalendarDays, CalendarRange, CalendarClock } from 'lucide-react'
 import { useParams } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { CalendarView, CalendarMode } from '@/components/calendar/CalendarView'
 import { KanbanView } from '@/components/calendar/KanbanView'
 import { usePinchZoom, getNextZoomLevel } from '@/hooks/usePinchZoom'
@@ -33,6 +31,134 @@ function toCalendarAppointment(apt: FirebaseAppointment): Appointment {
 }
 
 type ViewMode = 'kanban' | 'calendar'
+
+const springTransition = { type: 'spring', stiffness: 320, damping: 36 }
+
+const cardStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+}
+
+const goldButtonStyle: React.CSSProperties = {
+  background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+  color: '#050400',
+  fontWeight: 600,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.25rem',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.375rem',
+  fontSize: '0.875rem',
+  whiteSpace: 'nowrap' as const,
+  flexShrink: 0,
+}
+
+function ViewToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.375rem',
+        padding: '0.375rem 0.875rem',
+        borderRadius: '0.375rem',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        transition: 'background 0.15s, color 0.15s',
+        background: active
+          ? 'linear-gradient(135deg,#D4AF37,#B8941E)'
+          : 'transparent',
+        color: active ? '#050400' : 'rgba(255,255,255,0.5)',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function CalendarModeButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  mobile,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ElementType
+  label: string
+  mobile?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        flexDirection: mobile ? 'column' : 'row',
+        alignItems: 'center',
+        gap: mobile ? '0.25rem' : '0.375rem',
+        padding: mobile ? '0.5rem 0.25rem' : '0.375rem 0.875rem',
+        borderRadius: '0.375rem',
+        border: '1px solid',
+        borderColor: active ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.1)',
+        cursor: 'pointer',
+        fontSize: mobile ? '0.7rem' : '0.875rem',
+        fontWeight: 500,
+        background: active ? 'rgba(212,175,55,0.12)' : 'transparent',
+        color: active ? '#D4AF37' : 'rgba(255,255,255,0.5)',
+        flex: mobile ? 1 : 'none',
+      }}
+    >
+      <Icon size={16} />
+      <span>{label}</span>
+    </button>
+  )
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '0.375rem 1rem',
+        borderRadius: '9999px',
+        border: '1px solid',
+        borderColor: active ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.1)',
+        background: active ? 'rgba(212,175,55,0.12)' : 'transparent',
+        color: active ? '#D4AF37' : 'rgba(255,255,255,0.5)',
+        fontSize: '0.8125rem',
+        fontWeight: 500,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap' as const,
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
 
 export function Agendamentos() {
   const { businessId } = useParams<{ businessId: string }>()
@@ -99,229 +225,218 @@ export function Agendamentos() {
   return (
     <OwnerPageLayout title="Agendamentos" subtitle="Gerencie todos os agendamentos">
       {/* Indicador de Zoom */}
-      {zoomIndicator && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-gold/90 text-black px-4 py-2 rounded-lg shadow-lg font-semibold text-sm"
-        >
-          {zoomIndicator}
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {zoomIndicator && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={springTransition}
+            style={{
+              position: 'fixed',
+              top: '5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 50,
+              background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+              color: '#050400',
+              padding: '0.5rem 1.25rem',
+              borderRadius: '0.5rem',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              boxShadow: '0 4px 24px rgba(212,175,55,0.3)',
+            }}
+          >
+            {zoomIndicator}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Actions Bar */}
-      <div className="flex flex-col gap-3 mb-6">
-        {/* Busca e Botões de Ação - Desktop */}
-        <div className="hidden sm:flex gap-2">
-            <Input
-              type="search"
-              placeholder="Buscar cliente..."
-              className="flex-1"
-            />
-            <div className="flex items-center gap-1 border border-gray-700 rounded-lg p-1">
-              <Button
-                variant={viewMode === 'calendar' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('calendar')}
-                className="h-8 px-3"
-              >
-                <CalendarDays className="w-4 h-4 mr-1" />
-                Calendário
-              </Button>
-              <Button
-                variant={viewMode === 'kanban' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('kanban')}
-                className="h-8 px-3"
-              >
-                <Kanban className="w-4 h-4 mr-1" />
-                Kanban
-              </Button>
-            </div>
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4 mr-2" />
-              Filtros
-            </Button>
-            <Button variant="gold" size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo
-            </Button>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}
+      >
+        {/* Desktop */}
+        <div
+          style={{
+            display: 'none',
+            gap: '0.5rem',
+            alignItems: 'center',
+          }}
+          className="sm-flex-row"
+        >
+          {/* Desktop row via responsive wrapper below */}
         </div>
 
-        {/* Mobile - Simplificado */}
-        <div className="sm:hidden space-y-3">
-            {/* Busca + Novo */}
-            <div className="flex gap-2">
-              <Input
-                type="search"
-                placeholder="Buscar..."
-                className="flex-1"
-              />
-              <Button variant="gold" size="sm" className="px-3">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
+        {/* Busca e Botões - Desktop (sm+) */}
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Search input */}
+          <input
+            type="search"
+            placeholder="Buscar cliente..."
+            style={{
+              flex: 1,
+              minWidth: '10rem',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '0.5rem',
+              padding: '0.5rem 0.875rem',
+              color: '#fff',
+              fontSize: '0.875rem',
+              outline: 'none',
+            }}
+          />
 
-            {/* Toggle Visualização */}
-            <div className="flex items-center gap-1 border border-gray-700 rounded-lg p-1">
-              <Button
-                variant={viewMode === 'calendar' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('calendar')}
-                className="h-9 flex-1"
-              >
-                <CalendarDays className="w-4 h-4 mr-2" />
-                Calendário
-              </Button>
-              <Button
-                variant={viewMode === 'kanban' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('kanban')}
-                className="h-9 flex-1"
-              >
-                <Kanban className="w-4 h-4 mr-2" />
-                Kanban
-              </Button>
-            </div>
+          {/* View toggle */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '0.5rem',
+              padding: '0.25rem',
+              ...cardStyle,
+            }}
+          >
+            <ViewToggleButton active={viewMode === 'calendar'} onClick={() => setViewMode('calendar')}>
+              <CalendarDays size={16} />
+              Calendário
+            </ViewToggleButton>
+            <ViewToggleButton active={viewMode === 'kanban'} onClick={() => setViewMode('kanban')}>
+              <Kanban size={16} />
+              Kanban
+            </ViewToggleButton>
+          </div>
+
+          {/* Filtros button */}
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              padding: '0.5rem 1rem',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '0.5rem',
+              background: 'rgba(255,255,255,0.04)',
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap' as const,
+            }}
+          >
+            <Filter size={16} />
+            Filtros
+          </button>
+
+          {/* Novo button */}
+          <button style={goldButtonStyle}>
+            <Plus size={16} />
+            Novo
+          </button>
         </div>
 
         {/* Filtros de Status - Apenas para calendário */}
         {viewMode === 'calendar' && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('all')}
-                className="whitespace-nowrap flex-shrink-0"
-              >
-                Todos
-              </Button>
-              <Button
-                variant={filter === 'pending' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('pending')}
-                className="whitespace-nowrap flex-shrink-0"
-              >
-                Pendentes
-              </Button>
-              <Button
-                variant={filter === 'confirmed' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('confirmed')}
-                className="whitespace-nowrap flex-shrink-0"
-              >
-                Confirmados
-              </Button>
-              <Button
-                variant={filter === 'completed' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('completed')}
-                className="whitespace-nowrap flex-shrink-0"
-              >
-                Concluídos
-              </Button>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={springTransition}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              overflowX: 'auto',
+              paddingBottom: '0.25rem',
+            }}
+          >
+            <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>Todos</FilterChip>
+            <FilterChip active={filter === 'pending'} onClick={() => setFilter('pending')}>Pendentes</FilterChip>
+            <FilterChip active={filter === 'confirmed'} onClick={() => setFilter('confirmed')}>Confirmados</FilterChip>
+            <FilterChip active={filter === 'completed'} onClick={() => setFilter('completed')}>Concluídos</FilterChip>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
-      {/* Calendar Mode Selector - Only visible when in calendar view */}
+      {/* Calendar Mode Selector */}
       {viewMode === 'calendar' && (
-          <div className="mb-4">
-            {/* Desktop */}
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-sm text-gray-400 mr-1">Visualizar:</span>
-              <Button
-                variant={calendarMode === 'day' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('day')}
-              >
-                <CalendarClock className="w-4 h-4 mr-1" />
-                Dia
-              </Button>
-              <Button
-                variant={calendarMode === 'week' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('week')}
-              >
-                <CalendarRange className="w-4 h-4 mr-1" />
-                Semana
-              </Button>
-              <Button
-                variant={calendarMode === 'month' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('month')}
-              >
-                <CalendarDays className="w-4 h-4 mr-1" />
-                Mês
-              </Button>
-              <Button
-                variant={calendarMode === 'year' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('year')}
-              >
-                <Calendar className="w-4 h-4 mr-1" />
-                Ano
-              </Button>
-            </div>
-
-            {/* Mobile - Grid de 4 colunas */}
-            <div className="sm:hidden grid grid-cols-4 gap-2">
-              <Button
-                variant={calendarMode === 'day' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('day')}
-                className="flex flex-col items-center gap-1 h-auto py-2"
-              >
-                <CalendarClock className="w-4 h-4" />
-                <span className="text-xs">Dia</span>
-              </Button>
-              <Button
-                variant={calendarMode === 'week' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('week')}
-                className="flex flex-col items-center gap-1 h-auto py-2"
-              >
-                <CalendarRange className="w-4 h-4" />
-                <span className="text-xs">Semana</span>
-              </Button>
-              <Button
-                variant={calendarMode === 'month' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('month')}
-                className="flex flex-col items-center gap-1 h-auto py-2"
-              >
-                <CalendarDays className="w-4 h-4" />
-                <span className="text-xs">Mês</span>
-              </Button>
-              <Button
-                variant={calendarMode === 'year' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCalendarMode('year')}
-                className="flex flex-col items-center gap-1 h-auto py-2"
-              >
-                <Calendar className="w-4 h-4" />
-                <span className="text-xs">Ano</span>
-              </Button>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={springTransition}
+          style={{ marginBottom: '1rem' }}
+        >
+          {/* Desktop */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.4)', marginRight: '0.25rem' }}>
+              Visualizar:
+            </span>
+            <CalendarModeButton
+              active={calendarMode === 'day'}
+              onClick={() => setCalendarMode('day')}
+              icon={CalendarClock}
+              label="Dia"
+            />
+            <CalendarModeButton
+              active={calendarMode === 'week'}
+              onClick={() => setCalendarMode('week')}
+              icon={CalendarRange}
+              label="Semana"
+            />
+            <CalendarModeButton
+              active={calendarMode === 'month'}
+              onClick={() => setCalendarMode('month')}
+              icon={CalendarDays}
+              label="Mês"
+            />
+            <CalendarModeButton
+              active={calendarMode === 'year'}
+              onClick={() => setCalendarMode('year')}
+              icon={Calendar}
+              label="Ano"
+            />
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Calendar View */}
       {viewMode === 'calendar' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={springTransition}
+          style={{ ...cardStyle, overflow: 'hidden' }}
+        >
           <CalendarView
             appointments={filteredAppointments}
             mode={calendarMode}
             onAppointmentClick={(apt) => console.log('Clicked appointment:', apt)}
-        />
+          />
+        </motion.div>
       )}
 
       {/* Kanban View */}
       {viewMode === 'kanban' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={springTransition}
+        >
           <KanbanView
             appointments={appointments}
-          onAppointmentClick={(apt) => console.log('Clicked appointment:', apt)}
-        />
+            onAppointmentClick={(apt) => console.log('Clicked appointment:', apt)}
+          />
+        </motion.div>
       )}
     </OwnerPageLayout>
   )

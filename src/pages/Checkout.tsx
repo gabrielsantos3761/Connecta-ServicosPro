@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createAppointment } from '@/services/appointmentService'
+import { getLinkByProfessionalAndBusiness } from '@/services/professionalLinkService'
 import {
   CreditCard,
   Smartphone,
@@ -15,11 +16,6 @@ import {
   Lock,
   Loader2,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 
 interface BookingData {
@@ -42,6 +38,44 @@ interface BookingData {
 
 type PaymentMethod = 'credit' | 'debit' | 'pix' | 'cash'
 
+const GOLD = '#D4AF37'
+const BG = '#050400'
+
+const card: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+  padding: '1.75rem',
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  borderRadius: '0.625rem',
+  color: '#fff',
+  padding: '0.625rem 0.875rem',
+  fontSize: '0.9375rem',
+  outline: 'none',
+  boxSizing: 'border-box',
+  transition: 'border-color 0.2s',
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '0.8125rem',
+  color: 'rgba(255,255,255,0.5)',
+  marginBottom: '0.4rem',
+  letterSpacing: '0.03em',
+}
+
+const divider: React.CSSProperties = {
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  margin: '1rem 0',
+}
+
+const springTransition = { type: 'spring' as const, stiffness: 320, damping: 36 }
+
 export function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -59,15 +93,27 @@ export function Checkout() {
 
   if (!bookingData) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Dados de agendamento não encontrados</h2>
-          <Button
+      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#fff', marginBottom: '1.5rem' }}>
+            Dados de agendamento não encontrados
+          </h2>
+          <button
             onClick={() => navigate('/')}
-            className="bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold"
+            style={{
+              background: `linear-gradient(135deg, ${GOLD}, #b8941e)`,
+              color: '#050400',
+              fontWeight: 700,
+              border: 'none',
+              borderRadius: '0.625rem',
+              padding: '0.75rem 2rem',
+              fontSize: '0.9375rem',
+              cursor: 'pointer',
+              letterSpacing: '0.02em',
+            }}
           >
             Voltar para início
-          </Button>
+          </button>
         </div>
       </div>
     )
@@ -75,15 +121,27 @@ export function Checkout() {
 
   if (!bookingData.serviceName || !bookingData.businessName) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Erro ao carregar dados</h2>
-          <Button
+      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#fff', marginBottom: '1.5rem' }}>
+            Erro ao carregar dados
+          </h2>
+          <button
             onClick={() => navigate('/')}
-            className="bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold"
+            style={{
+              background: `linear-gradient(135deg, ${GOLD}, #b8941e)`,
+              color: '#050400',
+              fontWeight: 700,
+              border: 'none',
+              borderRadius: '0.625rem',
+              padding: '0.75rem 2rem',
+              fontSize: '0.9375rem',
+              cursor: 'pointer',
+              letterSpacing: '0.02em',
+            }}
           >
             Voltar para início
-          </Button>
+          </button>
         </div>
       </div>
     )
@@ -112,6 +170,35 @@ export function Checkout() {
 
     if (user) {
       try {
+        // Buscar configuração de pagamento do vínculo do profissional
+        let paymentType: 'fixed' | 'percentage' | null = null
+        let commissionPercent: number | null = null
+        let professionalAmount: number | null = null
+        let businessAmount: number | null = null
+
+        if (bookingData.professionalId) {
+          try {
+            const link = await getLinkByProfessionalAndBusiness(
+              bookingData.professionalId,
+              bookingData.businessId
+            )
+            if (link) {
+              paymentType = link.paymentType ?? null
+              if (paymentType === 'percentage' && link.commission != null) {
+                commissionPercent = link.commission
+                professionalAmount = bookingData.servicePrice * (link.commission / 100)
+                businessAmount = bookingData.servicePrice * ((100 - link.commission) / 100)
+              } else if (paymentType === 'fixed') {
+                commissionPercent = null
+                professionalAmount = 0
+                businessAmount = bookingData.servicePrice
+              }
+            }
+          } catch (err) {
+            console.error('[Checkout] Erro ao buscar vínculo do profissional:', err)
+          }
+        }
+
         appointmentId = await createAppointment({
           businessId: bookingData.businessId,
           businessName: bookingData.businessName,
@@ -127,6 +214,10 @@ export function Checkout() {
           date: bookingData.date,
           time: bookingData.time,
           paymentMethod: selectedPaymentMethod,
+          paymentType,
+          commissionPercent,
+          professionalAmount,
+          businessAmount,
         })
       } catch (error) {
         console.error('[Checkout] Erro ao salvar agendamento:', error)
@@ -172,279 +263,472 @@ export function Checkout() {
   ]
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+    <div style={{ minHeight: '100vh', background: BG }}>
+      <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '2rem 1.5rem' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '2rem',
+          }}
+        >
+          {/* ── Main Content ─────────────────────────────────────────── */}
+          <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
             {/* Booking Summary */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={springTransition}
+              style={card}
             >
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Resumo da Reserva</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Business */}
-                  <div className="flex items-start gap-3 pb-4 border-b border-white/10">
-                    <Building2 className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{bookingData.businessName}</p>
-                    </div>
-                  </div>
+              <h2
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  color: '#fff',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                Resumo da Reserva
+              </h2>
 
-                  {/* Service */}
-                  <div className="flex items-start gap-3 pb-4 border-b border-white/10">
-                    <Scissors className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{bookingData.serviceName}</p>
-                      {bookingData.serviceDescription && (
-                        <p className="text-sm text-gray-400 mt-1">{bookingData.serviceDescription}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2">
-                        <Badge variant="outline" className="text-xs border-white/20 text-gray-400">
-                          <Clock className="w-3 h-3 mr-1" />
-                          {bookingData.serviceDuration} min
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
+              {/* Business */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  paddingBottom: '1rem',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                <Building2 size={18} color={GOLD} style={{ flexShrink: 0, marginTop: 2 }} />
+                <p style={{ fontWeight: 600, color: '#fff', margin: 0 }}>{bookingData.businessName}</p>
+              </div>
 
-                  {/* Date & Time */}
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-white capitalize">{formatDate(bookingData.date)}</p>
-                      <p className="text-sm text-gray-400 flex items-center gap-1 mt-1">
-                        <Clock className="w-3 h-3" />
-                        {bookingData.time}
-                      </p>
-                    </div>
+              {/* Service */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '1rem 0',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                <Scissors size={18} color={GOLD} style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontWeight: 600, color: '#fff', margin: 0 }}>{bookingData.serviceName}</p>
+                  {bookingData.serviceDescription && (
+                    <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: '0.375rem 0 0' }}>
+                      {bookingData.serviceDescription}
+                    </p>
+                  )}
+                  <div style={{ marginTop: '0.625rem' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        fontSize: '0.75rem',
+                        color: 'rgba(255,255,255,0.5)',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        borderRadius: '9999px',
+                        padding: '0.2rem 0.625rem',
+                      }}
+                    >
+                      <Clock size={11} />
+                      {bookingData.serviceDuration} min
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  paddingTop: '1rem',
+                }}
+              >
+                <Calendar size={18} color={GOLD} style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontWeight: 600, color: '#fff', margin: 0, textTransform: 'capitalize' }}>
+                    {formatDate(bookingData.date)}
+                  </p>
+                  <p
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontSize: '0.875rem',
+                      color: 'rgba(255,255,255,0.5)',
+                      margin: '0.375rem 0 0',
+                    }}
+                  >
+                    <Clock size={12} />
+                    {bookingData.time}
+                  </p>
+                </div>
+              </div>
             </motion.div>
 
             {/* Payment Method */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+              transition={{ ...springTransition, delay: 0.08 }}
+              style={card}
             >
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Forma de Pagamento</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    {paymentMethods.map((method, index) => {
-                      const Icon = method.icon
-                      const isSelected = selectedPaymentMethod === method.id
+              <h2
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  color: '#fff',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                Forma de Pagamento
+              </h2>
 
-                      return (
-                        <motion.button
-                          key={method.id}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setSelectedPaymentMethod(method.id)}
-                          className={`
-                            p-4 rounded-lg border-2 transition-all text-left
-                            ${
-                              isSelected
-                                ? 'border-gold bg-gold/10'
-                                : 'border-white/10 hover:border-white/20 bg-white/5'
-                            }
-                          `}
-                        >
-                          <div className="flex items-start gap-3">
-                            <Icon className={`w-6 h-6 ${isSelected ? 'text-gold' : 'text-gray-400'}`} />
-                            <div className="flex-1">
-                              <p className={`font-semibold ${isSelected ? 'text-gold' : 'text-white'}`}>
-                                {method.name}
-                              </p>
-                              <p className="text-sm text-gray-400 mt-1">{method.description}</p>
-                            </div>
-                            {isSelected && (
-                              <Check className="w-5 h-5 text-gold" />
-                            )}
-                          </div>
-                        </motion.button>
-                      )
-                    })}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '1rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                {paymentMethods.map((method, index) => {
+                  const Icon = method.icon
+                  const isSelected = selectedPaymentMethod === method.id
+
+                  return (
+                    <motion.button
+                      key={method.id}
+                      initial={{ opacity: 0, scale: 0.92 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ ...springTransition, delay: index * 0.05 }}
+                      whileHover={{ scale: 1.025 }}
+                      whileTap={{ scale: 0.975 }}
+                      onClick={() => setSelectedPaymentMethod(method.id)}
+                      style={{
+                        padding: '1rem',
+                        borderRadius: '0.875rem',
+                        border: isSelected
+                          ? `2px solid ${GOLD}`
+                          : '2px solid rgba(255,255,255,0.07)',
+                        background: isSelected ? `rgba(212,175,55,0.08)` : 'rgba(255,255,255,0.02)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'border-color 0.2s, background 0.2s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                        <Icon size={22} color={isSelected ? GOLD : 'rgba(255,255,255,0.4)'} />
+                        <div style={{ flex: 1 }}>
+                          <p
+                            style={{
+                              fontWeight: 600,
+                              color: isSelected ? GOLD : '#fff',
+                              margin: 0,
+                              fontSize: '0.9375rem',
+                            }}
+                          >
+                            {method.name}
+                          </p>
+                          <p
+                            style={{
+                              fontSize: '0.8125rem',
+                              color: 'rgba(255,255,255,0.5)',
+                              margin: '0.25rem 0 0',
+                            }}
+                          >
+                            {method.description}
+                          </p>
+                        </div>
+                        {isSelected && <Check size={18} color={GOLD} style={{ flexShrink: 0 }} />}
+                      </div>
+                    </motion.button>
+                  )
+                })}
+              </div>
+
+              {/* Card Details */}
+              {(selectedPaymentMethod === 'credit' || selectedPaymentMethod === 'debit') && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  transition={springTransition}
+                  style={{
+                    paddingTop: '1.25rem',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div>
+                    <label htmlFor="cardNumber" style={labelStyle}>Número do Cartão</label>
+                    <input
+                      id="cardNumber"
+                      placeholder="0000 0000 0000 0000"
+                      maxLength={19}
+                      value={cardData.number}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\s/g, '')
+                        const formatted = value.match(/.{1,4}/g)?.join(' ') || value
+                        setCardData({ ...cardData, number: formatted })
+                      }}
+                      style={inputStyle}
+                    />
                   </div>
 
-                  {/* Card Details */}
-                  {(selectedPaymentMethod === 'credit' || selectedPaymentMethod === 'debit') && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="space-y-4 pt-4 border-t border-white/10"
-                    >
-                      <div className="space-y-2">
-                        <Label htmlFor="cardNumber" className="text-gray-300">Número do Cartão</Label>
-                        <Input
-                          id="cardNumber"
-                          placeholder="0000 0000 0000 0000"
-                          maxLength={19}
-                          value={cardData.number}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\s/g, '')
-                            const formatted = value.match(/.{1,4}/g)?.join(' ') || value
-                            setCardData({ ...cardData, number: formatted })
-                          }}
-                          className="bg-white/5 border-white/10 text-white focus:ring-gold"
-                        />
-                      </div>
+                  <div>
+                    <label htmlFor="cardName" style={labelStyle}>Nome no Cartão</label>
+                    <input
+                      id="cardName"
+                      placeholder="Nome como está no cartão"
+                      value={cardData.name}
+                      onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
+                      style={inputStyle}
+                    />
+                  </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="cardName" className="text-gray-300">Nome no Cartão</Label>
-                        <Input
-                          id="cardName"
-                          placeholder="Nome como está no cartão"
-                          value={cardData.name}
-                          onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
-                          className="bg-white/5 border-white/10 text-white focus:ring-gold"
-                        />
-                      </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label htmlFor="expiry" style={labelStyle}>Validade</label>
+                      <input
+                        id="expiry"
+                        placeholder="MM/AA"
+                        maxLength={5}
+                        value={cardData.expiry}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/\D/g, '')
+                          if (value.length >= 2) {
+                            value = value.slice(0, 2) + '/' + value.slice(2, 4)
+                          }
+                          setCardData({ ...cardData, expiry: value })
+                        }}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="cvv" style={labelStyle}>CVV</label>
+                      <input
+                        id="cvv"
+                        placeholder="123"
+                        maxLength={3}
+                        value={cardData.cvv}
+                        onChange={(e) =>
+                          setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, '') })
+                        }
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="expiry" className="text-gray-300">Validade</Label>
-                          <Input
-                            id="expiry"
-                            placeholder="MM/AA"
-                            maxLength={5}
-                            value={cardData.expiry}
-                            onChange={(e) => {
-                              let value = e.target.value.replace(/\D/g, '')
-                              if (value.length >= 2) {
-                                value = value.slice(0, 2) + '/' + value.slice(2, 4)
-                              }
-                              setCardData({ ...cardData, expiry: value })
-                            }}
-                            className="bg-white/5 border-white/10 text-white focus:ring-gold"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="cvv" className="text-gray-300">CVV</Label>
-                          <Input
-                            id="cvv"
-                            placeholder="123"
-                            maxLength={3}
-                            value={cardData.cvv}
-                            onChange={(e) =>
-                              setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, '') })
-                            }
-                            className="bg-white/5 border-white/10 text-white focus:ring-gold"
-                          />
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+              {/* PIX Info */}
+              {selectedPaymentMethod === 'pix' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  transition={springTransition}
+                  style={{
+                    paddingTop: '1.25rem',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      background: 'rgba(99,179,237,0.06)',
+                      border: '1px solid rgba(99,179,237,0.18)',
+                      borderRadius: '0.75rem',
+                      padding: '1rem',
+                    }}
+                  >
+                    <p style={{ fontSize: '0.875rem', color: '#93c5fd', margin: 0 }}>
+                      Após confirmar, você receberá um QR Code para realizar o pagamento via PIX.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
-                  {/* PIX Info */}
-                  {selectedPaymentMethod === 'pix' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="pt-4 border-t border-white/10"
-                    >
-                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                        <p className="text-sm text-blue-400">
-                          Após confirmar, você receberá um QR Code para realizar o pagamento via PIX.
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Cash Info */}
-                  {selectedPaymentMethod === 'cash' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="pt-4 border-t border-white/10"
-                    >
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                        <p className="text-sm text-amber-400">
-                          Você pagará em dinheiro diretamente no estabelecimento no dia do agendamento.
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Cash Info */}
+              {selectedPaymentMethod === 'cash' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  transition={springTransition}
+                  style={{
+                    paddingTop: '1.25rem',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      background: 'rgba(251,191,36,0.06)',
+                      border: '1px solid rgba(251,191,36,0.18)',
+                      borderRadius: '0.75rem',
+                      padding: '1rem',
+                    }}
+                  >
+                    <p style={{ fontSize: '0.875rem', color: '#fbbf24', margin: 0 }}>
+                      Você pagará em dinheiro diretamente no estabelecimento no dia do agendamento.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           </div>
 
-          {/* Sidebar - Price Summary */}
-          <div className="lg:col-span-1">
+          {/* ── Sidebar – Price Summary ───────────────────────────────── */}
+          <div style={{ gridColumn: 'span 1' }}>
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
-              className="sticky top-24"
+              transition={springTransition}
+              style={{ position: 'sticky', top: '6rem' }}
             >
-              <Card className="bg-white/5 backdrop-blur-sm border-2 border-gold/50 shadow-2xl shadow-gold/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Resumo do Valor</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400">{bookingData.serviceName}</span>
-                      <span className="font-semibold text-white">{formatCurrency(bookingData.servicePrice)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400">Taxa de serviço</span>
-                      <span className="font-semibold text-green-400">Grátis</span>
-                    </div>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: `2px solid rgba(212,175,55,0.40)`,
+                  borderRadius: '1.125rem',
+                  padding: '1.75rem',
+                  boxShadow: `0 24px 64px rgba(212,175,55,0.08)`,
+                }}
+              >
+                <h2
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '1.25rem',
+                    fontWeight: 700,
+                    color: '#fff',
+                    marginBottom: '1.5rem',
+                  }}
+                >
+                  Resumo do Valor
+                </h2>
+
+                {/* Line items */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>{bookingData.serviceName}</span>
+                    <span style={{ fontWeight: 600, color: '#fff' }}>{formatCurrency(bookingData.servicePrice)}</span>
                   </div>
-
-                  <div className="border-t border-white/10 pt-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-lg font-bold text-white">Total</span>
-                      <span className="text-2xl font-bold bg-gradient-to-r from-gold to-yellow-600 bg-clip-text text-transparent">{formatCurrency(bookingData.servicePrice)}</span>
-                    </div>
-
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button
-                        variant="default"
-                        size="lg"
-                        className="w-full bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold shadow-lg shadow-gold/20"
-                        onClick={handlePayment}
-                        disabled={!selectedPaymentMethod || isProcessing}
-                      >
-                        {isProcessing ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        ) : (
-                          <Check className="w-5 h-5 mr-2" />
-                        )}
-                        {isProcessing ? 'Confirmando...' : 'Confirmar Pagamento'}
-                      </Button>
-                    </motion.div>
-
-                    <p className="text-xs text-gray-500 text-center mt-3">
-                      Ao confirmar, você concorda com nossos termos de serviço
-                    </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>Taxa de serviço</span>
+                    <span style={{ fontWeight: 600, color: '#22c55e' }}>Grátis</span>
                   </div>
+                </div>
 
-                  {/* Security Badge */}
-                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <Lock className="w-4 h-4 text-green-400" />
-                      <span>Pagamento 100% seguro</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                <div style={divider} />
+
+                {/* Total */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <span style={{ fontSize: '1.0625rem', fontWeight: 700, color: '#fff' }}>Total</span>
+                  <span
+                    style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 800,
+                      background: `linear-gradient(135deg, ${GOLD}, #b8941e)`,
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                    }}
+                  >
+                    {formatCurrency(bookingData.servicePrice)}
+                  </span>
+                </div>
+
+                {/* Confirm button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handlePayment}
+                  disabled={!selectedPaymentMethod || isProcessing}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.875rem 1.5rem',
+                    borderRadius: '0.75rem',
+                    border: 'none',
+                    background:
+                      !selectedPaymentMethod || isProcessing
+                        ? 'rgba(212,175,55,0.30)'
+                        : `linear-gradient(135deg, ${GOLD}, #b8941e)`,
+                    color: '#050400',
+                    fontWeight: 700,
+                    fontSize: '0.9375rem',
+                    letterSpacing: '0.02em',
+                    cursor: !selectedPaymentMethod || isProcessing ? 'not-allowed' : 'pointer',
+                    boxShadow: !selectedPaymentMethod || isProcessing
+                      ? 'none'
+                      : `0 8px 28px rgba(212,175,55,0.22)`,
+                    transition: 'box-shadow 0.2s',
+                  }}
+                >
+                  {isProcessing ? (
+                    <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <Check size={18} />
+                  )}
+                  {isProcessing ? 'Confirmando...' : 'Confirmar Pagamento'}
+                </motion.button>
+
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'rgba(255,255,255,0.28)',
+                    textAlign: 'center',
+                    marginTop: '0.875rem',
+                  }}
+                >
+                  Ao confirmar, você concorda com nossos termos de serviço
+                </p>
+
+                {/* Security badge */}
+                <div
+                  style={{
+                    marginTop: '1.25rem',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    borderRadius: '0.75rem',
+                    padding: '0.75rem 1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <Lock size={15} color="#22c55e" />
+                  <span style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)' }}>
+                    Pagamento 100% seguro
+                  </span>
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>
       </div>
+
+      {/* Loader2 spin keyframe */}
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }

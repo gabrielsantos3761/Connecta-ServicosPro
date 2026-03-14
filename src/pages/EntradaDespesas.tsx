@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp,
@@ -11,37 +12,15 @@ import {
   User,
   Plus,
   X,
-  Percent
+  Percent,
+  Loader2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { theme } from '@/styles/theme'
 import { OwnerPageLayout } from '@/components/layout/OwnerPageLayout'
+import { getAppointmentsByBusiness, type Appointment } from '@/services/appointmentService'
+import { formatCurrency } from '@/lib/utils'
 
 type TabType = 'entradas' | 'despesas'
 type StatusFilter = 'todos' | 'concluido' | 'agendado' | 'cancelado'
-type PaymentMethod = 'percentage' | 'fixed'
-
-interface ProfessionalPayment {
-  type: PaymentMethod
-  value: number // % ou valor fixo mensal
-}
-
-interface Agendamento {
-  id: string
-  clienteNome: string
-  servico: string
-  valor: number
-  data: string
-  hora: string
-  status: 'concluido' | 'agendado' | 'cancelado'
-  profissional: string
-  professionalPayment: ProfessionalPayment
-}
 
 interface DespesaManual {
   id: string
@@ -51,200 +30,135 @@ interface DespesaManual {
   categoria: string
 }
 
-// Mock data com informações de pagamento dos profissionais
-const mockAgendamentos: Agendamento[] = [
-  {
-    id: '1',
-    clienteNome: 'João Silva',
-    servico: 'Corte + Barba',
-    valor: 80.00,
-    data: '2025-12-01',
-    hora: '10:00',
-    status: 'concluido',
-    profissional: 'Carlos Barbeiro',
-    professionalPayment: { type: 'percentage', value: 40 } // 40% prof / 60% estabelecimento
-  },
-  {
-    id: '2',
-    clienteNome: 'Maria Santos',
-    servico: 'Corte Feminino',
-    valor: 120.00,
-    data: '2025-12-01',
-    hora: '14:00',
-    status: 'agendado',
-    profissional: 'Ana Silva',
-    professionalPayment: { type: 'fixed', value: 3000 } // R$ 3000/mês fixo
-  },
-  {
-    id: '3',
-    clienteNome: 'Pedro Costa',
-    servico: 'Barba',
-    valor: 45.00,
-    data: '2025-11-30',
-    hora: '16:00',
-    status: 'cancelado',
-    profissional: 'Carlos Barbeiro',
-    professionalPayment: { type: 'percentage', value: 40 }
-  },
-  {
-    id: '4',
-    clienteNome: 'Lucas Oliveira',
-    servico: 'Corte + Barba + Sombrancelha',
-    valor: 95.00,
-    data: '2025-12-01',
-    hora: '11:30',
-    status: 'concluido',
-    profissional: 'Roberto Santos',
-    professionalPayment: { type: 'percentage', value: 50 } // 50% / 50%
-  },
-  {
-    id: '5',
-    clienteNome: 'Rafael Souza',
-    servico: 'Corte',
-    valor: 50.00,
-    data: '2025-12-02',
-    hora: '09:00',
-    status: 'agendado',
-    profissional: 'Carlos Barbeiro',
-    professionalPayment: { type: 'percentage', value: 40 }
-  },
-]
+const inputStyle = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
 
-const mockDespesasManuais: DespesaManual[] = [
-  {
-    id: '1',
-    descricao: 'Aluguel',
-    valor: 2500.00,
-    data: '2025-12-01',
-    categoria: 'Fixo'
-  },
-  {
-    id: '2',
-    descricao: 'Energia Elétrica',
-    valor: 350.00,
-    data: '2025-12-05',
-    categoria: 'Utilidades'
-  },
-]
+function StyledInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full px-4 py-2.5 rounded-xl text-white text-sm outline-none transition-all ${props.className ?? ''}`}
+      style={{ ...inputStyle, ...props.style }}
+      onFocus={e => { e.target.style.borderColor = 'rgba(212,175,55,0.4)'; props.onFocus?.(e) }}
+      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.08)'; props.onBlur?.(e) }}
+    />
+  )
+}
 
 export function EntradaDespesas() {
+  const { businessId } = useParams<{ businessId: string }>()
   const [activeTab, setActiveTab] = useState<TabType>('entradas')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos')
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [despesasManuais, setDespesasManuais] = useState<DespesaManual[]>([])
   const [isAddDespesaModalOpen, setIsAddDespesaModalOpen] = useState(false)
   const [despesaForm, setDespesaForm] = useState({
     descricao: '',
     valor: '',
     data: new Date().toISOString().split('T')[0],
-    categoria: ''
+    categoria: '',
   })
 
-  // Calcular entrada do estabelecimento por agendamento
-  const calcularEntrada = (agendamento: Agendamento) => {
-    if (agendamento.status === 'cancelado') return 0
+  useEffect(() => {
+    const id = businessId || localStorage.getItem('selected_business_id')
+    if (!id) { setLoading(false); return }
+    setLoading(true)
+    getAppointmentsByBusiness(id)
+      .then(setAppointments)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [businessId])
 
-    const { professionalPayment, valor } = agendamento
-
-    if (professionalPayment.type === 'fixed') {
-      // Se é fixo, todo o valor do serviço vai para o estabelecimento
-      return valor
-    } else {
-      // Se é porcentagem, pega a parte do estabelecimento
-      const percentualEstabelecimento = 100 - professionalPayment.value
-      return (valor * percentualEstabelecimento) / 100
-    }
+  const calcularEntrada = (appt: Appointment): number => {
+    if (appt.status === 'cancelled') return 0
+    return appt.businessAmount ?? appt.servicePrice
   }
 
-  // Calcular despesa do profissional por agendamento
-  const calcularDespesaProfissional = (agendamento: Agendamento) => {
-    if (agendamento.status === 'cancelado') return 0
-
-    const { professionalPayment, valor } = agendamento
-
-    if (professionalPayment.type === 'percentage') {
-      // Se é porcentagem, calcula o valor do profissional
-      return (valor * professionalPayment.value) / 100
-    }
-
-    // Se é fixo, não conta por serviço (será contabilizado como despesa mensal fixa)
-    return 0
+  const calcularDespesaProfissional = (appt: Appointment): number => {
+    if (appt.status === 'cancelled') return 0
+    return appt.professionalAmount ?? 0
   }
 
-  // Calcular totais de ENTRADA (apenas serviços concluídos)
-  const receitaConfirmada = mockAgendamentos
-    .filter(a => a.status === 'concluido')
-    .reduce((sum, a) => sum + calcularEntrada(a), 0)
+  const { receitaConfirmada, projecaoFaturamento, despesaProfissionaisConfirmada } = appointments.reduce(
+    (acc, a) => {
+      if (a.status === 'completed') {
+        acc.receitaConfirmada += calcularEntrada(a)
+        acc.despesaProfissionaisConfirmada += calcularDespesaProfissional(a)
+      } else if (a.status === 'pending' || a.status === 'confirmed') {
+        acc.projecaoFaturamento += calcularEntrada(a)
+      }
+      return acc
+    },
+    { receitaConfirmada: 0, projecaoFaturamento: 0, despesaProfissionaisConfirmada: 0 },
+  )
 
-  const projecaoFaturamento = mockAgendamentos
-    .filter(a => a.status === 'agendado')
-    .reduce((sum, a) => sum + calcularEntrada(a), 0)
+  const despesasManuaisTotal = despesasManuais.reduce((sum, d) => sum + d.valor, 0)
+  const totalDespesasConfirmadas = despesaProfissionaisConfirmada + despesasManuaisTotal
 
-  // Calcular totais de DESPESA com profissionais (apenas concluídos)
-  const despesaProfissionaisConfirmada = mockAgendamentos
-    .filter(a => a.status === 'concluido')
-    .reduce((sum, a) => sum + calcularDespesaProfissional(a), 0)
-
-  // Despesas manuais (fixas)
-  const despesasManuaisTotal = mockDespesasManuais.reduce((sum, d) => sum + d.valor, 0)
-
-  // Despesas com salários fixos (TODO: calcular salários fixos dos profissionais)
-  const salariosFixosTotal = 3000 // Mock: Ana Silva ganha R$ 3000/mês
-
-  // Total de despesas
-  const totalDespesasConfirmadas = despesaProfissionaisConfirmada + despesasManuaisTotal + salariosFixosTotal
-
-  // Filtrar agendamentos
-  const agendamentosFiltrados = statusFilter === 'todos'
-    ? mockAgendamentos
-    : mockAgendamentos.filter(a => a.status === statusFilter)
+  const appointmentsFiltrados = (() => {
+    if (statusFilter === 'todos') return appointments
+    if (statusFilter === 'concluido') return appointments.filter(a => a.status === 'completed')
+    if (statusFilter === 'agendado') return appointments.filter(a => a.status === 'pending' || a.status === 'confirmed')
+    if (statusFilter === 'cancelado') return appointments.filter(a => a.status === 'cancelled')
+    return appointments
+  })()
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'concluido':
+      case 'completed':
         return (
-          <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Concluído
-          </Badge>
+          <span className="text-xs px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
+            style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>
+            <CheckCircle className="w-3 h-3" /> Concluído
+          </span>
         )
-      case 'agendado':
+      case 'confirmed':
         return (
-          <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30">
-            <Clock className="w-3 h-3 mr-1" />
-            Agendado
-          </Badge>
+          <span className="text-xs px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
+            style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+            <CheckCircle className="w-3 h-3" /> Confirmado
+          </span>
         )
-      case 'cancelado':
+      case 'pending':
         return (
-          <Badge className="bg-red-500/20 text-red-500 border-red-500/30">
-            <XCircle className="w-3 h-3 mr-1" />
-            Cancelado
-          </Badge>
+          <span className="text-xs px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
+            style={{ background: 'rgba(234,179,8,0.15)', color: '#eab308' }}>
+            <Clock className="w-3 h-3" /> Pendente
+          </span>
+        )
+      case 'cancelled':
+        return (
+          <span className="text-xs px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
+            style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+            <XCircle className="w-3 h-3" /> Cancelado
+          </span>
         )
       default:
         return null
     }
   }
 
-  const getPaymentBadge = (payment: ProfessionalPayment) => {
-    if (payment.type === 'fixed') {
+  const getPaymentBadge = (appt: Appointment) => {
+    if (appt.paymentType === 'fixed') {
       return (
-        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
-          <DollarSign className="w-3 h-3 mr-1" />
-          Fixo R$ {payment.value}/mês
-        </Badge>
-      )
-    } else {
-      return (
-        <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30">
-          <Percent className="w-3 h-3 mr-1" />
-          {payment.value}% / {100 - payment.value}%
-        </Badge>
+        <span className="text-xs px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
+          style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa' }}>
+          <DollarSign className="w-3 h-3" /> Fixo
+        </span>
       )
     }
-  }
-
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    if (appt.paymentType === 'percentage' && appt.commissionPercent != null) {
+      return (
+        <span className="text-xs px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
+          style={{ background: 'rgba(168,85,247,0.1)', color: '#c084fc' }}>
+          <Percent className="w-3 h-3" /> {appt.commissionPercent}% / {100 - appt.commissionPercent}%
+        </span>
+      )
+    }
+    return null
   }
 
   const formatDate = (dateStr: string) => {
@@ -253,75 +167,89 @@ export function EntradaDespesas() {
   }
 
   const handleAddDespesa = () => {
-    console.log('Adicionar despesa:', despesaForm)
-    alert('Despesa adicionada com sucesso!')
+    if (!despesaForm.descricao || !despesaForm.valor) return
+    const nova: DespesaManual = {
+      id: Date.now().toString(),
+      descricao: despesaForm.descricao,
+      valor: parseFloat(despesaForm.valor),
+      data: despesaForm.data,
+      categoria: despesaForm.categoria,
+    }
+    setDespesasManuais(prev => [...prev, nova])
     setIsAddDespesaModalOpen(false)
     setDespesaForm({
       descricao: '',
       valor: '',
       data: new Date().toISOString().split('T')[0],
-      categoria: ''
+      categoria: '',
     })
   }
 
-  // Calcular lucro líquido
   const lucroLiquido = receitaConfirmada - totalDespesasConfirmadas
   const margemLucro = receitaConfirmada > 0 ? (lucroLiquido / receitaConfirmada) * 100 : 0
+
+  const comissoes = appointments.filter(
+    a => a.status === 'completed' && a.paymentType === 'percentage' && (a.professionalAmount ?? 0) > 0
+  )
+
+  if (loading) {
+    return (
+      <OwnerPageLayout title="Entrada/Despesas" subtitle="Gerencie suas entradas e despesas">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#D4AF37' }} />
+          <span className="ml-3" style={{ color: 'rgba(255,255,255,0.5)' }}>Carregando dados financeiros...</span>
+        </div>
+      </OwnerPageLayout>
+    )
+  }
 
   return (
     <OwnerPageLayout title="Entrada/Despesas" subtitle="Gerencie suas entradas e despesas">
 
-      {/* Card de Resumo Geral */}
+      {/* Resumo Geral */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
         className="mb-8"
       >
-        <Card className="bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-sm border-gold/30">
-          <CardContent className="p-6">
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '1.125rem' }}>
+          <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-emerald-500" />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                  <TrendingUp className="w-6 h-6" style={{ color: '#10b981' }} />
                 </div>
                 <div>
-                  <p className={`text-sm ${theme.colors.text.secondary}`}>Receita Confirmada</p>
-                  <p className="text-2xl font-bold text-emerald-500">{formatCurrency(receitaConfirmada)}</p>
+                  <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Receita Confirmada</p>
+                  <p className="text-2xl font-bold" style={{ color: '#10b981', fontFamily: "'Playfair Display', serif" }}>{formatCurrency(receitaConfirmada)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
-                  <TrendingDown className="w-6 h-6 text-red-500" />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+                  <TrendingDown className="w-6 h-6" style={{ color: '#ef4444' }} />
                 </div>
                 <div>
-                  <p className={`text-sm ${theme.colors.text.secondary}`}>Despesas Totais</p>
-                  <p className="text-2xl font-bold text-red-500">{formatCurrency(totalDespesasConfirmadas)}</p>
+                  <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Despesas Totais</p>
+                  <p className="text-2xl font-bold" style={{ color: '#ef4444', fontFamily: "'Playfair Display', serif" }}>{formatCurrency(totalDespesasConfirmadas)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center",
-                  lucroLiquido >= 0 ? "bg-gold/20" : "bg-red-500/20"
-                )}>
-                  <DollarSign className={cn("w-6 h-6", lucroLiquido >= 0 ? "text-gold" : "text-red-500")} />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ background: lucroLiquido >= 0 ? 'rgba(212,175,55,0.15)' : 'rgba(239,68,68,0.15)' }}>
+                  <DollarSign className="w-6 h-6" style={{ color: lucroLiquido >= 0 ? '#D4AF37' : '#ef4444' }} />
                 </div>
                 <div>
-                  <p className={`text-sm ${theme.colors.text.secondary}`}>Lucro Líquido</p>
-                  <p className={cn(
-                    "text-2xl font-bold",
-                    lucroLiquido >= 0 ? "text-gold" : "text-red-500"
-                  )}>
+                  <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Lucro Líquido</p>
+                  <p className="text-2xl font-bold" style={{ color: lucroLiquido >= 0 ? '#D4AF37' : '#ef4444', fontFamily: "'Playfair Display', serif" }}>
                     {formatCurrency(lucroLiquido)}
                   </p>
-                  <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                    Margem: {margemLucro.toFixed(1)}%
-                  </p>
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>Margem: {margemLucro.toFixed(1)}%</p>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
 
       {/* Tabs */}
@@ -331,15 +259,11 @@ export function EntradaDespesas() {
         transition={{ delay: 0.1 }}
         className="mb-8"
       >
-        <div className="flex gap-2 border-b border-white/10">
+        <div className="flex gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <button
             onClick={() => setActiveTab('entradas')}
-            className={cn(
-              "px-6 py-3 font-semibold transition-all duration-200 relative",
-              activeTab === 'entradas'
-                ? "text-emerald-500"
-                : "text-gray-400 hover:text-white"
-            )}
+            className="px-6 py-3 font-semibold transition-all duration-200 relative"
+            style={{ color: activeTab === 'entradas' ? '#10b981' : 'rgba(255,255,255,0.4)' }}
           >
             <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
@@ -347,22 +271,19 @@ export function EntradaDespesas() {
             </div>
             {activeTab === 'entradas' && (
               <motion.div
-                layoutId="activeTab"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500"
+                layoutId="activeFinTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5"
+                style={{ background: '#10b981' }}
                 initial={false}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               />
             )}
           </button>
 
           <button
             onClick={() => setActiveTab('despesas')}
-            className={cn(
-              "px-6 py-3 font-semibold transition-all duration-200 relative",
-              activeTab === 'despesas'
-                ? "text-red-500"
-                : "text-gray-400 hover:text-white"
-            )}
+            className="px-6 py-3 font-semibold transition-all duration-200 relative"
+            style={{ color: activeTab === 'despesas' ? '#ef4444' : 'rgba(255,255,255,0.4)' }}
           >
             <div className="flex items-center gap-2">
               <TrendingDown className="w-5 h-5" />
@@ -370,10 +291,11 @@ export function EntradaDespesas() {
             </div>
             {activeTab === 'despesas' && (
               <motion.div
-                layoutId="activeTab"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500"
+                layoutId="activeFinTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5"
+                style={{ background: '#ef4444' }}
                 initial={false}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               />
             )}
           </button>
@@ -391,160 +313,105 @@ export function EntradaDespesas() {
           <div className="space-y-6">
             {/* Cards de Resumo - ENTRADAS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-white/5 backdrop-blur-sm border-emerald-500/30 hover:border-emerald-500/50 transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary}`}>Receita Confirmada</p>
+              {[
+                { label: 'Receita Confirmada', value: receitaConfirmada, color: '#10b981', borderColor: 'rgba(16,185,129,0.3)', Icon: CheckCircle, sub: 'Serviços concluídos' },
+                { label: 'Projeção de Faturamento', value: projecaoFaturamento, color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)', Icon: Clock, sub: 'Agendamentos pendentes' },
+                { label: 'Total Previsto', value: receitaConfirmada + projecaoFaturamento, color: '#D4AF37', borderColor: 'rgba(212,175,55,0.3)', Icon: DollarSign, sub: 'Confirmado + Projeção' },
+              ].map(({ label, value, color, borderColor, Icon, sub }) => (
+                <div key={label} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${borderColor}`, borderRadius: '1.125rem' }}>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{label}</p>
+                      <Icon className="w-5 h-5" style={{ color }} />
+                    </div>
+                    <div className="text-3xl font-bold" style={{ color, fontFamily: "'Playfair Display', serif" }}>
+                      {formatCurrency(value)}
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub}</p>
                   </div>
-                  <CheckCircle className="w-5 h-5 text-emerald-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-emerald-500">
-                    {formatCurrency(receitaConfirmada)}
-                  </div>
-                  <p className={`text-xs ${theme.colors.text.secondary} mt-1`}>
-                    Serviços concluídos
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/5 backdrop-blur-sm border-blue-500/30 hover:border-blue-500/50 transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary}`}>Projeção de Faturamento</p>
-                  </div>
-                  <Clock className="w-5 h-5 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-500">
-                    {formatCurrency(projecaoFaturamento)}
-                  </div>
-                  <p className={`text-xs ${theme.colors.text.secondary} mt-1`}>
-                    Agendamentos pendentes
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/5 backdrop-blur-sm border-gold/30 hover:border-gold/50 transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary}`}>Total Previsto</p>
-                  </div>
-                  <DollarSign className="w-5 h-5 text-gold" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-gold">
-                    {formatCurrency(receitaConfirmada + projecaoFaturamento)}
-                  </div>
-                  <p className={`text-xs ${theme.colors.text.secondary} mt-1`}>
-                    Confirmado + Projeção
-                  </p>
-                </CardContent>
-              </Card>
+                </div>
+              ))}
             </div>
 
             {/* Filtros */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStatusFilter('todos')}
-                className={cn(
-                  "px-4 py-2 rounded-lg font-medium transition-all",
-                  statusFilter === 'todos'
-                    ? `bg-white/10 ${theme.colors.text.primary}`
-                    : `bg-white/5 ${theme.colors.text.secondary} hover:bg-white/10 hover:text-white`
-                )}
-              >
-                Todos
-              </button>
-              <button
-                onClick={() => setStatusFilter('concluido')}
-                className={cn(
-                  "px-4 py-2 rounded-lg font-medium transition-all",
-                  statusFilter === 'concluido'
-                    ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30"
-                    : `bg-white/5 ${theme.colors.text.secondary} hover:bg-emerald-500/10 hover:text-emerald-500`
-                )}
-              >
-                Concluídos
-              </button>
-              <button
-                onClick={() => setStatusFilter('agendado')}
-                className={cn(
-                  "px-4 py-2 rounded-lg font-medium transition-all",
-                  statusFilter === 'agendado'
-                    ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
-                    : `bg-white/5 ${theme.colors.text.secondary} hover:bg-blue-500/10 hover:text-blue-500`
-                )}
-              >
-                Agendados
-              </button>
-              <button
-                onClick={() => setStatusFilter('cancelado')}
-                className={cn(
-                  "px-4 py-2 rounded-lg font-medium transition-all",
-                  statusFilter === 'cancelado'
-                    ? "bg-red-500/20 text-red-500 border border-red-500/30"
-                    : `bg-white/5 ${theme.colors.text.secondary} hover:bg-red-500/10 hover:text-red-500`
-                )}
-              >
-                Cancelados
-              </button>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: 'todos', label: 'Todos', activeColor: 'rgba(255,255,255,0.1)', activeText: '#fff' },
+                { key: 'concluido', label: 'Concluídos', activeColor: 'rgba(16,185,129,0.15)', activeText: '#10b981' },
+                { key: 'agendado', label: 'Agendados', activeColor: 'rgba(59,130,246,0.15)', activeText: '#3b82f6' },
+                { key: 'cancelado', label: 'Cancelados', activeColor: 'rgba(239,68,68,0.15)', activeText: '#ef4444' },
+              ].map(({ key, label, activeColor, activeText }) => (
+                <button
+                  key={key}
+                  onClick={() => setStatusFilter(key as StatusFilter)}
+                  className="px-4 py-2 rounded-lg font-medium text-sm transition-all"
+                  style={{
+                    background: statusFilter === key ? activeColor : 'rgba(255,255,255,0.04)',
+                    color: statusFilter === key ? activeText : 'rgba(255,255,255,0.5)',
+                    border: statusFilter === key ? `1px solid ${activeText}40` : '1px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {/* Lista de Agendamentos */}
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-gold" />
-                  <h3 className={`text-lg font-semibold ${theme.colors.text.primary}`}>
-                    Agendamentos ({agendamentosFiltrados.length})
-                  </h3>
-                </div>
-              </CardHeader>
-              <CardContent>
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '1.125rem' }}>
+              <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <Calendar className="w-4 h-4" style={{ color: '#D4AF37' }} />
+                <span className="text-sm font-semibold text-white">Agendamentos ({appointmentsFiltrados.length})</span>
+              </div>
+              <div className="p-5">
                 <div className="space-y-3">
-                  {agendamentosFiltrados.length > 0 ? (
-                    agendamentosFiltrados.map((agendamento) => {
-                      const entradaEstabelecimento = calcularEntrada(agendamento)
+                  {appointmentsFiltrados.length > 0 ? (
+                    appointmentsFiltrados.map((appt) => {
+                      const entradaEstabelecimento = calcularEntrada(appt)
+                      const paymentBadge = getPaymentBadge(appt)
+                      const valueColor = appt.status === 'completed' ? '#10b981'
+                        : (appt.status === 'pending' || appt.status === 'confirmed') ? '#3b82f6'
+                        : 'rgba(255,255,255,0.3)'
 
                       return (
                         <motion.div
-                          key={agendamento.id}
+                          key={appt.id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="flex items-center justify-between p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/10"
+                          className="flex items-center justify-between p-4 rounded-xl transition-all"
+                          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                         >
                           <div className="flex items-center gap-4 flex-1">
-                            <div className="w-12 h-12 bg-gold/20 rounded-full flex items-center justify-center">
-                              <User className="w-6 h-6 text-gold" />
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                              style={{ background: 'rgba(212,175,55,0.12)' }}>
+                              <User className="w-6 h-6" style={{ color: '#D4AF37' }} />
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-3 mb-1 flex-wrap">
-                                <h4 className={`font-semibold ${theme.colors.text.primary}`}>{agendamento.clienteNome}</h4>
-                                {getStatusBadge(agendamento.status)}
-                                {getPaymentBadge(agendamento.professionalPayment)}
+                                <h4 className="font-semibold text-white">{appt.clientName}</h4>
+                                {getStatusBadge(appt.status)}
+                                {paymentBadge}
                               </div>
-                              <p className={`text-sm ${theme.colors.text.secondary}`}>{agendamento.servico}</p>
+                              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>{appt.serviceName}</p>
                               <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                <p className={`text-xs ${theme.colors.text.tertiary}`}>
-                                  {formatDate(agendamento.data)} às {agendamento.hora}
+                                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                  {formatDate(appt.date)} às {appt.time}
                                 </p>
-                                <span className={`text-xs ${theme.colors.text.tertiary}`}>•</span>
-                                <p className={`text-xs ${theme.colors.text.tertiary}`}>{agendamento.profissional}</p>
+                                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
+                                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>{appt.professionalName}</p>
                               </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className={cn(
-                              "text-xl font-bold",
-                              agendamento.status === 'concluido' && "text-emerald-500",
-                              agendamento.status === 'agendado' && "text-blue-500",
-                              agendamento.status === 'cancelado' && "text-gray-500 line-through"
-                            )}>
+                          <div className="text-right ml-4 flex-shrink-0">
+                            <p className="text-xl font-bold"
+                              style={{
+                                color: valueColor,
+                                fontFamily: "'Playfair Display', serif",
+                                textDecoration: appt.status === 'cancelled' ? 'line-through' : 'none',
+                              }}>
                               {formatCurrency(entradaEstabelecimento)}
                             </p>
-                            <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>
-                              Total: {formatCurrency(agendamento.valor)}
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                              Total: {formatCurrency(appt.servicePrice)}
                             </p>
                           </div>
                         </motion.div>
@@ -552,184 +419,137 @@ export function EntradaDespesas() {
                     })
                   ) : (
                     <div className="text-center py-12">
-                      <Calendar className={`w-16 h-16 ${theme.colors.text.tertiary} mx-auto mb-4`} />
-                      <p className={theme.colors.text.secondary}>Nenhum agendamento encontrado</p>
+                      <Calendar className="w-16 h-16 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                      <p style={{ color: 'rgba(255,255,255,0.4)' }}>Nenhum agendamento encontrado</p>
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
             {/* Cards de Resumo - DESPESAS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-white/5 backdrop-blur-sm border-red-500/30 hover:border-red-500/50 transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary}`}>Despesas com Profissionais</p>
+              {[
+                { label: 'Despesas com Profissionais', value: despesaProfissionaisConfirmada, color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)', Icon: User, sub: 'Comissões pagas' },
+                { label: 'Despesas Fixas', value: despesasManuaisTotal, color: '#f97316', borderColor: 'rgba(249,115,22,0.3)', Icon: DollarSign, sub: 'Despesas adicionais' },
+                { label: 'Total de Despesas', value: totalDespesasConfirmadas, color: '#dc2626', borderColor: 'rgba(220,38,38,0.3)', Icon: TrendingDown, sub: 'Total confirmado' },
+              ].map(({ label, value, color, borderColor, Icon, sub }) => (
+                <div key={label} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${borderColor}`, borderRadius: '1.125rem' }}>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{label}</p>
+                      <Icon className="w-5 h-5" style={{ color }} />
+                    </div>
+                    <div className="text-3xl font-bold" style={{ color, fontFamily: "'Playfair Display', serif" }}>
+                      {formatCurrency(value)}
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub}</p>
                   </div>
-                  <User className="w-5 h-5 text-red-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-red-500">
-                    {formatCurrency(despesaProfissionaisConfirmada)}
-                  </div>
-                  <p className={`text-xs ${theme.colors.text.secondary} mt-1`}>
-                    Comissões pagas
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/5 backdrop-blur-sm border-orange-500/30 hover:border-orange-500/50 transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary}`}>Despesas Fixas</p>
-                  </div>
-                  <DollarSign className="w-5 h-5 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-orange-500">
-                    {formatCurrency(despesasManuaisTotal + salariosFixosTotal)}
-                  </div>
-                  <p className={`text-xs ${theme.colors.text.secondary} mt-1`}>
-                    Salários + Outras despesas
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/5 backdrop-blur-sm border-red-600/30 hover:border-red-600/50 transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <p className={`text-sm font-medium ${theme.colors.text.secondary}`}>Total de Despesas</p>
-                  </div>
-                  <TrendingDown className="w-5 h-5 text-red-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-red-600">
-                    {formatCurrency(totalDespesasConfirmadas)}
-                  </div>
-                  <p className={`text-xs ${theme.colors.text.secondary} mt-1`}>
-                    Total confirmado
-                  </p>
-                </CardContent>
-              </Card>
+                </div>
+              ))}
             </div>
 
             {/* Botão Adicionar Despesa */}
             <div className="flex justify-end">
-              <Button
+              <button
                 onClick={() => setIsAddDespesaModalOpen(true)}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold"
+                className="px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 active:scale-95 flex items-center gap-2"
+                style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff' }}
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4" />
                 Adicionar Despesa
-              </Button>
+              </button>
             </div>
 
             {/* Lista de Despesas Manuais */}
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-gold" />
-                  <h3 className={`text-lg font-semibold ${theme.colors.text.primary}`}>
-                    Despesas Fixas ({mockDespesasManuais.length + 1})
-                  </h3>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {/* Salário Fixo */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10"
-                  >
-                    <div className="flex-1">
-                      <h4 className={`font-semibold ${theme.colors.text.primary} mb-1`}>Salários Fixos</h4>
-                      <p className={`text-sm ${theme.colors.text.secondary}`}>Ana Silva - Profissional</p>
-                      <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>
-                        Mensal • Pagamento Fixo
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-red-500">
-                        {formatCurrency(salariosFixosTotal)}
-                      </p>
-                    </div>
-                  </motion.div>
-
-                  {/* Despesas Manuais */}
-                  {mockDespesasManuais.map((despesa) => (
-                    <motion.div
-                      key={despesa.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10"
-                    >
-                      <div className="flex-1">
-                        <h4 className={`font-semibold ${theme.colors.text.primary} mb-1`}>{despesa.descricao}</h4>
-                        <p className={`text-sm ${theme.colors.text.secondary}`}>{despesa.categoria}</p>
-                        <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>
-                          {formatDate(despesa.data)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-red-500">
-                          {formatCurrency(despesa.valor)}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '1.125rem' }}>
+              <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <DollarSign className="w-4 h-4" style={{ color: '#D4AF37' }} />
+                <span className="text-sm font-semibold text-white">Despesas Fixas ({despesasManuais.length})</span>
+              </div>
+              <div className="p-5">
+                {despesasManuais.length === 0 ? (
+                  <div className="text-center py-8">
+                    <DollarSign className="w-12 h-12 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                    <p style={{ color: 'rgba(255,255,255,0.4)' }}>Nenhuma despesa adicionada</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {despesasManuais.map((despesa) => (
+                      <motion.div
+                        key={despesa.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center justify-between p-4 rounded-xl"
+                        style={{ background: 'rgba(255,255,255,0.03)', borderLeft: '3px solid #ef4444' }}
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white mb-1">{despesa.descricao}</h4>
+                          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>{despesa.categoria}</p>
+                          <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{formatDate(despesa.data)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold" style={{ color: '#ef4444', fontFamily: "'Playfair Display', serif" }}>
+                            {formatCurrency(despesa.valor)}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Lista de Comissões de Profissionais */}
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-gold" />
-                  <h3 className={`text-lg font-semibold ${theme.colors.text.primary}`}>
-                    Comissões de Profissionais ({mockAgendamentos.filter(a => a.status === 'concluido' && a.professionalPayment.type === 'percentage').length})
-                  </h3>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {mockAgendamentos
-                    .filter(a => a.status === 'concluido' && a.professionalPayment.type === 'percentage')
-                    .map((agendamento) => {
-                      const despesaProf = calcularDespesaProfissional(agendamento)
-
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '1.125rem' }}>
+              <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <User className="w-4 h-4" style={{ color: '#D4AF37' }} />
+                <span className="text-sm font-semibold text-white">Comissões de Profissionais ({comissoes.length})</span>
+              </div>
+              <div className="p-5">
+                {comissoes.length === 0 ? (
+                  <div className="text-center py-8">
+                    <User className="w-12 h-12 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                    <p style={{ color: 'rgba(255,255,255,0.4)' }}>Nenhuma comissão registrada</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {comissoes.map((appt) => {
+                      const despesaProf = calcularDespesaProfissional(appt)
                       return (
                         <motion.div
-                          key={agendamento.id}
+                          key={appt.id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10"
+                          className="flex items-center justify-between p-4 rounded-xl"
+                          style={{ background: 'rgba(255,255,255,0.03)', borderLeft: '3px solid #ef4444' }}
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-1">
-                              <h4 className={`font-semibold ${theme.colors.text.primary}`}>{agendamento.profissional}</h4>
-                              {getPaymentBadge(agendamento.professionalPayment)}
+                              <h4 className="font-semibold text-white">{appt.professionalName}</h4>
+                              {getPaymentBadge(appt)}
                             </div>
-                            <p className={`text-sm ${theme.colors.text.secondary}`}>{agendamento.servico} - {agendamento.clienteNome}</p>
-                            <p className={`text-xs ${theme.colors.text.tertiary} mt-1`}>
-                              {formatDate(agendamento.data)} • Total: {formatCurrency(agendamento.valor)}
+                            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                              {appt.serviceName} — {appt.clientName}
+                            </p>
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                              {formatDate(appt.date)} • Total: {formatCurrency(appt.servicePrice)}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-xl font-bold text-red-500">
+                            <p className="text-xl font-bold" style={{ color: '#ef4444', fontFamily: "'Playfair Display', serif" }}>
                               {formatCurrency(despesaProf)}
                             </p>
                           </div>
                         </motion.div>
                       )
                     })}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </motion.div>
@@ -737,102 +557,87 @@ export function EntradaDespesas() {
       {/* Modal Adicionar Despesa */}
       <AnimatePresence>
         {isAddDespesaModalOpen && (
-          <>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsAddDespesaModalOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              style={{ background: 'rgba(12,11,8,0.98)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1.5rem', maxWidth: '480px', width: '100%' }}
             >
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl border border-white/10 shadow-2xl max-w-md w-full">
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
-                  <div>
-                    <h3 className={`text-2xl font-bold ${theme.colors.text.primary}`}>Adicionar Despesa</h3>
-                    <p className={`text-sm ${theme.colors.text.secondary} mt-1`}>Nova despesa manual</p>
-                  </div>
-                  <button
-                    onClick={() => setIsAddDespesaModalOpen(false)}
-                    className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <X className={`w-5 h-5 ${theme.colors.text.secondary}`} />
-                  </button>
+              <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div>
+                  <h3 className="text-2xl font-bold text-white" style={{ fontFamily: "'Playfair Display', serif" }}>Adicionar Despesa</h3>
+                  <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Nova despesa manual</p>
+                </div>
+                <button
+                  onClick={() => setIsAddDespesaModalOpen(false)}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.05)' }}
+                >
+                  <X className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1.5">Descrição</label>
+                  <StyledInput
+                    value={despesaForm.descricao}
+                    onChange={(e) => setDespesaForm({ ...despesaForm, descricao: e.target.value })}
+                    placeholder="Ex: Água, Internet, Produtos..."
+                  />
                 </div>
 
-                <div className="p-6 space-y-4">
-                  <div>
-                    <Label htmlFor="descricao" className={theme.colors.text.primary}>Descrição</Label>
-                    <Input
-                      id="descricao"
-                      value={despesaForm.descricao}
-                      onChange={(e) => setDespesaForm({ ...despesaForm, descricao: e.target.value })}
-                      placeholder="Ex: Água, Internet, Produtos..."
-                      className="bg-white/5 border-white/10 text-white"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1.5">Valor (R$)</label>
+                  <StyledInput
+                    type="number"
+                    step="0.01"
+                    value={despesaForm.valor}
+                    onChange={(e) => setDespesaForm({ ...despesaForm, valor: e.target.value })}
+                    placeholder="0,00"
+                  />
+                </div>
 
-                  <div>
-                    <Label htmlFor="valor" className={theme.colors.text.primary}>Valor (R$)</Label>
-                    <Input
-                      id="valor"
-                      type="number"
-                      step="0.01"
-                      value={despesaForm.valor}
-                      onChange={(e) => setDespesaForm({ ...despesaForm, valor: e.target.value })}
-                      placeholder="0,00"
-                      className="bg-white/5 border-white/10 text-white"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1.5">Categoria</label>
+                  <StyledInput
+                    value={despesaForm.categoria}
+                    onChange={(e) => setDespesaForm({ ...despesaForm, categoria: e.target.value })}
+                    placeholder="Ex: Utilidades, Produtos, Manutenção..."
+                  />
+                </div>
 
-                  <div>
-                    <Label htmlFor="categoria" className={theme.colors.text.primary}>Categoria</Label>
-                    <Input
-                      id="categoria"
-                      value={despesaForm.categoria}
-                      onChange={(e) => setDespesaForm({ ...despesaForm, categoria: e.target.value })}
-                      placeholder="Ex: Utilidades, Produtos, Manutenção..."
-                      className="bg-white/5 border-white/10 text-white"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1.5">Data</label>
+                  <StyledInput
+                    type="date"
+                    value={despesaForm.data}
+                    onChange={(e) => setDespesaForm({ ...despesaForm, data: e.target.value })}
+                  />
+                </div>
 
-                  <div>
-                    <Label htmlFor="data" className={theme.colors.text.primary}>Data</Label>
-                    <Input
-                      id="data"
-                      type="date"
-                      value={despesaForm.data}
-                      onChange={(e) => setDespesaForm({ ...despesaForm, data: e.target.value })}
-                      className="bg-white/5 border-white/10 text-white"
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsAddDespesaModalOpen(false)}
-                      className="flex-1 border-white/10 text-white"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleAddDespesa}
-                      disabled={!despesaForm.descricao || !despesaForm.valor}
-                      className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-500 text-white"
-                    >
-                      Adicionar
-                    </Button>
-                  </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setIsAddDespesaModalOpen(false)}
+                    className="flex-1 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleAddDespesa}
+                    disabled={!despesaForm.descricao || !despesaForm.valor}
+                    className="flex-1 px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff' }}
+                  >
+                    Adicionar
+                  </button>
                 </div>
               </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
     </OwnerPageLayout>

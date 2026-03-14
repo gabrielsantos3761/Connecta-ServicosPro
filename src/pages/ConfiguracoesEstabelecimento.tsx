@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   MapPin,
@@ -11,15 +11,10 @@ import {
   Globe,
   Upload,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
 } from 'lucide-react'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { storage } from '@/lib/firebase'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -37,6 +32,47 @@ import {
 } from '@/services/businessConfigService'
 import { OwnerPageLayout } from '@/components/layout/OwnerPageLayout'
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const GOLD = '#D4AF37'
+const BG = '#050400'
+
+const card: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+  padding: '2rem',
+}
+
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: '0.5rem',
+  color: '#fff',
+  padding: '0.5rem 0.75rem',
+  width: '100%',
+  outline: 'none',
+  fontSize: '0.9375rem',
+  fontFamily: 'inherit',
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: '0.4rem',
+  fontSize: '0.8125rem',
+  color: 'rgba(255,255,255,0.5)',
+  fontWeight: 500,
+  letterSpacing: '0.03em',
+}
+
+const dividerStyle: React.CSSProperties = {
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  marginBottom: '1.5rem',
+  paddingBottom: '1.5rem',
+}
+
+const springTransition = { type: 'spring' as const, stiffness: 320, damping: 36 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 const DAY_LABELS: Record<string, string> = {
   monday: 'Segunda-feira',
   tuesday: 'Terça-feira',
@@ -60,6 +96,7 @@ const CATEGORIES = [
   'Outros',
 ]
 
+// ─── Component ────────────────────────────────────────────────────────────────
 export function ConfiguracoesEstabelecimento() {
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -198,7 +235,7 @@ export function ConfiguracoesEstabelecimento() {
       photos: 'Fotos',
       contact: 'Contato',
       address: 'Endereço',
-      hours: 'Horários'
+      hours: 'Horários',
     }
     return names[tab] || tab
   }
@@ -238,7 +275,7 @@ export function ConfiguracoesEstabelecimento() {
     const files = event.target.files
     if (!files || files.length === 0 || !businessId) return
 
-    const validFiles = Array.from(files).filter(file => {
+    const validFiles = Array.from(files).filter((file) => {
       if (!file.type.startsWith('image/')) {
         toast({ title: 'Aviso', description: `${file.name} não é uma imagem válida`, variant: 'destructive' })
         return false
@@ -282,7 +319,7 @@ export function ConfiguracoesEstabelecimento() {
   const handleRemoveGalleryImage = async (imageUrl: string) => {
     if (!businessId) return
     try {
-      const newGallery = galleryImages.filter(url => url !== imageUrl)
+      const newGallery = galleryImages.filter((url) => url !== imageUrl)
       setGalleryImages(newGallery)
 
       await saveConfigFotos(businessId, { image: mainImage || undefined, gallery: newGallery })
@@ -352,438 +389,672 @@ export function ConfiguracoesEstabelecimento() {
     }
   }
 
+  // ─── Loading state ───────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Carregando configurações...</p>
+      <div
+        style={{
+          minHeight: '100vh',
+          background: BG,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              border: `3px solid ${GOLD}`,
+              borderTopColor: 'transparent',
+              animation: 'spin 0.8s linear infinite',
+              margin: '0 auto 1rem',
+            }}
+          />
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '1rem' }}>
+            Carregando configurações…
+          </p>
         </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
 
+  // ─── Shared field builder ────────────────────────────────────────────────────
+  const Field = ({
+    id,
+    label,
+    children,
+  }: {
+    id?: string
+    label: React.ReactNode
+    children: React.ReactNode
+  }) => (
+    <div>
+      <label htmlFor={id} style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  )
+
+  // ─── Section header ──────────────────────────────────────────────────────────
+  const SectionHeader = ({ icon, title }: { icon: React.ReactNode; title: string }) => (
+    <div style={{ ...dividerStyle, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+      <span style={{ color: GOLD }}>{icon}</span>
+      <h2
+        style={{
+          fontFamily: "'Playfair Display', serif",
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          color: '#fff',
+          margin: 0,
+        }}
+      >
+        {title}
+      </h2>
+    </div>
+  )
+
+  // ─── Tab indicator dot ───────────────────────────────────────────────────────
+  const ErrorDot = () => (
+    <span
+      style={{
+        display: 'inline-block',
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: '#ef4444',
+        marginLeft: 5,
+        flexShrink: 0,
+      }}
+    />
+  )
+
   return (
-    <OwnerPageLayout title="Configurações do Estabelecimento" subtitle="Gerencie as informações do seu estabelecimento">
-      <div className="mb-8 flex items-center justify-end">
-        <Button
+    <OwnerPageLayout
+      title="Configurações do Estabelecimento"
+      subtitle="Gerencie as informações do seu estabelecimento"
+    >
+      {/* Save button row */}
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springTransition}
+        style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}
+      >
+        <button
           onClick={handleSave}
           disabled={isSaving}
-          className="bg-gradient-to-r from-gold to-yellow-600 hover:from-yellow-600 hover:to-gold text-black font-semibold"
+          style={{
+            background: isSaving
+              ? 'rgba(212,175,55,0.4)'
+              : 'linear-gradient(135deg,#D4AF37,#B8941E)',
+            color: '#050400',
+            fontWeight: 600,
+            borderRadius: '0.5rem',
+            padding: '0.625rem 1.5rem',
+            border: 'none',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.9375rem',
+            letterSpacing: '0.02em',
+            transition: 'opacity 0.2s',
+          }}
         >
-          <Save className="w-4 h-4 mr-2" />
-          {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-        </Button>
-      </div>
+          <Save size={16} />
+          {isSaving ? 'Salvando…' : 'Salvar Alterações'}
+        </button>
+      </motion.div>
 
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start mb-8 grid grid-cols-5 sm:inline-flex gap-1 sm:gap-0 h-auto">
-          <TabsTrigger value="info" className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Informações</span>
-            {!validateInfoTab() && (
-              <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="photos" className="flex items-center gap-2">
-            <ImageIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Fotos</span>
-          </TabsTrigger>
-          <TabsTrigger value="contact" className="flex items-center gap-2">
-            <Phone className="w-4 h-4" />
-            <span className="hidden sm:inline">Contato</span>
-            {!validateContactTab() && (
-              <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="address" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            <span className="hidden sm:inline">Endereço</span>
-            {!validateAddressTab() && (
-              <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="hours" className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            <span className="hidden sm:inline">Horários</span>
-          </TabsTrigger>
+        {/* Tab bar */}
+        <TabsList
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '0.75rem',
+            padding: '0.25rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(5, 1fr)',
+            gap: '0.25rem',
+            marginBottom: '2rem',
+            height: 'auto',
+          }}
+        >
+          {[
+            { value: 'info', icon: <Building2 size={15} />, label: 'Informações', invalid: !validateInfoTab() },
+            { value: 'photos', icon: <ImageIcon size={15} />, label: 'Fotos', invalid: false },
+            { value: 'contact', icon: <Phone size={15} />, label: 'Contato', invalid: !validateContactTab() },
+            { value: 'address', icon: <MapPin size={15} />, label: 'Endereço', invalid: !validateAddressTab() },
+            { value: 'hours', icon: <Clock size={15} />, label: 'Horários', invalid: false },
+          ].map((tab) => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.75rem' }}
+            >
+              {tab.icon}
+              <span className="hidden sm:inline">{tab.label}</span>
+              {tab.invalid && <ErrorDot />}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        {/* Informações Básicas */}
+        {/* ── Informações Básicas ──────────────────────────────────────────── */}
         <TabsContent value="info">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-gold" />
-                  Informações Básicas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name" className="text-gray-300">Nome do Estabelecimento *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cnpj" className="text-gray-300">CNPJ *</Label>
-                    <Input
-                      id="cnpj"
-                      value={formData.cnpj}
-                      onChange={(e) => handleInputChange('cnpj', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      disabled
-                      title="CNPJ não pode ser alterado"
-                    />
-                  </div>
-                </div>
+          <motion.div
+            key="info"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={springTransition}
+            style={card}
+          >
+            <SectionHeader icon={<Building2 size={20} />} title="Informações Básicas" />
 
-                <div>
-                  <Label htmlFor="category" className="text-gray-300">Categoria *</Label>
-                  <select
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 text-white rounded-md px-3 py-2 focus:border-gold/50"
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat} className="bg-black">{cat}</option>
-                    ))}
-                  </select>
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              <Field id="name" label="Nome do Estabelecimento *">
+                <input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </Field>
+              <Field id="cnpj" label="CNPJ *">
+                <input
+                  id="cnpj"
+                  value={formData.cnpj}
+                  onChange={(e) => handleInputChange('cnpj', e.target.value)}
+                  style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }}
+                  disabled
+                  title="CNPJ não pode ser alterado"
+                />
+              </Field>
+            </div>
 
-                <div>
-                  <Label htmlFor="description" className="text-gray-300">Descrição *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    className="min-h-[100px] bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                    required
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <div style={{ marginBottom: '1rem' }}>
+              <Field id="category" label="Categoria *">
+                <select
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat} style={{ background: '#0d0c08' }}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <Field id="description" label="Descrição *">
+              <textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                rows={4}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: 100 }}
+                required
+              />
+            </Field>
           </motion.div>
         </TabsContent>
 
-        {/* Fotos */}
+        {/* ── Fotos ────────────────────────────────────────────────────────── */}
         <TabsContent value="photos">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-gold" />
-                  Fotos do Estabelecimento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Imagem Principal */}
-                <div>
-                  <Label className="text-gray-300 mb-3 block">Imagem Principal</Label>
-                  <div className="flex flex-col gap-4">
-                    {mainImage && (
-                      <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gold/30">
-                        <img src={mainImage} alt="Imagem principal" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3">
-                      <label
-                        htmlFor="main-image-upload"
-                        className={`flex-1 cursor-pointer ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}
+          <motion.div
+            key="photos"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={springTransition}
+            style={card}
+          >
+            <SectionHeader icon={<ImageIcon size={20} />} title="Fotos do Estabelecimento" />
+
+            {/* Imagem Principal */}
+            <div style={dividerStyle}>
+              <p style={{ ...labelStyle, marginBottom: '0.75rem' }}>Imagem Principal</p>
+
+              {mainImage && (
+                <div
+                  style={{
+                    width: '100%',
+                    height: 192,
+                    borderRadius: '0.75rem',
+                    overflow: 'hidden',
+                    border: `1px solid rgba(212,175,55,0.25)`,
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <img src={mainImage} alt="Imagem principal" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+
+              <label
+                htmlFor="main-image-upload"
+                style={{ cursor: isUploadingImage ? 'not-allowed' : 'pointer', opacity: isUploadingImage ? 0.5 : 1 }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.875rem',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: `2px dashed rgba(255,255,255,0.12)`,
+                    borderRadius: '0.75rem',
+                    transition: 'border-color 0.2s, background 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,175,55,0.4)'
+                    ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(212,175,55,0.04)'
+                  }}
+                  onMouseLeave={(e) => {
+                    ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.12)'
+                    ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)'
+                  }}
+                >
+                  <Upload size={18} style={{ color: GOLD }} />
+                  <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.875rem' }}>
+                    {mainImage ? 'Alterar Imagem Principal' : 'Selecionar Imagem Principal'}
+                  </span>
+                </div>
+                <input
+                  id="main-image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleMainImageUpload}
+                  style={{ display: 'none' }}
+                  disabled={isUploadingImage}
+                />
+              </label>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                Esta imagem será exibida como destaque do seu estabelecimento. Tamanho máximo: 5MB
+              </p>
+            </div>
+
+            {/* Galeria */}
+            <div>
+              <p style={{ ...labelStyle, marginBottom: '0.75rem' }}>
+                Galeria de Fotos ({galleryImages.length}/10)
+              </p>
+
+              {galleryImages.length > 0 && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                    gap: '0.75rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <AnimatePresence>
+                    {galleryImages.map((imageUrl, index) => (
+                      <motion.div
+                        key={imageUrl}
+                        initial={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.75 }}
+                        transition={springTransition}
+                        style={{
+                          position: 'relative',
+                          aspectRatio: '1 / 1',
+                          borderRadius: '0.625rem',
+                          overflow: 'hidden',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                        }}
+                        className="group"
                       >
-                        <div className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 border-2 border-dashed border-white/20 rounded-lg hover:border-gold/50 hover:bg-white/10 transition-all">
-                          <Upload className="w-5 h-5 text-gold" />
-                          <span className="text-sm text-gray-300">
-                            {mainImage ? 'Alterar Imagem Principal' : 'Selecionar Imagem Principal'}
-                          </span>
-                        </div>
-                        <input
-                          id="main-image-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleMainImageUpload}
-                          className="hidden"
-                          disabled={isUploadingImage}
+                        <img
+                          src={imageUrl}
+                          alt={`Galeria ${index + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
-                      </label>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Esta imagem será exibida como destaque do seu estabelecimento. Tamanho máximo: 5MB
-                    </p>
-                  </div>
-                </div>
-
-                {/* Galeria */}
-                <div>
-                  <Label className="text-gray-300 mb-3 block">
-                    Galeria de Fotos ({galleryImages.length}/10)
-                  </Label>
-
-                  {galleryImages.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
-                      {galleryImages.map((imageUrl, index) => (
-                        <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10">
-                          <img src={imageUrl} alt={`Galeria ${index + 1}`} className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => handleRemoveGalleryImage(imageUrl)}
-                            className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-4 h-4 text-white" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {galleryImages.length < 10 && (
-                    <div>
-                      <label
-                        htmlFor="gallery-image-upload"
-                        className={`block cursor-pointer ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}
-                      >
-                        <div className="flex items-center justify-center gap-2 px-4 py-8 bg-white/5 border-2 border-dashed border-white/20 rounded-lg hover:border-gold/50 hover:bg-white/10 transition-all">
-                          <Upload className="w-6 h-6 text-gold" />
-                          <span className="text-sm text-gray-300">Adicionar Fotos à Galeria</span>
-                        </div>
-                        <input
-                          id="gallery-image-upload"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleGalleryImageUpload}
-                          className="hidden"
-                          disabled={isUploadingImage}
-                        />
-                      </label>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Selecione até {10 - galleryImages.length} fotos do seu estabelecimento. Tamanho máximo por foto: 5MB
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </TabsContent>
-
-        {/* Contato */}
-        <TabsContent value="contact">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Phone className="w-5 h-5 text-gold" />
-                  Contato
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="phone" className="text-gray-300">Telefone *</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      placeholder="(00) 00000-0000"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="email" className="text-gray-300 flex items-center gap-2">
-                      <Mail className="w-4 h-4" />
-                      E-mail
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      placeholder="contato@exemplo.com"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="website" className="text-gray-300 flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    Website
-                  </Label>
-                  <Input
-                    id="website"
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => handleInputChange('website', e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                    placeholder="https://www.exemplo.com"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </TabsContent>
-
-        {/* Endereço */}
-        <TabsContent value="address">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-gold" />
-                  Endereço
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
-                    <Label htmlFor="street" className="text-gray-300">Rua *</Label>
-                    <Input
-                      id="street"
-                      value={formData.street}
-                      onChange={(e) => handleInputChange('street', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="number" className="text-gray-300">Número *</Label>
-                    <Input
-                      id="number"
-                      value={formData.number}
-                      onChange={(e) => handleInputChange('number', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="complement" className="text-gray-300">Complemento</Label>
-                    <Input
-                      id="complement"
-                      value={formData.complement}
-                      onChange={(e) => handleInputChange('complement', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="neighborhood" className="text-gray-300">Bairro *</Label>
-                    <Input
-                      id="neighborhood"
-                      value={formData.neighborhood}
-                      onChange={(e) => handleInputChange('neighborhood', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="city" className="text-gray-300">Cidade *</Label>
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="state" className="text-gray-300">Estado *</Label>
-                    <Input
-                      id="state"
-                      value={formData.state}
-                      onChange={(e) => handleInputChange('state', e.target.value)}
-                      maxLength={2}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      placeholder="SP"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="zipCode" className="text-gray-300">CEP *</Label>
-                    <Input
-                      id="zipCode"
-                      value={formData.zipCode}
-                      onChange={(e) => handleInputChange('zipCode', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-gold/50"
-                      placeholder="00000-000"
-                      required
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </TabsContent>
-
-        {/* Horário de Funcionamento */}
-        <TabsContent value="hours">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-gold" />
-                  Horário de Funcionamento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {DAYS_ORDER.map((day) => {
-                  const hour = businessHours.find(h => h.day === day)
-                  if (!hour) return null
-
-                  return (
-                    <div key={day} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-                      <div className="flex items-center gap-2 w-40">
-                        <input
-                          type="checkbox"
-                          checked={hour.isOpen}
-                          onChange={(e) => {
-                            const hourIndex = businessHours.findIndex(h => h.day === day)
-                            handleBusinessHourChange(hourIndex, 'isOpen', e.target.checked)
+                        <button
+                          onClick={() => handleRemoveGalleryImage(imageUrl)}
+                          style={{
+                            position: 'absolute',
+                            top: 6,
+                            right: 6,
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: 'rgba(239,68,68,0.9)',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
                           }}
-                          className="w-4 h-4"
-                        />
-                        <Label className="text-white text-sm">{DAY_LABELS[day]}</Label>
-                      </div>
-                      {hour.isOpen && (
-                        <>
-                          <Input
+                        >
+                          <X size={14} />
+                        </button>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {galleryImages.length < 10 && (
+                <>
+                  <label
+                    htmlFor="gallery-image-upload"
+                    style={{ cursor: isUploadingImage ? 'not-allowed' : 'pointer', opacity: isUploadingImage ? 0.5 : 1, display: 'block' }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        padding: '2rem 1rem',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '2px dashed rgba(255,255,255,0.12)',
+                        borderRadius: '0.75rem',
+                        transition: 'border-color 0.2s, background 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,175,55,0.4)'
+                        ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(212,175,55,0.04)'
+                      }}
+                      onMouseLeave={(e) => {
+                        ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.12)'
+                        ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)'
+                      }}
+                    >
+                      <Upload size={22} style={{ color: GOLD }} />
+                      <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.875rem' }}>
+                        Adicionar Fotos à Galeria
+                      </span>
+                    </div>
+                    <input
+                      id="gallery-image-upload"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleGalleryImageUpload}
+                      style={{ display: 'none' }}
+                      disabled={isUploadingImage}
+                    />
+                  </label>
+                  <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                    Selecione até {10 - galleryImages.length} fotos do seu estabelecimento. Tamanho máximo por foto: 5MB
+                  </p>
+                </>
+              )}
+            </div>
+          </motion.div>
+        </TabsContent>
+
+        {/* ── Contato ──────────────────────────────────────────────────────── */}
+        <TabsContent value="contact">
+          <motion.div
+            key="contact"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={springTransition}
+            style={card}
+          >
+            <SectionHeader icon={<Phone size={20} />} title="Contato" />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              <Field id="phone" label="Telefone *">
+                <input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  style={inputStyle}
+                  placeholder="(00) 00000-0000"
+                  required
+                />
+              </Field>
+              <Field
+                id="email"
+                label={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Mail size={13} /> E-mail
+                  </span>
+                }
+              >
+                <input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  style={inputStyle}
+                  placeholder="contato@exemplo.com"
+                />
+              </Field>
+            </div>
+
+            <Field
+              id="website"
+              label={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Globe size={13} /> Website
+                </span>
+              }
+            >
+              <input
+                id="website"
+                type="url"
+                value={formData.website}
+                onChange={(e) => handleInputChange('website', e.target.value)}
+                style={inputStyle}
+                placeholder="https://www.exemplo.com"
+              />
+            </Field>
+          </motion.div>
+        </TabsContent>
+
+        {/* ── Endereço ─────────────────────────────────────────────────────── */}
+        <TabsContent value="address">
+          <motion.div
+            key="address"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={springTransition}
+            style={card}
+          >
+            <SectionHeader icon={<MapPin size={20} />} title="Endereço" />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <Field id="street" label="Rua *">
+                <input
+                  id="street"
+                  value={formData.street}
+                  onChange={(e) => handleInputChange('street', e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </Field>
+              <Field id="number" label="Número *">
+                <input
+                  id="number"
+                  value={formData.number}
+                  onChange={(e) => handleInputChange('number', e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </Field>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              <Field id="complement" label="Complemento">
+                <input
+                  id="complement"
+                  value={formData.complement}
+                  onChange={(e) => handleInputChange('complement', e.target.value)}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field id="neighborhood" label="Bairro *">
+                <input
+                  id="neighborhood"
+                  value={formData.neighborhood}
+                  onChange={(e) => handleInputChange('neighborhood', e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </Field>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 130px', gap: '1rem' }}>
+              <Field id="city" label="Cidade *">
+                <input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleInputChange('city', e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </Field>
+              <Field id="state" label="UF *">
+                <input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) => handleInputChange('state', e.target.value)}
+                  maxLength={2}
+                  style={{ ...inputStyle, textTransform: 'uppercase' }}
+                  placeholder="SP"
+                  required
+                />
+              </Field>
+              <Field id="zipCode" label="CEP *">
+                <input
+                  id="zipCode"
+                  value={formData.zipCode}
+                  onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                  style={inputStyle}
+                  placeholder="00000-000"
+                  required
+                />
+              </Field>
+            </div>
+          </motion.div>
+        </TabsContent>
+
+        {/* ── Horários ─────────────────────────────────────────────────────── */}
+        <TabsContent value="hours">
+          <motion.div
+            key="hours"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={springTransition}
+            style={card}
+          >
+            <SectionHeader icon={<Clock size={20} />} title="Horário de Funcionamento" />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {DAYS_ORDER.map((day, i) => {
+                const hour = businessHours.find((h) => h.day === day)
+                if (!hour) return null
+
+                return (
+                  <motion.div
+                    key={day}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ ...springTransition, delay: i * 0.04 }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      padding: '0.75rem 1rem',
+                      background: 'rgba(255,255,255,0.025)',
+                      borderRadius: '0.625rem',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    {/* Checkbox + day name */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 160 }}>
+                      <input
+                        type="checkbox"
+                        checked={hour.isOpen}
+                        onChange={(e) => {
+                          const hourIndex = businessHours.findIndex((h) => h.day === day)
+                          handleBusinessHourChange(hourIndex, 'isOpen', e.target.checked)
+                        }}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          accentColor: GOLD,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ color: '#fff', fontSize: '0.875rem', fontWeight: 500 }}>
+                        {DAY_LABELS[day]}
+                      </span>
+                    </div>
+
+                    {/* Time inputs or closed label */}
+                    <AnimatePresence mode="wait">
+                      {hour.isOpen ? (
+                        <motion.div
+                          key="open"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                          <input
                             type="time"
                             value={hour.open}
                             onChange={(e) => {
-                              const hourIndex = businessHours.findIndex(h => h.day === day)
+                              const hourIndex = businessHours.findIndex((h) => h.day === day)
                               handleBusinessHourChange(hourIndex, 'open', e.target.value)
                             }}
-                            className="bg-white/10 border-white/20 text-white w-32"
+                            style={{
+                              ...inputStyle,
+                              width: 'auto',
+                              minWidth: 110,
+                              colorScheme: 'dark',
+                            }}
                           />
-                          <span className="text-white">às</span>
-                          <Input
+                          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8125rem' }}>às</span>
+                          <input
                             type="time"
                             value={hour.close}
                             onChange={(e) => {
-                              const hourIndex = businessHours.findIndex(h => h.day === day)
+                              const hourIndex = businessHours.findIndex((h) => h.day === day)
                               handleBusinessHourChange(hourIndex, 'close', e.target.value)
                             }}
-                            className="bg-white/10 border-white/20 text-white w-32"
+                            style={{
+                              ...inputStyle,
+                              width: 'auto',
+                              minWidth: 110,
+                              colorScheme: 'dark',
+                            }}
                           />
-                        </>
+                        </motion.div>
+                      ) : (
+                        <motion.span
+                          key="closed"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8125rem' }}
+                        >
+                          Fechado
+                        </motion.span>
                       )}
-                      {!hour.isOpen && <span className="text-gray-400 text-sm">Fechado</span>}
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
+                    </AnimatePresence>
+                  </motion.div>
+                )
+              })}
+            </div>
           </motion.div>
         </TabsContent>
       </Tabs>

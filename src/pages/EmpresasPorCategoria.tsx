@@ -2,32 +2,50 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Search, MapPin, Star, Clock, Phone, TrendingUp, Award, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { businessCategories } from '@/data/mockData'
 import { BusinessCategory } from '@/types'
 import { getBusinessesByCategory, type Business } from '@/services/businessService'
+
+const GOLD = '#D4AF37'
+const BG = '#050400'
+const CARD_STYLE: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  borderRadius: '1.125rem',
+}
+const DIVIDER: React.CSSProperties = { borderBottom: '1px solid rgba(255,255,255,0.06)' }
+const SPRING = { type: 'spring' as const, stiffness: 320, damping: 36 }
+const BTN_GOLD: React.CSSProperties = {
+  background: 'linear-gradient(135deg,#D4AF37,#B8941E)',
+  color: BG,
+  fontWeight: 600,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 1.5rem',
+  border: 'none',
+  cursor: 'pointer',
+}
+const BADGE_GOLD: React.CSSProperties = {
+  background: 'rgba(212,175,55,0.15)',
+  color: GOLD,
+  borderRadius: '9999px',
+  padding: '2px 10px',
+  fontSize: '0.75rem',
+}
 
 // Business Card Carousel Component
 function BusinessCardCarousel({ business }: { business: Business }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
-  // Usar imagens reais do estabelecimento quando disponíveis
   const realImages: string[] = []
 
-  // Adicionar imagem principal se existir
   if (business.image) {
     realImages.push(business.image)
   }
 
-  // Adicionar cover image se existir e for diferente da principal
   if (business.coverImage && business.coverImage !== business.image) {
     realImages.push(business.coverImage)
   }
 
-  // Adicionar galeria se existir
   if (business.gallery && business.gallery.length > 0) {
     business.gallery.forEach(img => {
       if (img && !realImages.includes(img)) {
@@ -36,10 +54,8 @@ function BusinessCardCarousel({ business }: { business: Business }) {
     })
   }
 
-  // Usar apenas imagens reais configuradas
   const galleryImages = realImages
 
-  // Pré-carregar todas as imagens ao montar o componente
   useEffect(() => {
     galleryImages.forEach((src) => {
       const img = new Image()
@@ -47,23 +63,18 @@ function BusinessCardCarousel({ business }: { business: Business }) {
     })
   }, [galleryImages])
 
-  // Pré-carregar a próxima imagem antes da transição
   useEffect(() => {
     if (galleryImages.length <= 1) return
-
     const nextIndex = (currentImageIndex + 1) % galleryImages.length
     const img = new Image()
     img.src = galleryImages[nextIndex]
   }, [currentImageIndex, galleryImages])
 
-  // Auto-advance carousel every 7 seconds
   useEffect(() => {
     if (galleryImages.length <= 1) return
-
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length)
     }, 7000)
-
     return () => clearInterval(interval)
   }, [galleryImages.length])
 
@@ -79,61 +90,55 @@ function BusinessCardCarousel({ business }: { business: Business }) {
 
   if (galleryImages.length === 0) {
     return (
-      <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-        <span className="text-gray-500 text-sm">Sem imagem</span>
+      <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.875rem' }}>Sem imagem</span>
       </div>
     )
   }
 
   return (
-    <div className="relative w-full h-full group/carousel">
-      {/* Images with AnimatePresence */}
+    <div style={{ position: 'relative', width: '100%', height: '100%' }} className="group/carousel">
       <AnimatePresence initial={false}>
         <motion.div
           key={`${business.id}-${currentImageIndex}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{
-            duration: 1.0,
-            ease: [0.43, 0.13, 0.23, 0.96]
-          }}
-          className="absolute inset-0"
+          transition={{ duration: 1.0, ease: [0.43, 0.13, 0.23, 0.96] }}
+          style={{ position: 'absolute', inset: 0 }}
         >
           <img
             src={galleryImages[currentImageIndex]}
             alt={`${business.name} - Foto ${currentImageIndex + 1}`}
-            className="w-full h-full object-cover"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             loading="lazy"
           />
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation Buttons */}
       {galleryImages.length > 1 && (
         <>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={previousImage}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 backdrop-blur-sm hover:bg-black/70 rounded-full flex items-center justify-center transition-all opacity-0 group-hover/carousel:opacity-100 z-20"
+            style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', borderRadius: '50%', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}
           >
-            <ChevronLeft className="w-5 h-5 text-white" />
+            <ChevronLeft style={{ width: 20, height: 20, color: 'white' }} />
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={nextImage}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 backdrop-blur-sm hover:bg-black/70 rounded-full flex items-center justify-center transition-all opacity-0 group-hover/carousel:opacity-100 z-20"
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', borderRadius: '50%', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}
           >
-            <ChevronRight className="w-5 h-5 text-white" />
+            <ChevronRight style={{ width: 20, height: 20, color: 'white' }} />
           </motion.button>
         </>
       )}
 
-      {/* Pagination Dots */}
       {galleryImages.length > 1 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 20 }}>
           {galleryImages.map((_, index) => (
             <motion.button
               key={index}
@@ -142,11 +147,16 @@ function BusinessCardCarousel({ business }: { business: Business }) {
                 e.stopPropagation()
                 setCurrentImageIndex(index)
               }}
-              className={`w-1.5 h-1.5 rounded-full transition-all ${
-                index === currentImageIndex
-                  ? 'bg-gold w-6'
-                  : 'bg-white/50 hover:bg-white/80'
-              }`}
+              style={{
+                width: index === currentImageIndex ? 24 : 6,
+                height: 6,
+                borderRadius: 9999,
+                border: 'none',
+                cursor: 'pointer',
+                background: index === currentImageIndex ? GOLD : 'rgba(255,255,255,0.5)',
+                transition: 'all 0.3s',
+                padding: 0,
+              }}
             />
           ))}
         </div>
@@ -165,14 +175,12 @@ export function EmpresasPorCategoria() {
 
   const category = businessCategories.find((cat) => cat.id === categoryId)
 
-  // Carregar estabelecimentos reais do Firestore
   useEffect(() => {
     const loadBusinesses = async () => {
       if (!categoryId) return
 
       setIsLoading(true)
       try {
-        // Mapear o categoryId da URL para a categoria do estabelecimento
         const categoryMap: Record<string, string> = {
           'barbearia': 'Barbearia',
           'salao': 'Salão de Beleza',
@@ -189,12 +197,10 @@ export function EmpresasPorCategoria() {
           const realBusinesses = await getBusinessesByCategory(businessCategory)
           setBusinesses(realBusinesses)
         } else {
-          // Categoria não mapeada, lista vazia
           setBusinesses([])
         }
       } catch (error) {
         console.error('Erro ao carregar estabelecimentos:', error)
-        // Em caso de erro, lista vazia
         setBusinesses([])
       } finally {
         setIsLoading(false)
@@ -221,7 +227,6 @@ export function EmpresasPorCategoria() {
     const business = businesses.find((b) => b.id === businessId)
     if (!business || !business.businessHours) return null
 
-    // Mapear dia da semana (0 = domingo, 1 = segunda, etc.) para string
     const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     const today = new Date().getDay()
     const todayString = dayMap[today]
@@ -237,10 +242,17 @@ export function EmpresasPorCategoria() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Carregando estabelecimentos...</p>
+      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 64, height: 64,
+            border: `4px solid ${GOLD}`,
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            margin: '0 auto 1rem',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+          <p style={{ color: 'white', fontSize: '1.125rem' }}>Carregando estabelecimentos...</p>
         </div>
       </div>
     )
@@ -248,58 +260,51 @@ export function EmpresasPorCategoria() {
 
   if (!category) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Categoria não encontrada</h2>
-          <Button
-            onClick={() => navigate('/')}
-            className="bg-gradient-to-r from-gold to-yellow-600 text-black hover:shadow-xl hover:shadow-gold/50"
-          >
+      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", color: 'white', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>
+            Categoria não encontrada
+          </h2>
+          <button style={BTN_GOLD} onClick={() => navigate('/')}>
             Voltar para início
-          </Button>
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Hero Section with Category Info */}
-      <div className="relative pt-8 pb-16 overflow-hidden">
-        {/* Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-black" />
+    <div style={{ minHeight: '100vh', background: BG }}>
+      {/* Hero Section */}
+      <div style={{ position: 'relative', paddingTop: 32, paddingBottom: 64, overflow: 'hidden' }}>
+        {/* Background */}
+        <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${BG}, #0a0900, ${BG})` }} />
 
-        {/* Animated Orbs */}
-        <div className="absolute inset-0 overflow-hidden">
+        {/* Animated Orb */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
           <motion.div
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.2, 0.3, 0.2],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-gold/20 to-transparent rounded-full blur-3xl"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.25, 0.15] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ position: 'absolute', top: 0, right: 0, width: 384, height: 384, background: `radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)`, borderRadius: '50%', filter: 'blur(60px)' }}
           />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div style={{ position: 'relative', zIndex: 10, maxWidth: 1280, margin: '0 auto', padding: '0 1.5rem' }}>
+          {/* Title */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center mb-12"
+            transition={{ ...SPRING, delay: 0.2 }}
+            style={{ textAlign: 'center', marginBottom: 48 }}
           >
-            <h2 className="text-4xl md:text-6xl font-bold text-white mb-4">
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 700, color: 'white', lineHeight: 1.2, marginBottom: 16 }}>
               Os Melhores em
               <br />
-              <span className="bg-gradient-to-r from-gold via-yellow-400 to-gold bg-clip-text text-transparent">
+              <span style={{ background: `linear-gradient(90deg, ${GOLD}, #f0d060, ${GOLD})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                 {category.name}
               </span>
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.5)', maxWidth: 512, margin: '0 auto' }}>
               Profissionais selecionados com excelência e qualidade garantida
             </p>
           </motion.div>
@@ -308,119 +313,118 @@ export function EmpresasPorCategoria() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-3xl mx-auto mb-12"
+            transition={{ ...SPRING, delay: 0.3 }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, maxWidth: 768, margin: '0 auto 48px' }}
           >
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 text-center">
-              <MapPin className="w-8 h-8 text-gold mx-auto mb-2" />
-              <p className="text-3xl font-bold text-white mb-1">{businesses.length}</p>
-              <p className="text-sm text-gray-400">Estabelecimentos</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 text-center">
-              <Star className="w-8 h-8 text-gold mx-auto mb-2" />
-              <p className="text-3xl font-bold text-white mb-1">
-                {businesses.length > 0
+            {[
+              { icon: <MapPin style={{ width: 32, height: 32, color: GOLD }} />, value: businesses.length, label: 'Estabelecimentos' },
+              {
+                icon: <Star style={{ width: 32, height: 32, color: GOLD }} />,
+                value: businesses.length > 0
                   ? (businesses.reduce((acc, b) => acc + b.rating, 0) / businesses.length).toFixed(1)
-                  : '0.0'
-                }
-              </p>
-              <p className="text-sm text-gray-400">Média de Avaliação</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 text-center col-span-2 md:col-span-1">
-              <Award className="w-8 h-8 text-gold mx-auto mb-2" />
-              <p className="text-3xl font-bold text-white mb-1">
-                {businesses.reduce((acc, b) => acc + b.totalReviews, 0)}
-              </p>
-              <p className="text-sm text-gray-400">Avaliações Totais</p>
-            </div>
+                  : '0.0',
+                label: 'Média de Avaliação'
+              },
+              { icon: <Award style={{ width: 32, height: 32, color: GOLD }} />, value: businesses.reduce((acc, b) => acc + b.totalReviews, 0), label: 'Avaliações Totais' },
+            ].map((stat, i) => (
+              <div key={i} style={{ ...CARD_STYLE, padding: '1.5rem', textAlign: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{stat.icon}</div>
+                <p style={{ fontSize: '1.875rem', fontWeight: 700, color: 'white', margin: '0 0 4px' }}>{stat.value}</p>
+                <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>{stat.label}</p>
+              </div>
+            ))}
           </motion.div>
 
-          {/* Search and Filters - Premium */}
+          {/* Search & Filters */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
+            transition={{ ...SPRING, delay: 0.4 }}
+            style={{ ...CARD_STYLE, padding: '1.5rem' }}
           >
-            <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
               {/* Search Bar */}
-              <div className="flex-1 relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-gold/20 to-purple-500/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative bg-white/5 border border-white/20 rounded-xl flex items-center px-4">
-                  <Search className="w-5 h-5 text-gray-400 mr-3" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar estabelecimentos, bairros..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 bg-transparent border-0 text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
+              <div style={{ flex: 1, minWidth: 200, position: 'relative', display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.875rem', padding: '0 1rem' }}>
+                <Search style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.4)', flexShrink: 0, marginRight: 12 }} />
+                <input
+                  type="text"
+                  placeholder="Buscar estabelecimentos, bairros..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'white', fontSize: '0.9375rem', padding: '0.75rem 0' }}
+                />
               </div>
 
               {/* Sort Buttons */}
-              <div className="flex gap-2">
+              <div style={{ display: 'flex', gap: 8 }}>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setSortBy('rating')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all ${
-                    sortBy === 'rating'
-                      ? 'bg-gradient-to-r from-gold to-yellow-600 text-black shadow-lg shadow-gold/20'
-                      : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
-                  }`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '0.75rem 1.25rem', borderRadius: '0.875rem',
+                    fontWeight: 500, fontSize: '0.875rem', cursor: 'pointer', border: 'none',
+                    background: sortBy === 'rating'
+                      ? 'linear-gradient(135deg,#D4AF37,#B8941E)'
+                      : 'rgba(255,255,255,0.04)',
+                    color: sortBy === 'rating' ? BG : 'white',
+                    transition: 'all 0.2s',
+                  }}
                 >
-                  <Star className="w-4 h-4" />
-                  <span className="hidden sm:inline">Melhor Avaliados</span>
-                  <span className="sm:hidden">Avaliação</span>
+                  <Star style={{ width: 16, height: 16 }} />
+                  <span>Melhor Avaliados</span>
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setSortBy('reviews')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all ${
-                    sortBy === 'reviews'
-                      ? 'bg-gradient-to-r from-gold to-yellow-600 text-black shadow-lg shadow-gold/20'
-                      : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
-                  }`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '0.75rem 1.25rem', borderRadius: '0.875rem',
+                    fontWeight: 500, fontSize: '0.875rem', cursor: 'pointer', border: 'none',
+                    background: sortBy === 'reviews'
+                      ? 'linear-gradient(135deg,#D4AF37,#B8941E)'
+                      : 'rgba(255,255,255,0.04)',
+                    color: sortBy === 'reviews' ? BG : 'white',
+                    transition: 'all 0.2s',
+                  }}
                 >
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="hidden sm:inline">Mais Avaliações</span>
-                  <span className="sm:hidden">Popular</span>
+                  <TrendingUp style={{ width: 16, height: 16 }} />
+                  <span>Mais Avaliações</span>
                 </motion.button>
               </div>
             </div>
 
             {/* Results Count */}
-            <div className="flex items-center justify-between text-sm">
-              <p className="text-gray-400">
-                <span className="text-white font-semibold">{filteredBusinesses.length}</span> estabelecimento{filteredBusinesses.length !== 1 ? 's' : ''} encontrado{filteredBusinesses.length !== 1 ? 's' : ''}
-              </p>
-            </div>
+            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+              <span style={{ color: 'white', fontWeight: 600 }}>{filteredBusinesses.length}</span>{' '}
+              estabelecimento{filteredBusinesses.length !== 1 ? 's' : ''} encontrado{filteredBusinesses.length !== 1 ? 's' : ''}
+            </p>
           </motion.div>
         </div>
       </div>
 
-      {/* Business Grid - Premium */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+      {/* Business Grid */}
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 1.5rem 5rem' }}>
         {filteredBusinesses.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
+            style={{ textAlign: 'center', padding: '4rem 0' }}
           >
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-12 max-w-md mx-auto">
-              <Search className="w-16 h-16 mx-auto text-gray-600 mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
+            <div style={{ ...CARD_STYLE, padding: '3rem', maxWidth: 420, margin: '0 auto' }}>
+              <Search style={{ width: 64, height: 64, color: 'rgba(255,255,255,0.2)', margin: '0 auto 1rem', display: 'block' }} />
+              <h3 style={{ fontFamily: "'Playfair Display', serif", color: 'white', fontSize: '1.25rem', fontWeight: 600, marginBottom: 8 }}>
                 Nenhum estabelecimento encontrado
               </h3>
-              <p className="text-sm text-gray-400">
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', margin: 0 }}>
                 Tente buscar por outro termo ou filtro
               </p>
             </div>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
             {filteredBusinesses.map((business, index) => {
               const todayHours = getTodayHours(business.id)
 
@@ -432,91 +436,81 @@ export function EmpresasPorCategoria() {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.05 }}
                   whileHover={{ y: -8 }}
-                  className="group"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/empresas/${business.id}`)}
                 >
-                  <Card
-                    className="h-full cursor-pointer bg-white/5 backdrop-blur-sm border border-white/10 hover:border-gold/50 hover:shadow-2xl hover:shadow-gold/10 transition-all duration-500 overflow-hidden"
-                    onClick={() => navigate(`/empresas/${business.id}`)}
-                  >
+                  <div style={{ ...CARD_STYLE, overflow: 'hidden', height: '100%', transition: 'border-color 0.3s' }}>
                     {/* Image Carousel */}
-                    <div className="relative h-56 bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
-                      <BusinessCardCarousel
-                        business={business}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none" />
+                    <div style={{ position: 'relative', height: 224, background: 'rgba(255,255,255,0.03)', overflow: 'hidden' }}>
+                      <BusinessCardCarousel business={business} />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(5,4,0,0.9) 0%, rgba(5,4,0,0.4) 40%, transparent 100%)', pointerEvents: 'none', zIndex: 10 }} />
 
                       {/* Badges */}
-                      <div className="absolute top-3 left-3 right-3 flex items-start justify-between z-30">
-                        <Badge className="bg-gradient-to-r from-gold to-yellow-600 text-black border-0 shadow-lg">
-                          <Star className="w-3 h-3 mr-1 fill-black" />
+                      <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', zIndex: 30 }}>
+                        <span style={{ ...BADGE_GOLD, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Star style={{ width: 12, height: 12, fill: GOLD }} />
                           {business.rating.toFixed(1)}
-                        </Badge>
+                        </span>
                         {todayHours && (
-                          <Badge
-                            className={
-                              todayHours.isOpen
-                                ? 'bg-green-500/90 backdrop-blur-sm hover:bg-green-600 text-white border-0 shadow-lg'
-                                : 'bg-gray-500/90 backdrop-blur-sm hover:bg-gray-600 text-white border-0 shadow-lg'
-                            }
-                          >
-                            <Clock className="w-3 h-3 mr-1" />
+                          <span style={{
+                            background: todayHours.isOpen ? 'rgba(34,197,94,0.85)' : 'rgba(107,114,128,0.85)',
+                            color: 'white',
+                            borderRadius: 9999,
+                            padding: '2px 10px',
+                            fontSize: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            backdropFilter: 'blur(8px)',
+                          }}>
+                            <Clock style={{ width: 12, height: 12 }} />
                             {todayHours.isOpen ? 'Aberto' : 'Fechado'}
-                          </Badge>
+                          </span>
                         )}
                       </div>
-
-                      {/* Hover Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-gold/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     </div>
 
-                    <CardContent className="p-6 relative">
-                      {/* Gradient Orb */}
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-gold/10 to-transparent rounded-full blur-2xl opacity-0 group-hover:opacity-100 group-hover:scale-150 transition-all duration-500" />
-
-                      {/* Business Name */}
-                      <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-gold transition-colors relative z-10">
+                    {/* Content */}
+                    <div style={{ padding: '1.5rem' }}>
+                      <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', fontWeight: 700, color: 'white', margin: '0 0 8px' }}>
                         {business.name}
                       </h3>
 
-                      {/* Description */}
-                      <p className="text-sm text-gray-400 mb-4 line-clamp-2 relative z-10">
+                      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: 16, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {business.description}
                       </p>
 
-                      {/* Address */}
-                      <div className="flex items-start gap-2 text-sm text-gray-400 mb-3 relative z-10">
-                        <MapPin className="w-4 h-4 text-gold flex-shrink-0 mt-0.5" />
-                        <p className="line-clamp-2">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
+                        <MapPin style={{ width: 16, height: 16, color: GOLD, flexShrink: 0, marginTop: 2 }} />
+                        <p style={{ margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {business.address.street}, {business.address.number} - {business.address.neighborhood}
                         </p>
                       </div>
 
-                      {/* Hours */}
                       {todayHours && (
-                        <div className="flex items-center gap-2 text-sm text-gray-400 mb-3 relative z-10">
-                          <Clock className="w-4 h-4 text-gold" />
-                          <p>{todayHours.hours}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
+                          <Clock style={{ width: 16, height: 16, color: GOLD }} />
+                          <p style={{ margin: 0 }}>{todayHours.hours}</p>
                         </div>
                       )}
 
-                      {/* Reviews */}
-                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-6 relative z-10">
-                        <Star className="w-4 h-4 text-gold fill-gold" />
-                        <p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginBottom: 24 }}>
+                        <Star style={{ width: 16, height: 16, color: GOLD, fill: GOLD }} />
+                        <p style={{ margin: 0 }}>
                           {business.totalReviews} avalia{business.totalReviews !== 1 ? 'ções' : 'ção'}
                         </p>
                       </div>
 
                       {/* Actions */}
-                      <div className="grid grid-cols-2 gap-3 relative z-10">
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <motion.a
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           href={`tel:${business.phone}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-sm text-white font-medium"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0.625rem 1rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '0.5rem', color: 'white', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', transition: 'all 0.2s' }}
                         >
-                          <Phone className="w-4 h-4" />
+                          <Phone style={{ width: 16, height: 16 }} />
                           Ligar
                         </motion.a>
                         <motion.button
@@ -526,13 +520,13 @@ export function EmpresasPorCategoria() {
                             e.stopPropagation()
                             navigate(`/empresas/${business.id}`)
                           }}
-                          className="flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-gold to-yellow-600 text-black rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-gold/50 transition-all"
+                          style={{ ...BTN_GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.625rem 1rem', fontSize: '0.875rem' }}
                         >
                           Ver Mais
                         </motion.button>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </motion.div>
               )
             })}
