@@ -239,13 +239,28 @@ service cloud.firestore {
         && isValidTimestamp(request.resource.data.updatedAt)
         && request.resource.data.keys().hasAll(['businessId', 'professionalId', 'clientId', 'serviceId', 'status', 'scheduledAt']);
 
-      // Atualização: cliente (cancelar), profissional ou dono (aprovar/rejeitar)
+      // Atualização: cliente (cancelar / vincular PIX), profissional ou dono (aprovar/rejeitar)
       allow update: if isAuthenticated() && (
         // Cliente pode cancelar
         (resource.data.clientId == request.auth.uid
           && request.resource.data.status == 'cancelled'
           && resource.data.status in ['pending', 'confirmed'])
-        // Profissional ou dono pode aprovar/rejeitar
+
+        // Cliente pode vincular cobrança PIX ao próprio agendamento
+        // Campos imutáveis (negócio, serviço, data, valor, método) devem permanecer iguais.
+        // Status só pode ir de 'pending' → 'pending' ou 'pending' → 'confirmed'.
+        || (resource.data.clientId == request.auth.uid
+          && request.resource.data.clientId == resource.data.clientId
+          && request.resource.data.businessId == resource.data.businessId
+          && request.resource.data.professionalId == resource.data.professionalId
+          && request.resource.data.serviceId == resource.data.serviceId
+          && request.resource.data.scheduledAt == resource.data.scheduledAt
+          && request.resource.data.servicePrice == resource.data.servicePrice
+          && request.resource.data.paymentMethod == resource.data.paymentMethod
+          && resource.data.status == 'pending'
+          && request.resource.data.status in ['pending', 'confirmed'])
+
+        // Profissional ou dono pode aprovar/rejeitar/concluir
         || (resource.data.professionalId == request.auth.uid
           && request.resource.data.status in ['confirmed', 'rejected', 'completed'])
         || (get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerId == request.auth.uid

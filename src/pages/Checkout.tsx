@@ -1,9 +1,19 @@
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { createAppointment } from '@/services/appointmentService'
+import {
+  createAppointment,
+  updateAppointmentPayment,
+} from '@/services/appointmentService'
 import { getLinkByProfessionalAndBusiness } from '@/services/professionalLinkService'
+import {
+  createPixQRCode,
+  checkPixStatus,
+  simulatePixPayment,
+  type PixQRCode,
+  type PixStatus,
+} from '@/services/abacatePayService'
 import {
   CreditCard,
   Smartphone,
@@ -15,6 +25,10 @@ import {
   Check,
   Lock,
   Loader2,
+  Copy,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -91,6 +105,57 @@ export function Checkout() {
     cvv: '',
   })
 
+  // ── PIX Abacate Pay ─────────────────────────────────────────
+  const [pixBilling, setPixBilling] = useState<PixQRCode | null>(null)
+  const [pixStatus, setPixStatus] = useState<'waiting' | 'paid' | 'expired' | 'error'>('waiting')
+  const [pixError, setPixError] = useState<string | null>(null)
+  const [copiedBrCode, setCopiedBrCode] = useState(false)
+  const [isSimulating, setIsSimulating] = useState(false)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const appointmentIdRef = useRef<string | undefined>(undefined)
+
+  // Limpa timers ao desmontar
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
+
+  const stopPolling = () => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+  }
+
+  const startPolling = (pix: PixQRCode, apptId: string) => {
+    setElapsedSeconds(0)
+    timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000)
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const { status } = await checkPixStatus(pix.id)
+        if (status === 'PAID') {
+          stopPolling()
+          await updateAppointmentPayment(apptId, pix.id, 'PAID')
+          setPixStatus('paid')
+          setTimeout(() => {
+            navigate('/confirmacao-agendamento', {
+              state: { ...bookingData, paymentMethod: 'pix', appointmentId: apptId },
+            })
+          }, 2000)
+        } else if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'REFUNDED') {
+          stopPolling()
+          await updateAppointmentPayment(apptId, pix.id, status as PixStatus)
+          setPixStatus('expired')
+        }
+      } catch (err) {
+        console.error('[Checkout] Polling PIX:', err)
+      }
+    }, 5000)
+  }
+
   if (!bookingData) {
     return (
       <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -152,6 +217,39 @@ export function Checkout() {
     return date.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   }
 
+  /** Resolve o vínculo de comissão do profissional */
+  const resolveCommission = async () => {
+    let paymentType: 'fixed' | 'percentage' | null = null
+    let commissionPercent: number | null = null
+    let professionalAmount: number | null = null
+    let businessAmount: number | null = null
+
+    if (bookingData.professionalId) {
+      try {
+        const link = await getLinkByProfessionalAndBusiness(
+          bookingData.professionalId,
+          bookingData.businessId
+        )
+        if (link) {
+          paymentType = link.paymentType ?? null
+          if (paymentType === 'percentage' && link.commission != null) {
+            commissionPercent = link.commission
+            professionalAmount = bookingData.servicePrice * (link.commission / 100)
+            businessAmount = bookingData.servicePrice * ((100 - link.commission) / 100)
+          } else if (paymentType === 'fixed') {
+            commissionPercent = null
+            professionalAmount = 0
+            businessAmount = bookingData.servicePrice
+          }
+        }
+      } catch (err) {
+        console.error('[Checkout] Erro ao buscar vínculo do profissional:', err)
+      }
+    }
+
+    return { paymentType, commissionPercent, professionalAmount, businessAmount }
+  }
+
   const handlePayment = async () => {
     if (!selectedPaymentMethod) {
       alert('Por favor, selecione uma forma de pagamento')
@@ -166,73 +264,96 @@ export function Checkout() {
     }
 
     setIsProcessing(true)
-    let appointmentId: string | undefined
 
-    if (user) {
-      try {
-        // Buscar configuração de pagamento do vínculo do profissional
-        let paymentType: 'fixed' | 'percentage' | null = null
-        let commissionPercent: number | null = null
-        let professionalAmount: number | null = null
-        let businessAmount: number | null = null
+    try {
+      const commission = user ? await resolveCommission() : { paymentType: null, commissionPercent: null, professionalAmount: null, businessAmount: null }
 
-        if (bookingData.professionalId) {
-          try {
-            const link = await getLinkByProfessionalAndBusiness(
-              bookingData.professionalId,
-              bookingData.businessId
-            )
-            if (link) {
-              paymentType = link.paymentType ?? null
-              if (paymentType === 'percentage' && link.commission != null) {
-                commissionPercent = link.commission
-                professionalAmount = bookingData.servicePrice * (link.commission / 100)
-                businessAmount = bookingData.servicePrice * ((100 - link.commission) / 100)
-              } else if (paymentType === 'fixed') {
-                commissionPercent = null
-                professionalAmount = 0
-                businessAmount = bookingData.servicePrice
-              }
-            }
-          } catch (err) {
-            console.error('[Checkout] Erro ao buscar vínculo do profissional:', err)
-          }
+      // ── Fluxo PIX via Abacate Pay ──────────────────────────
+      if (selectedPaymentMethod === 'pix' && user) {
+        let appointmentId: string
+        try {
+          appointmentId = await createAppointment({
+            businessId: bookingData.businessId,
+            businessName: bookingData.businessName,
+            professionalId: bookingData.professionalId ?? '',
+            professionalName: bookingData.professionalName,
+            clientId: user.uid,
+            clientName: user.name,
+            serviceId: bookingData.serviceId,
+            serviceName: bookingData.serviceName,
+            servicePrice: bookingData.servicePrice,
+            serviceDuration: bookingData.serviceDuration,
+            serviceDescription: bookingData.serviceDescription,
+            date: bookingData.date,
+            time: bookingData.time,
+            paymentMethod: 'pix',
+            ...commission,
+            abacatePayStatus: 'PENDING',
+          })
+          appointmentIdRef.current = appointmentId
+        } catch (err) {
+          console.error('[Checkout] Erro ao criar agendamento:', err)
+          setIsProcessing(false)
+          return
         }
 
-        appointmentId = await createAppointment({
-          businessId: bookingData.businessId,
-          businessName: bookingData.businessName,
-          professionalId: bookingData.professionalId ?? '',
-          professionalName: bookingData.professionalName,
-          clientId: user.uid,
-          clientName: user.name,
-          serviceId: bookingData.serviceId,
-          serviceName: bookingData.serviceName,
-          servicePrice: bookingData.servicePrice,
-          serviceDuration: bookingData.serviceDuration,
-          serviceDescription: bookingData.serviceDescription,
-          date: bookingData.date,
-          time: bookingData.time,
-          paymentMethod: selectedPaymentMethod,
-          paymentType,
-          commissionPercent,
-          professionalAmount,
-          businessAmount,
-        })
-      } catch (error) {
-        console.error('[Checkout] Erro ao salvar agendamento:', error)
-        // Continua mesmo com erro para não bloquear o fluxo
+        try {
+          const pix = await createPixQRCode({
+            amount: bookingData.servicePrice,
+            description: bookingData.serviceName.slice(0, 37),
+            customerName: user.name,
+            customerEmail: user.email ?? 'sandbox@teste.com',
+          })
+          await updateAppointmentPayment(appointmentId, pix.id, 'PENDING')
+          setPixBilling(pix)
+          setPixStatus('waiting')
+          setPixError(null)
+          setIsProcessing(false)
+          startPolling(pix, appointmentId)
+        } catch (err: unknown) {
+          console.error('[Checkout] Erro Abacate Pay:', err)
+          setPixError(err instanceof Error ? err.message : 'Erro ao gerar cobrança PIX')
+          setPixBilling(null)
+          setPixStatus('error')
+          setIsProcessing(false)
+        }
+        return
       }
-    }
 
-    setIsProcessing(false)
-    navigate('/confirmacao-agendamento', {
-      state: {
-        ...bookingData,
-        paymentMethod: selectedPaymentMethod,
-        appointmentId,
-      },
-    })
+      // ── Outros métodos (cartão / dinheiro) ─────────────────
+      let appointmentId: string | undefined
+      if (user) {
+        try {
+          appointmentId = await createAppointment({
+            businessId: bookingData.businessId,
+            businessName: bookingData.businessName,
+            professionalId: bookingData.professionalId ?? '',
+            professionalName: bookingData.professionalName,
+            clientId: user.uid,
+            clientName: user.name,
+            serviceId: bookingData.serviceId,
+            serviceName: bookingData.serviceName,
+            servicePrice: bookingData.servicePrice,
+            serviceDuration: bookingData.serviceDuration,
+            serviceDescription: bookingData.serviceDescription,
+            date: bookingData.date,
+            time: bookingData.time,
+            paymentMethod: selectedPaymentMethod,
+            ...commission,
+          })
+        } catch (error) {
+          console.error('[Checkout] Erro ao salvar agendamento:', error)
+        }
+      }
+
+      setIsProcessing(false)
+      navigate('/confirmacao-agendamento', {
+        state: { ...bookingData, paymentMethod: selectedPaymentMethod, appointmentId },
+      })
+    } catch (error) {
+      console.error('[Checkout] Erro inesperado:', error)
+      setIsProcessing(false)
+    }
   }
 
   const paymentMethods = [
@@ -724,6 +845,197 @@ export function Checkout() {
           </div>
         </div>
       </div>
+
+      {/* ── Modal PIX Abacate Pay ───────────────────────────────── */}
+      <AnimatePresence>
+        {(pixBilling || pixStatus === 'error') && (
+          <motion.div
+            key="pix-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.80)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1.5rem',
+            }}
+          >
+            <motion.div
+              key="pix-modal"
+              initial={{ opacity: 0, scale: 0.92, y: 32 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 32 }}
+              transition={springTransition}
+              style={{
+                background: '#0a0900',
+                border: `1px solid rgba(212,175,55,0.30)`,
+                borderRadius: '1.25rem',
+                padding: '2rem',
+                width: '100%',
+                maxWidth: '420px',
+                boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+              }}
+            >
+              {/* Status: erro */}
+              {pixStatus === 'error' && (
+                <div style={{ textAlign: 'center' }}>
+                  <XCircle size={48} color="#f87171" style={{ margin: '0 auto 1rem' }} />
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#fff', margin: '0 0 0.75rem' }}>
+                    Erro ao gerar PIX
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 1.5rem' }}>
+                    {pixError ?? 'Não foi possível criar a cobrança. Tente outro método.'}
+                  </p>
+                  <button
+                    onClick={() => { setPixBilling(null); setPixStatus('waiting'); setPixError(null) }}
+                    style={{ background: `linear-gradient(135deg,${GOLD},#b8941e)`, color: '#050400', fontWeight: 700, border: 'none', borderRadius: '0.625rem', padding: '0.75rem 2rem', cursor: 'pointer', fontSize: '0.9375rem' }}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              )}
+
+              {/* Status: pago */}
+              {pixStatus === 'paid' && (
+                <div style={{ textAlign: 'center' }}>
+                  <CheckCircle2 size={52} color="#22c55e" style={{ margin: '0 auto 1rem' }} />
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.375rem', color: '#fff', margin: '0 0 0.5rem' }}>
+                    Pagamento confirmado!
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                    Redirecionando para a confirmação...
+                  </p>
+                </div>
+              )}
+
+              {/* Status: expirado */}
+              {pixStatus === 'expired' && (
+                <div style={{ textAlign: 'center' }}>
+                  <XCircle size={48} color="#fbbf24" style={{ margin: '0 auto 1rem' }} />
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#fff', margin: '0 0 0.75rem' }}>
+                    PIX expirado
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 1.5rem' }}>
+                    O tempo limite de pagamento foi atingido.
+                  </p>
+                  <button
+                    onClick={() => { setPixBilling(null); setPixStatus('waiting') }}
+                    style={{ background: `linear-gradient(135deg,${GOLD},#b8941e)`, color: '#050400', fontWeight: 700, border: 'none', borderRadius: '0.625rem', padding: '0.75rem 2rem', cursor: 'pointer', fontSize: '0.9375rem' }}
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+
+              {/* Status: aguardando */}
+              {pixStatus === 'waiting' && pixBilling && (
+                <>
+                  {/* Header */}
+                  <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
+                      <RefreshCw size={16} color={GOLD} style={{ animation: 'spin 2s linear infinite' }} />
+                      <span style={{ fontSize: '0.75rem', color: GOLD, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                        Aguardando pagamento
+                      </span>
+                    </div>
+                    <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#fff', margin: '0 0 0.25rem' }}>
+                      Escaneie o QR Code PIX
+                    </h3>
+                    <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+                      Ou use o código copia-e-cola abaixo
+                    </p>
+                  </div>
+
+                  {/* QR Code */}
+                  {pixBilling.brCodeBase64 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+                      <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '0.75rem' }}>
+                        <img
+                          src={pixBilling.brCodeBase64}
+                          alt="QR Code PIX"
+                          style={{ width: 180, height: 180, display: 'block' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Valor */}
+                  <div style={{ background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.18)', borderRadius: '0.75rem', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <span style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)' }}>{bookingData.serviceName}</span>
+                    <span style={{ fontSize: '1.125rem', fontWeight: 800, background: `linear-gradient(135deg,${GOLD},#b8941e)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                      {formatCurrency(bookingData.servicePrice)}
+                    </span>
+                  </div>
+
+                  {/* Copia-e-cola */}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(pixBilling.brCode).then(() => {
+                        setCopiedBrCode(true)
+                        setTimeout(() => setCopiedBrCode(false), 2500)
+                      })
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      width: '100%', padding: '0.75rem',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${copiedBrCode ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.10)'}`,
+                      color: copiedBrCode ? '#22c55e' : 'rgba(255,255,255,0.65)',
+                      fontWeight: 600, fontSize: '0.875rem', borderRadius: '0.75rem',
+                      cursor: 'pointer', marginBottom: '1rem', transition: 'border-color 0.2s, color 0.2s',
+                    }}
+                  >
+                    {copiedBrCode ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+                    {copiedBrCode ? 'Código copiado!' : 'Copiar código PIX (copia-e-cola)'}
+                  </button>
+
+                  {/* Botão simular pagamento (sandbox) */}
+                  {pixBilling.devMode && (
+                    <button
+                      disabled={isSimulating}
+                      onClick={async () => {
+                        setIsSimulating(true)
+                        try {
+                          await simulatePixPayment(pixBilling.id)
+                        } catch (err) {
+                          console.error('[Checkout] Simulate payment:', err)
+                        } finally {
+                          setIsSimulating(false)
+                        }
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                        width: '100%', padding: '0.75rem',
+                        background: isSimulating ? 'rgba(34,197,94,0.10)' : 'rgba(34,197,94,0.15)',
+                        border: '1px solid rgba(34,197,94,0.35)',
+                        color: '#22c55e', fontWeight: 700, fontSize: '0.875rem',
+                        borderRadius: '0.75rem', cursor: isSimulating ? 'not-allowed' : 'pointer',
+                        marginBottom: '0.875rem',
+                      }}
+                    >
+                      {isSimulating
+                        ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Simulando...</>
+                        : <><CheckCircle2 size={15} /> Simular pagamento (sandbox)</>
+                      }
+                    </button>
+                  )}
+
+                  {/* Timer */}
+                  <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+                    Verificando automaticamente... {elapsedSeconds}s
+                  </p>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Loader2 spin keyframe */}
       <style>{`

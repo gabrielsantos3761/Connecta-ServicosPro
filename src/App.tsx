@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/layout/Layout'
@@ -16,7 +16,6 @@ import { Servicos } from './pages/Servicos'
 import { Profissionais } from './pages/Profissionais'
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
-import { ClienteDashboard } from './pages/ClienteDashboard'
 import { Home } from './pages/Home'
 import { EmpresasPorCategoria } from './pages/EmpresasPorCategoria'
 import { EmpresaDetalhes } from './pages/EmpresaDetalhes'
@@ -31,6 +30,11 @@ import { CompleteProfile } from './pages/CompleteProfile'
 import { ConfiguracoesEstabelecimento } from './pages/ConfiguracoesEstabelecimento'
 import { EntradaDespesas } from './pages/EntradaDespesas'
 import { CadastrarEstabelecimento } from './pages/CadastrarEstabelecimento'
+import { ClienteAgendamentos } from './pages/ClienteAgendamentos'
+import { DashboardComissoes } from './pages/DashboardComissoes'
+import { ProfissionalAgenda } from './pages/ProfissionalAgenda'
+import Favoritos from './pages/Favoritos'
+import Carteira from './pages/Carteira'
 import { Toaster } from './components/ui/toaster'
 
 function App() {
@@ -52,18 +56,14 @@ function App() {
             <Route path="/empresas/:businessId" element={<EmpresaDetalhes />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/confirmacao-agendamento" element={<ConfirmacaoAgendamento />} />
-
+            <Route path="/favoritos" element={<Favoritos />} />
+            <Route path="/carteira" element={<Carteira />} />
           </Route>
 
-          {/* Rotas do Cliente */}
-          <Route
-            path="/cliente"
-            element={
-              <ProtectedRoute allowedRoles={['client']}>
-                <ClienteDashboard />
-              </ProtectedRoute>
-            }
-          />
+          {/* Clientes vão direto para a Home — a sidebar tem tudo */}
+          <Route path="/cliente" element={<Navigate to="/" replace />} />
+          {/* Agendamentos pessoais — acessível a qualquer role autenticada */}
+          <Route path="/cliente/agendamentos" element={<ClienteAgendamentos />} />
 
           {/* Rotas do Profissional - com ProfissionalLayout (sidebar próprio) */}
           <Route
@@ -77,6 +77,7 @@ function App() {
             <Route index element={<ProfissionalDashboard />} />
             <Route path="associar-barbearia" element={<ProfissionalAssociarBarbearia />} />
             <Route path=":businessId/painel" element={<ProfissionalPainelEstabelecimento />} />
+            <Route path=":businessId/agenda" element={<ProfissionalAgenda />} />
           </Route>
 
           {/* Rota de Seleção de Empresa (Proprietário) */}
@@ -116,6 +117,7 @@ function App() {
             <Route path="clientes" element={<DashboardClientes />} />
             <Route path="agendamentos" element={<DashboardAgendamentos />} />
             <Route path="configuracoes" element={<ConfiguracoesEstabelecimento />} />
+            <Route path="comissoes" element={<DashboardComissoes />} />
           </Route>
 
           {/* Rotas antigas de gerenciamento (agora dentro do dashboard) */}

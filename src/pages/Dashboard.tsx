@@ -7,7 +7,6 @@ import {
   Scissors, AlertCircle, ArrowRight, RefreshCw,
   CalendarX, UserX, Award, Zap, Activity,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { OwnerPageLayout } from '@/components/layout/OwnerPageLayout'
 import { getAppointmentsByBusiness, type Appointment, type AppointmentStatus } from '@/services/appointmentService'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -380,10 +379,10 @@ export function Dashboard() {
           <p className="text-white font-bold text-lg mb-1">Falha ao carregar dados</p>
           <p className="text-white/40 text-sm max-w-xs">{error}</p>
         </div>
-        <Button onClick={fetchData} variant="outline"
-          className="border-white/10 text-white hover:bg-white/5 gap-2 rounded-xl">
+        <button onClick={fetchData}
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: "0.75rem", padding: "0.5rem 1rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
           <RefreshCw className="w-4 h-4" /> Tentar novamente
-        </Button>
+        </button>
       </motion.div>
     </OwnerPageLayout>
   )
@@ -650,11 +649,11 @@ export function Dashboard() {
                   <p className="text-[11px] text-white/30 mt-0.5">{upcoming.length} restantes hoje</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm"
+              <button
                 onClick={() => navigate(`/${businessId}/agendamentos`)}
-                className="text-gold hover:text-gold hover:bg-gold/10 gap-1.5 text-xs rounded-xl h-8 px-3">
+                style={{ background: "transparent", border: "none", color: "#D4AF37", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.75rem", fontWeight: 500, padding: "0.25rem 0.75rem", borderRadius: "0.75rem" }}>
                 Ver todos <ArrowRight className="w-3 h-3" />
-              </Button>
+              </button>
             </div>
 
             {upcoming.length > 0 ? (

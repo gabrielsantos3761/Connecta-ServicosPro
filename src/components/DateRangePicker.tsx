@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { CalendarIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils'
-import { theme } from '@/styles/theme'
 
 export type DateRange = { from?: Date; to?: Date }
 
@@ -33,7 +31,7 @@ export function DateRangePicker({
       open={open}
       onOpenChange={setOpen}
       content={
-        <div className={`p-0 ${theme.colors.card.base} rounded-lg border ${theme.colors.border.light}`}>
+        <div style={{ background: "#0a0900", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0.75rem", padding: 0 }}>
           <Calendar
             mode="range"
             selected={dateRange}
@@ -44,22 +42,23 @@ export function DateRangePicker({
               }
             }}
             numberOfMonths={1}
-            className={theme.colors.text.primary}
+            className="text-white"
           />
         </div>
       }
     >
-      <Button
-        variant="outline"
-        className={cn(
-          `justify-start text-left font-normal ${theme.components.input.base} hover:bg-white/10`,
-          !dateRange.from && theme.colors.text.tertiary,
-          className
-        )}
+      <button
+        style={{
+          display: "flex", alignItems: "center", gap: "0.5rem",
+          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: "0.5rem", color: dateRange.from ? "#fff" : "rgba(255,255,255,0.4)",
+          padding: "0.5rem 0.875rem", fontSize: "0.875rem", cursor: "pointer", whiteSpace: "nowrap",
+        }}
+        className={cn(className)}
       >
-        <CalendarIcon className="mr-2 h-4 w-4" />
+        <CalendarIcon size={14} />
         {formatDateRange()}
-      </Button>
+      </button>
     </Popover>
   )
 }

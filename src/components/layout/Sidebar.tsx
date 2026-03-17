@@ -14,6 +14,7 @@ import {
   ClipboardList,
   TrendingUp,
   Settings,
+  Percent,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
       { to: '/dashboard/servicos', icon: ShoppingBag, label: 'Serviços' },
       { to: '/dashboard/clientes', icon: Users, label: 'Clientes' },
       { to: '/dashboard/agendamentos', icon: ClipboardList, label: 'Agendamentos' },
+      { to: '/dashboard/comissoes', icon: Percent, label: 'Comissões' },
     ],
   },
   { to: '/entrada-despesas', icon: TrendingUp, label: 'Entrada/Despesas' },
@@ -91,7 +93,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const businessId = business?.id || localStorage.getItem('selected_business_id') || ''
 
   const getRoutePath = (basePath: string) => {
-    if (!businessId) return basePath
+    if (!businessId) return '/selecionar-empresa'
     if (basePath.includes(businessId)) return basePath
     return `/${businessId}${basePath}`
   }

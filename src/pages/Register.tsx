@@ -20,8 +20,6 @@ import {
   ChevronRight,
   Phone,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import {
   registerWithEmail,
@@ -43,6 +41,79 @@ import {
   detectXSS,
   detectSQLInjection,
 } from "@/lib/securityUtils";
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const BG = "#050400";
+const GOLD = "#D4AF37";
+const GOLD2 = "#B8941E";
+const CARD_BG = "rgba(255,255,255,0.02)";
+const CARD_BORDER = "1px solid rgba(255,255,255,0.07)";
+const CARD_RADIUS = "1.125rem";
+const MUTED = "rgba(255,255,255,0.5)";
+const DIVIDER = "1px solid rgba(255,255,255,0.06)";
+const SPRING = { type: "spring" as const, stiffness: 320, damping: 36 };
+
+const inputStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: "0.5rem",
+  color: "#fff",
+  padding: "0.75rem 1rem",
+  outline: "none",
+  width: "100%",
+};
+
+const inputWithIconStyle: React.CSSProperties = {
+  ...inputStyle,
+  paddingLeft: "3rem",
+};
+
+const inputWithIconAndToggle: React.CSSProperties = {
+  ...inputStyle,
+  paddingLeft: "3rem",
+  paddingRight: "3rem",
+};
+
+const goldBtnStyle: React.CSSProperties = {
+  background: `linear-gradient(135deg,${GOLD},${GOLD2})`,
+  color: BG,
+  fontWeight: 600,
+  borderRadius: "0.5rem",
+  padding: "0.75rem 1.5rem",
+  border: "none",
+  cursor: "pointer",
+  width: "100%",
+  fontSize: "0.875rem",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.5rem",
+};
+
+const outlineBtnStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.05)",
+  color: "#fff",
+  borderRadius: "0.5rem",
+  padding: "0.75rem 1.5rem",
+  border: "1px solid rgba(255,255,255,0.1)",
+  cursor: "pointer",
+  width: "100%",
+  fontSize: "0.875rem",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.5rem",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "0.75rem",
+  fontWeight: 500,
+  color: MUTED,
+  marginBottom: "0.375rem",
+  letterSpacing: "0.04em",
+  textTransform: "uppercase" as const,
+};
 
 export function Register() {
   const navigate = useNavigate();
@@ -639,64 +710,53 @@ export function Register() {
       value: "client" as UserRole,
       label: "Cliente",
       icon: User,
-      color: "from-blue-500 to-blue-600",
-      colors: {
-        primary: "from-blue-500 to-blue-600",
-        border: "border-blue-500",
-        bg: "bg-blue-500",
-        bgLight: "bg-blue-500/10",
-        text: "text-blue-400",
-        shadow: "shadow-blue-500/30",
-        ring: "focus:ring-blue-500/30 focus:border-blue-500/50",
-        glow: "rgba(59, 130, 246, 0.2)",
-        cardShadow: "rgba(59, 130, 246, 0.15)",
-        borderColor: "rgba(59, 130, 246, 0.3)",
-      },
+      accentColor: "#3B82F6",
+      accentGlow: "rgba(59,130,246,0.25)",
     },
     {
       value: "professional" as UserRole,
       label: "Profissional",
       icon: Scissors,
-      color: "from-emerald-500 to-green-600",
-      colors: {
-        primary: "from-emerald-500 to-green-600",
-        border: "border-emerald-500",
-        bg: "bg-emerald-500",
-        bgLight: "bg-emerald-500/10",
-        text: "text-emerald-400",
-        shadow: "shadow-emerald-500/30",
-        ring: "focus:ring-emerald-500/30 focus:border-emerald-500/50",
-        glow: "rgba(16, 185, 129, 0.2)",
-        cardShadow: "rgba(16, 185, 129, 0.15)",
-        borderColor: "rgba(16, 185, 129, 0.3)",
-      },
+      accentColor: "#10B981",
+      accentGlow: "rgba(16,185,129,0.25)",
     },
     {
       value: "owner" as UserRole,
       label: "Proprietário",
       icon: Crown,
-      color: "from-gold to-yellow-600",
-      colors: {
-        primary: "from-gold to-yellow-600",
-        border: "border-gold",
-        bg: "bg-gold",
-        bgLight: "bg-gold/10",
-        text: "text-gold",
-        shadow: "shadow-gold/30",
-        ring: "focus:ring-gold/30 focus:border-gold/50",
-        glow: "rgba(212, 175, 55, 0.2)",
-        cardShadow: "rgba(212, 175, 55, 0.15)",
-        borderColor: "rgba(212, 175, 55, 0.3)",
-      },
+      accentColor: GOLD,
+      accentGlow: "rgba(212,175,55,0.25)",
     },
   ];
 
   const currentRoleOption = roleOptions.find((r) => r.value === selectedRole)!;
-  const colors = currentRoleOption.colors;
+
+  // ── Inline styles for error inputs ──────────────────────────────────────────
+  const inputError: React.CSSProperties = {
+    ...inputWithIconStyle,
+    border: "1px solid rgba(239,68,68,0.5)",
+  };
+
+  const inputErrorWithToggle: React.CSSProperties = {
+    ...inputWithIconAndToggle,
+    border: "1px solid rgba(239,68,68,0.5)",
+  };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Estilos globais para remover fundo branco do autocomplete */}
+    <div
+      style={{
+        minHeight: "100vh",
+        background: BG,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "Inter, sans-serif",
+      }}
+    >
+      {/* Global autofill override */}
       <style>{`
         input:-webkit-autofill,
         input:-webkit-autofill:hover,
@@ -708,893 +768,511 @@ export function Register() {
           transition: background-color 5000s ease-in-out 0s;
         }
 
-        /* Custom scrollbar para dropdown de países */
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
+        /* Custom scrollbar */
+        .dlx-scroll::-webkit-scrollbar { width: 6px; }
+        .dlx-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 8px; }
+        .dlx-scroll::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 8px; }
+        .dlx-scroll::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.5); }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 10px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Estilos personalizados para PhoneInput */
-        .phone-input-custom {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .phone-input-custom .PhoneInputInput {
-          width: 100%;
-          height: 44px;
-          padding-left: 16px;
-          padding-right: 16px;
-          background-color: transparent !important;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          color: white;
-          font-size: 14px;
-          outline: none;
-          transition: all 0.3s;
-          -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
-          box-shadow: 0 0 0 1000px transparent inset !important;
-        }
-
-        .phone-input-custom .PhoneInputInput:focus {
-          outline: none;
-          border-color: ${colors.borderColor};
-          box-shadow: 0 0 0 2px ${colors.glow};
-        }
-
-        .phone-input-custom .PhoneInputInput::placeholder {
-          color: rgb(107, 114, 128);
-        }
-
-        .phone-input-custom.phone-input-error .PhoneInputInput {
-          border-color: rgba(239, 68, 68, 0.5);
-        }
-
-        .phone-input-custom.phone-input-error .PhoneInputInput:focus {
-          box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
-        }
-
-        .phone-input-custom .PhoneInputCountry {
-          display: flex;
-          align-items: center;
-          padding: 8px;
-          margin: 0;
-          margin-right: 8px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 8px;
-          height: 44px;
-          cursor: pointer;
-          position: relative;
-          z-index: 10;
-          transition: all 0.3s;
-        }
-
-        .phone-input-custom .PhoneInputCountry:hover {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .phone-input-custom .PhoneInputCountry:focus {
-          outline: 2px solid ${colors.borderColor};
-          outline-offset: 2px;
-        }
-
-        .phone-input-custom .PhoneInputCountryIcon {
-          width: 28px;
-          height: 28px;
-          border-radius: 4px;
-          overflow: hidden;
-          display: block;
-          pointer-events: none;
-        }
-
-        .phone-input-custom .PhoneInputCountryIcon img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .phone-input-custom .PhoneInputCountrySelectArrow {
-          opacity: 0.5;
-          margin-left: 4px;
-          border: solid white;
-          border-width: 0 2px 2px 0;
-          display: inline-block;
-          padding: 3px;
-          transform: rotate(45deg);
-          -webkit-transform: rotate(45deg);
-          pointer-events: none;
-        }
-
-        /* Select nativo do seletor de país - agora visível e clicável */
-        .phone-input-custom .PhoneInputCountrySelect {
-          appearance: auto;
-          -webkit-appearance: auto;
-          -moz-appearance: auto;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 8px;
-          color: white;
-          cursor: pointer;
-          font-size: 14px;
-          padding: 4px 8px;
-          outline: none;
-          width: auto;
-          height: auto;
-          min-width: 80px;
-          z-index: 11;
-          transition: all 0.3s;
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect:hover {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect:focus {
-          border-color: ${colors.borderColor};
-          box-shadow: 0 0 0 2px ${colors.glow};
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect option {
-          background-color: rgb(31, 41, 55);
-          color: white;
-          padding: 12px 16px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect option:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        /* Scrollbar customizado para o select */
-        .phone-input-custom .PhoneInputCountrySelect::-webkit-scrollbar {
-          width: 10px;
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-          margin: 4px;
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect::-webkit-scrollbar-thumb {
-          background: ${colors.borderColor};
-          border-radius: 10px;
-          border: 2px solid rgba(31, 41, 55, 0.5);
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect::-webkit-scrollbar-thumb:hover {
-          background: ${colors.text};
-          box-shadow: 0 0 6px ${colors.glow};
-        }
-
-        .PhoneInputCountrySelectOption {
-          padding: 12px 16px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          cursor: pointer;
-          color: white;
-          transition: background-color 0.2s;
-        }
-
-        .PhoneInputCountrySelectOption:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .PhoneInputCountrySelectOption--selected {
-          background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        /* Dropdown customizado com pesquisa */
-        .custom-country-dropdown {
+        /* Country dropdown */
+        .dlx-country-dropdown {
           position: absolute;
-          top: calc(100% + 4px);
+          top: calc(100% + 6px);
           left: 0;
           right: 0;
-          max-height: 320px;
-          background: rgb(31, 41, 55);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          max-height: 300px;
+          background: #0e0c01;
+          border: 1px solid rgba(212,175,55,0.2);
+          border-radius: 0.75rem;
+          box-shadow: 0 24px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,175,55,0.08);
           z-index: 9999;
           overflow: hidden;
         }
 
-        .custom-country-search {
+        .dlx-country-search {
           position: sticky;
           top: 0;
-          padding: 12px;
-          background: rgb(31, 41, 55);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 0.75rem;
+          background: #0e0c01;
+          border-bottom: ${DIVIDER};
           z-index: 10;
         }
 
-        .custom-country-search input {
+        .dlx-country-search input {
           width: 100%;
-          padding: 8px 12px 8px 36px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 8px;
+          padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 0.5rem;
           color: white;
-          font-size: 14px;
+          font-size: 0.875rem;
           outline: none;
-          transition: all 0.3s;
         }
 
-        .custom-country-search input:focus {
-          border-color: ${colors.borderColor};
-          box-shadow: 0 0 0 2px ${colors.glow};
+        .dlx-country-search input:focus {
+          border-color: rgba(212,175,55,0.4);
+          box-shadow: 0 0 0 2px rgba(212,175,55,0.12);
         }
 
-        .custom-country-search input::placeholder {
-          color: rgb(107, 114, 128);
-        }
+        .dlx-country-search input::placeholder { color: ${MUTED}; }
 
-        .custom-country-list {
-          max-height: 256px;
-          overflow-y: auto;
-        }
+        .dlx-country-list { max-height: 232px; overflow-y: auto; }
 
-        .custom-country-list::-webkit-scrollbar {
-          width: 10px;
-        }
-
-        .custom-country-list::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-          margin: 4px;
-        }
-
-        .custom-country-list::-webkit-scrollbar-thumb {
-          background: ${colors.borderColor};
-          border-radius: 10px;
-          border: 2px solid rgba(31, 41, 55, 0.5);
-        }
-
-        .custom-country-list::-webkit-scrollbar-thumb:hover {
-          background: ${colors.text};
-          box-shadow: 0 0 6px ${colors.glow};
-        }
-
-        .custom-country-item {
-          padding: 12px 16px;
+        .dlx-country-item {
+          padding: 0.625rem 1rem;
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 0.75rem;
           cursor: pointer;
-          transition: background-color 0.2s;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          border-bottom: ${DIVIDER};
+          transition: background 0.15s;
+          font-size: 0.875rem;
+          color: #fff;
         }
 
-        .custom-country-item:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-        }
+        .dlx-country-item:hover { background: rgba(212,175,55,0.06); }
+        .dlx-country-item.selected { background: rgba(212,175,55,0.04); }
 
-        .custom-country-item.selected {
-          background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        .custom-country-flag {
-          width: 28px;
-          height: 20px;
-          border-radius: 4px;
-          overflow: hidden;
-          flex-shrink: 0;
-        }
-
-        .custom-country-info {
-          flex: 1;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          color: white;
-          font-size: 14px;
-        }
-
-        .custom-country-code {
-          color: rgb(156, 163, 175);
-          font-size: 13px;
-        }
-
-        /* Estilos para bandeiras SVG */
-        .w-6.h-6 svg,
-        .w-7.h-7 svg {
-          width: 100%;
-          height: 100%;
-          border-radius: 4px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Estilos para o campo de data */
-        .custom-date-input {
-          color-scheme: dark;
-        }
-
-        .custom-date-input::-webkit-calendar-picker-indicator {
-          cursor: pointer;
-          filter: invert(1);
-          opacity: 0.7;
-          transition: all 0.3s ease;
-          width: 20px;
-          height: 20px;
-        }
-
-        .custom-date-input::-webkit-calendar-picker-indicator:hover {
-          opacity: 1;
-          filter: invert(1) brightness(1.2);
-        }
-
-        .custom-date-input:focus::-webkit-calendar-picker-indicator {
-          opacity: 1;
-        }
-
-        /* Estilos para o placeholder do campo de data */
-        .custom-date-input::-webkit-datetime-edit-text,
-        .custom-date-input::-webkit-datetime-edit-month-field,
-        .custom-date-input::-webkit-datetime-edit-day-field,
-        .custom-date-input::-webkit-datetime-edit-year-field {
-          color: white;
-        }
-
-        .custom-date-input::before {
-          content: attr(placeholder);
-          color: rgb(107, 114, 128);
-          position: absolute;
-        }
-
-        .custom-date-input:focus::before,
-        .custom-date-input:valid::before {
-          display: none;
-        }
-
-        /* Calendário customizado de data de nascimento */
-        .birth-date-calendar {
+        /* Birth-date calendar */
+        .dlx-calendar {
           position: absolute;
           bottom: calc(100% + 8px);
           left: 50%;
           transform: translateX(-50%);
-          min-width: 340px;
-          padding: 20px;
-          border-radius: 16px;
-          border: 2px solid ${colors.borderColor};
-          background: #1f2937;
-          box-shadow:
-            0 25px 50px -12px rgba(0, 0, 0, 0.95),
-            0 0 40px ${colors.glow},
-            0 0 0 1px rgba(0, 0, 0, 0.5),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          min-width: 320px;
+          padding: 1.25rem;
+          border-radius: ${CARD_RADIUS};
+          border: 1px solid rgba(212,175,55,0.3);
+          background: #0e0c01;
+          box-shadow: 0 24px 48px rgba(0,0,0,0.85), 0 0 40px rgba(212,175,55,0.08);
           z-index: 10000;
         }
 
-        .birth-calendar-header {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          margin-bottom: 20px;
+        .dlx-cal-header { display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1rem; }
+        .dlx-cal-selectors { display:flex; gap:0.5rem; }
+        .dlx-cal-select {
+          flex:1; padding:0.5rem 0.75rem;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius:0.5rem; color:#fff; font-size:0.8125rem;
+          outline:none; cursor:pointer;
         }
+        .dlx-cal-select:hover { border-color: rgba(212,175,55,0.3); }
+        .dlx-cal-select:focus { border-color: rgba(212,175,55,0.5); box-shadow:0 0 0 2px rgba(212,175,55,0.1); }
+        .dlx-cal-select option { background:#0e0c01; color:#fff; }
 
-        .birth-calendar-nav {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+        .dlx-cal-nav { display:flex; align-items:center; justify-content:space-between; }
+        .dlx-cal-nav-btn {
+          width:32px; height:32px; border-radius:50%;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          color: ${MUTED}; display:flex; align-items:center; justify-content:center;
+          cursor:pointer; transition:all 0.2s;
         }
+        .dlx-cal-nav-btn:hover { background:rgba(212,175,55,0.1); border-color:rgba(212,175,55,0.3); color:${GOLD}; }
 
-        .birth-calendar-selectors {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          justify-content: center;
-        }
+        .dlx-cal-day-names { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:0.5rem; }
+        .dlx-cal-day-name { text-align:center; font-size:0.6875rem; font-weight:600; padding:0.375rem; color:${MUTED}; }
+        .dlx-cal-day-name:first-child, .dlx-cal-day-name:last-child { color:${GOLD}; opacity:0.7; }
 
-        .birth-calendar-selector {
-          flex: 1;
-          padding: 8px 12px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 8px;
-          color: white;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.3s;
-          outline: none;
-        }
+        .dlx-cal-divider { height:1px; background:linear-gradient(to right,transparent,rgba(212,175,55,0.3),transparent); margin-bottom:0.5rem; }
 
-        .birth-calendar-selector:hover {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: ${colors.borderColor};
+        .dlx-cal-days { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+        .dlx-cal-day {
+          width:36px; height:36px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          font-size:0.8125rem; font-weight:500;
+          cursor:pointer; transition:all 0.15s; color:#fff;
+          background:transparent; border:none;
         }
+        .dlx-cal-day:not(.disabled):not(.selected):hover {
+          background:rgba(212,175,55,0.1); color:${GOLD}; transform:scale(1.05);
+        }
+        .dlx-cal-day.selected {
+          background:transparent; color:#fff;
+          border:2px solid ${GOLD};
+          box-shadow:0 0 0 3px rgba(212,175,55,0.15), 0 0 16px rgba(212,175,55,0.15);
+          font-weight:700;
+        }
+        .dlx-cal-day.disabled { color:rgba(255,255,255,0.2); cursor:not-allowed; }
 
-        .birth-calendar-selector:focus {
-          border-color: ${colors.borderColor};
-          box-shadow: 0 0 0 2px ${colors.glow};
-        }
+        .dlx-cal-legend { margin-top:1rem; padding-top:0.75rem; border-top:${DIVIDER}; display:flex; align-items:center; justify-content:center; gap:0.5rem; font-size:0.75rem; color:${MUTED}; }
+        .dlx-cal-legend-dot { width:10px; height:10px; border-radius:50%; border:2px solid ${GOLD}; box-shadow:0 0 6px rgba(212,175,55,0.3); }
 
-        .birth-calendar-selector option {
-          background: rgb(31, 41, 55);
-          color: white;
-        }
-
-        .birth-calendar-nav-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: rgb(156, 163, 175);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.3s;
-        }
-
-        .birth-calendar-nav-btn:hover {
-          background: ${colors.borderColor};
-          border-color: ${colors.borderColor};
-          color: ${colors.text};
-          transform: scale(1.1);
-        }
-
-        .birth-calendar-month {
-          font-size: 16px;
-          font-weight: 700;
-          background: linear-gradient(to right, ${colors.text}, ${colors.borderColor});
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .birth-calendar-day-names {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          gap: 4px;
-          margin-bottom: 12px;
-        }
-
-        .birth-calendar-day-name {
-          text-align: center;
-          font-size: 12px;
-          font-weight: 600;
-          padding: 8px;
-          color: rgb(107, 114, 128);
-        }
-
-        .birth-calendar-day-name:first-child,
-        .birth-calendar-day-name:last-child {
-          color: ${colors.borderColor};
-        }
-
-        .birth-calendar-divider {
-          height: 1px;
-          background: linear-gradient(to right, transparent, ${colors.borderColor}, transparent);
-          margin-bottom: 12px;
-          opacity: 0.5;
-        }
-
-        .birth-calendar-days {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          gap: 4px;
-        }
-
-        .birth-calendar-day {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-          color: white;
-        }
-
-        .birth-calendar-day:not(.disabled):not(.selected):hover {
-          background: ${colors.borderColor};
-          color: ${colors.text};
-          transform: scale(1.1);
-        }
-
-        .birth-calendar-day.selected {
-          background: transparent;
-          color: white;
-          border: 2.5px solid ${colors.borderColor};
-          box-shadow:
-            0 0 0 4px ${colors.glow},
-            0 0 20px ${colors.glow},
-            inset 0 0 20px ${colors.glow};
-          font-weight: 700;
-          transform: scale(1.05);
-        }
-
-        .birth-calendar-day.disabled {
-          color: rgb(75, 85, 99);
-          cursor: not-allowed;
-          opacity: 0.5;
-        }
-
-        .birth-calendar-legend {
-          margin-top: 16px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 16px;
-          font-size: 12px;
-        }
-
-        .birth-calendar-legend-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .birth-calendar-legend-dot {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-        }
-
-        .birth-calendar-legend-dot.selected {
-          background: transparent;
-          border: 2px solid ${colors.borderColor};
-          box-shadow: 0 0 0 2px ${colors.glow}, 0 0 8px ${colors.glow};
-        }
-
-        .birth-calendar-legend-text {
-          color: rgb(107, 114, 128);
-        }
+        /* input placeholder muted */
+        input::placeholder { color: ${MUTED}; }
+        select option { background:#0e0c01; color:#fff; }
       `}</style>
 
-      {/* Background Effects */}
-      <div className="absolute inset-0">
+      {/* Ambient glow blobs */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <motion.div
-          animate={{ backgroundColor: colors.glow }}
-          transition={{ duration: 0.5 }}
-          className="absolute top-1/4 -left-20 w-96 h-96 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ backgroundColor: colors.glow }}
-          transition={{ duration: 0.5 }}
-          className="absolute bottom-1/4 -right-20 w-96 h-96 rounded-full blur-3xl opacity-50"
-        />
-        <div
-          className="absolute inset-0 opacity-[0.02]"
+          animate={{ opacity: [0.18, 0.28, 0.18] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           style={{
-            backgroundImage: `linear-gradient(rgba(212, 175, 55, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 175, 55, 0.3) 1px, transparent 1px)`,
+            position: "absolute",
+            top: "15%",
+            left: "-8%",
+            width: "38vw",
+            height: "38vw",
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${currentRoleOption.accentGlow} 0%, transparent 70%)`,
+            filter: "blur(48px)",
+          }}
+        />
+        <motion.div
+          animate={{ opacity: [0.1, 0.2, 0.1] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          style={{
+            position: "absolute",
+            bottom: "10%",
+            right: "-6%",
+            width: "32vw",
+            height: "32vw",
+            borderRadius: "50%",
+            background: `radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%)`,
+            filter: "blur(56px)",
+          }}
+        />
+        {/* Subtle grid */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0.025,
+            backgroundImage: `linear-gradient(rgba(212,175,55,0.4) 1px,transparent 1px), linear-gradient(90deg,rgba(212,175,55,0.4) 1px,transparent 1px)`,
             backgroundSize: "50px 50px",
           }}
         />
       </div>
 
+      {/* Card */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md relative z-10"
+        transition={SPRING}
+        style={{ width: "100%", maxWidth: "440px", position: "relative", zIndex: 10 }}
       >
-        <motion.div
-          animate={{ borderColor: colors.borderColor }}
-          transition={{ duration: 0.3 }}
-          className="bg-gradient-to-br from-gray-900/90 via-gray-800/90 to-gray-900/90 backdrop-blur-xl rounded-3xl border shadow-2xl p-8"
-          style={{ boxShadow: `0 25px 50px -12px ${colors.cardShadow}` }}
+        <div
+          style={{
+            background: CARD_BG,
+            border: CARD_BORDER,
+            borderRadius: CARD_RADIUS,
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            padding: "2rem",
+            boxShadow: "0 32px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03)",
+          }}
         >
-          {/* Botão Voltar - Para Login */}
+          {/* Back button */}
           <button
             type="button"
             onClick={() => navigate("/login")}
-            className="absolute top-4 left-4 w-9 h-9 rounded-lg flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white/10 transition-all z-10"
+            style={{
+              position: "absolute",
+              top: "1rem",
+              left: "1rem",
+              width: "2.25rem",
+              height: "2.25rem",
+              borderRadius: "0.5rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              cursor: "pointer",
+              color: MUTED,
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)";
+              (e.currentTarget as HTMLButtonElement).style.color = "#fff";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)";
+              (e.currentTarget as HTMLButtonElement).style.color = MUTED;
+            }}
           >
-            <ArrowLeft className="w-4 h-4 text-gray-400" />
+            <ArrowLeft style={{ width: "1rem", height: "1rem" }} />
           </button>
 
           {/* Title */}
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-white mb-1">Criar Conta</h1>
-            <p className="text-gray-400 text-sm">
+          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+            <h1
+              style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: "1.625rem",
+                fontWeight: 700,
+                color: "#fff",
+                margin: 0,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Criar Conta
+            </h1>
+            <p style={{ color: MUTED, fontSize: "0.8125rem", marginTop: "0.375rem" }}>
               {currentStep === 1 && "Selecione o tipo de conta"}
               {currentStep === 2 && "Informe seus dados pessoais"}
               {currentStep === 3 && "Crie suas credenciais de acesso"}
             </p>
           </div>
 
-          {/* Progress Indicator */}
-          <div className="flex items-center justify-center gap-2 mb-6">
+          {/* Step progress */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+              marginBottom: "1.5rem",
+            }}
+          >
             {[1, 2, 3].map((step) => (
-              <motion.div key={step} className="flex items-center">
+              <div key={step} style={{ display: "flex", alignItems: "center" }}>
                 <motion.div
                   animate={{
-                    backgroundColor:
-                      currentStep >= step
-                        ? colors.glow
-                        : "rgba(255, 255, 255, 0.1)",
-                    scale: currentStep === step ? 1.2 : 1,
+                    background: currentStep >= step
+                      ? `linear-gradient(135deg,${GOLD},${GOLD2})`
+                      : "rgba(255,255,255,0.08)",
+                    scale: currentStep === step ? 1.15 : 1,
                   }}
-                  transition={{ duration: 0.3 }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                    currentStep >= step ? "text-white" : "text-gray-500"
-                  }`}
+                  transition={SPRING}
+                  style={{
+                    width: "2rem",
+                    height: "2rem",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: currentStep >= step ? BG : MUTED,
+                  }}
                 >
                   {step}
                 </motion.div>
                 {step < 3 && (
                   <motion.div
                     animate={{
-                      backgroundColor:
-                        currentStep > step
-                          ? colors.glow
-                          : "rgba(255, 255, 255, 0.1)",
+                      background: currentStep > step
+                        ? `linear-gradient(90deg,${GOLD},${GOLD2})`
+                        : "rgba(255,255,255,0.08)",
                     }}
-                    className="w-12 h-0.5 mx-1"
+                    transition={{ duration: 0.4 }}
+                    style={{ width: "3rem", height: "2px", margin: "0 0.25rem" }}
                   />
                 )}
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          {/* Aviso de conta existente */}
+          {/* Existing account banner */}
           {emailExists && existingUserData && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-xl"
+              transition={SPRING}
+              style={{
+                marginBottom: "1.25rem",
+                padding: "1rem",
+                background: "rgba(16,185,129,0.08)",
+                border: "1px solid rgba(16,185,129,0.25)",
+                borderRadius: "0.75rem",
+              }}
             >
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-green-400">
+              <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                <CheckCircle style={{ width: "1.125rem", height: "1.125rem", color: "#10B981", flexShrink: 0, marginTop: "2px" }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#10B981", margin: 0 }}>
                     Conta encontrada!
                   </p>
-                  <p className="text-xs text-gray-300 mt-1">
+                  <p style={{ fontSize: "0.75rem", color: MUTED, marginTop: "0.25rem" }}>
                     Você já possui uma conta como{" "}
                     {existingUserData.roles
                       .map((r: string) =>
-                        r === "client"
-                          ? "Cliente"
-                          : r === "professional"
-                          ? "Profissional"
-                          : "Proprietário"
+                        r === "client" ? "Cliente" : r === "professional" ? "Profissional" : "Proprietário"
                       )
                       .join(", ")}
                     . Clique abaixo para usar seus dados existentes.
                   </p>
-                  <Button
+                  <button
                     type="button"
                     onClick={handleUseExistingData}
-                    className="mt-3 w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/30 h-10 font-medium"
+                    style={{
+                      marginTop: "0.75rem",
+                      background: "rgba(16,185,129,0.12)",
+                      color: "#10B981",
+                      border: "1px solid rgba(16,185,129,0.3)",
+                      borderRadius: "0.5rem",
+                      padding: "0.5rem 1rem",
+                      cursor: "pointer",
+                      fontSize: "0.8125rem",
+                      fontWeight: 600,
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "0.5rem",
+                    }}
                   >
-                    <CheckCircle className="w-4 h-4 mr-2" />
+                    <CheckCircle style={{ width: "0.875rem", height: "0.875rem" }} />
                     Usar dados existentes
-                  </Button>
+                  </button>
                 </div>
               </div>
             </motion.div>
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit}>
             {errors.general && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm"
+                style={{
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  borderRadius: "0.5rem",
+                  padding: "0.75rem 1rem",
+                  fontSize: "0.8125rem",
+                  color: "#F87171",
+                  marginBottom: "1rem",
+                }}
               >
                 {errors.general}
               </motion.div>
             )}
 
-            {/* Step Content */}
             <AnimatePresence mode="wait">
-              {/* STEP 1: Role Selection */}
+              {/* ── STEP 1: Role Selection ──────────────────────────────────── */}
               {currentStep === 1 && (
                 <motion.div
                   key="step1"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
+                  transition={SPRING}
                 >
-                  {/* Role Selection */}
-                  <div className="relative mb-6">
-                    <Label className="text-sm font-medium text-gray-300 mb-2 block">
-                      Tipo de conta
-                    </Label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {roleOptions.map((option, index) => {
-                        const Icon = option.icon;
-                        const isSelected = selectedRole === option.value;
-
-                        return (
-                          <motion.button
-                            key={option.value}
-                            type="button"
-                            onClick={() => handleSelectRole(option.value)}
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{
-                              opacity: isSelected ? 1 : 0.6,
-                              y: 0,
+                  <label style={labelStyle}>Tipo de conta</label>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3,1fr)",
+                      gap: "0.75rem",
+                      marginBottom: "1.5rem",
+                    }}
+                  >
+                    {roleOptions.map((option, index) => {
+                      const Icon = option.icon;
+                      const isSelected = selectedRole === option.value;
+                      return (
+                        <motion.button
+                          key={option.value}
+                          type="button"
+                          onClick={() => handleSelectRole(option.value)}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: isSelected ? 1 : 0.65, y: 0 }}
+                          transition={{ delay: 0.06 * index, ...SPRING }}
+                          whileHover={{ y: -4, opacity: 1, transition: SPRING }}
+                          whileTap={{ scale: 0.97 }}
+                          style={{
+                            padding: "0.875rem 0.5rem",
+                            borderRadius: "0.75rem",
+                            border: isSelected
+                              ? `1px solid ${option.accentColor}55`
+                              : "1px solid rgba(255,255,255,0.07)",
+                            background: isSelected
+                              ? `${option.accentGlow}`
+                              : "rgba(255,255,255,0.02)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            cursor: "pointer",
+                            position: "relative",
+                            overflow: "hidden",
+                            transition: "border-color 0.3s, background 0.3s",
+                          }}
+                        >
+                          {/* Shimmer on hover */}
+                          <motion.div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)",
                             }}
-                            transition={{
-                              delay: 0.08 * index,
-                              duration: 0.3,
+                            initial={{ x: "-100%" }}
+                            whileHover={{ x: "100%" }}
+                            transition={{ duration: 0.5 }}
+                          />
+                          {/* Icon wrapper */}
+                          <div
+                            style={{
+                              width: "3rem",
+                              height: "3rem",
+                              borderRadius: "0.625rem",
+                              background: `linear-gradient(135deg,${option.accentColor}cc,${option.accentColor}88)`,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: `0 6px 20px ${option.accentGlow}`,
                             }}
-                            whileHover={{
-                              y: -5,
-                              opacity: 1,
-                              transition: {
-                                type: "spring",
-                                stiffness: 400,
-                                damping: 10,
-                              },
-                            }}
-                            className={`
-                              p-3 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-2 relative overflow-hidden
-                              ${
-                                isSelected
-                                  ? `${option.colors.bgLight} ${option.colors.border} shadow-lg ${option.colors.shadow}`
-                                  : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
-                              }
-                            `}
                           >
-                            {/* Efeito de brilho no hover */}
-                            <motion.div
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                              initial={{ x: "-100%" }}
-                              whileHover={{ x: "100%" }}
-                              transition={{ duration: 0.6 }}
-                            />
-
-                            {/* Brilho contínuo de fundo para o selecionado */}
-                            {isSelected && (
-                              <motion.div
-                                className={`absolute inset-0 bg-gradient-to-r ${option.colors.primary} opacity-0`}
-                                animate={{
-                                  opacity: [0, 0.15, 0],
-                                  x: ["-100%", "100%"],
-                                }}
-                                transition={{
-                                  duration: 2.5,
-                                  repeat: Infinity,
-                                  repeatDelay: 2,
-                                  ease: "easeInOut",
-                                }}
-                              />
-                            )}
-
-                            <motion.div
-                              className={`
-                                rounded-xl flex items-center justify-center transition-all relative
-                                bg-gradient-to-br ${option.colors.primary} ${option.colors.shadow}
-                                w-14 h-14 shadow-xl
-                              `}
-                              whileHover={{
-                                rotate: [0, -10, 10, -10, 0],
-                                transition: { duration: 0.5 },
-                              }}
-                            >
-                              <Icon
-                                className={`${
-                                  isSelected ? "w-7 h-7" : "w-6 h-6"
-                                } text-white transition-all`}
-                              />
-
-                              {/* Pulso de luz */}
-                              {isSelected && (
-                                <motion.div
-                                  className={`absolute inset-0 rounded-xl bg-gradient-to-br ${option.colors.primary} opacity-0`}
-                                  animate={{
-                                    opacity: [0, 0.5, 0],
-                                    scale: [1, 1.2, 1],
-                                  }}
-                                  transition={{
-                                    duration: 2,
-                                    repeat: Infinity,
-                                    repeatDelay: 1,
-                                  }}
-                                />
-                              )}
-                            </motion.div>
-
-                            <p
-                              className={`text-xs font-semibold transition-colors ${
-                                isSelected ? "text-white" : "text-gray-400"
-                              }`}
-                            >
-                              {option.label}
-                            </p>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
+                            <Icon style={{ width: "1.375rem", height: "1.375rem", color: "#fff" }} />
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                              color: isSelected ? "#fff" : MUTED,
+                              transition: "color 0.2s",
+                            }}
+                          >
+                            {option.label}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
                   </div>
 
-                  {/* Navigation Button */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
+                  <button
+                    type="button"
+                    onClick={handleNextStep}
+                    style={goldBtnStyle}
                   >
-                    <motion.div
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="relative"
-                    >
-                      <motion.div
-                        className={`absolute -inset-0.5 bg-gradient-to-r ${colors.primary} rounded-xl opacity-0 blur`}
-                        whileHover={{ opacity: 0.7 }}
-                        transition={{ duration: 0.3 }}
-                      />
-
-                      <Button
-                        type="button"
-                        onClick={handleNextStep}
-                        className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all relative overflow-hidden`}
-                      >
-                        <motion.div
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                          animate={{ x: ["-100%", "100%"] }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            repeatDelay: 1,
-                            ease: "linear",
-                          }}
-                        />
-                        <span className="relative z-10">Próximo</span>
-                      </Button>
-                    </motion.div>
-                  </motion.div>
+                    Próximo
+                  </button>
                 </motion.div>
               )}
 
-              {/* STEP 2: Personal Data */}
+              {/* ── STEP 2: Personal Data ───────────────────────────────────── */}
               {currentStep === 2 && (
                 <motion.div
                   key="step2"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-4"
+                  transition={SPRING}
+                  style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
                 >
-                  {/* Name Field */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="name"
-                      className="text-sm font-medium text-gray-300"
-                    >
-                      Nome completo
-                    </Label>
-                    <div className="relative group">
-                      <div className="pointer-events-none">
-                        <User
-                          className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${
-                            formData.name ? colors.text : "text-gray-500"
-                          }`}
-                        />
-                      </div>
+                  {/* Name */}
+                  <div>
+                    <label htmlFor="name" style={labelStyle}>Nome completo</label>
+                    <div style={{ position: "relative" }}>
+                      <User
+                        style={{
+                          position: "absolute",
+                          left: "0.875rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: "1.125rem",
+                          height: "1.125rem",
+                          color: formData.name ? GOLD : MUTED,
+                          pointerEvents: "none",
+                          zIndex: 1,
+                          transition: "color 0.2s",
+                        }}
+                      />
                       <input
                         id="name"
                         name="name"
@@ -1603,34 +1281,16 @@ export function Register() {
                         value={formData.name}
                         onChange={handleChange}
                         autoComplete="off"
-                        style={{
-                          backgroundColor: "transparent",
-                          WebkitBoxShadow: "0 0 0 1000px transparent inset",
-                        }}
-                        className={`
-                          w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
-                          focus:outline-none focus:ring-2 transition-all duration-300
-                          ${
-                            errors.name
-                              ? "border-red-500/50 focus:ring-red-500/30"
-                              : `border-white/10 ${colors.ring}`
-                          }
-                        `}
-                      />
-                      <motion.div
-                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                        initial={{ width: 0 }}
-                        animate={{ width: formData.name ? "100%" : 0 }}
-                        transition={{ duration: 0.3 }}
+                        style={errors.name ? inputError : inputWithIconStyle}
                       />
                     </div>
                     <AnimatePresence>
                       {errors.name && (
                         <motion.p
-                          initial={{ opacity: 0, y: -5 }}
+                          initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="text-xs text-red-400"
+                          exit={{ opacity: 0, y: -4 }}
+                          style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                         >
                           {errors.name}
                         </motion.p>
@@ -1638,22 +1298,24 @@ export function Register() {
                     </AnimatePresence>
                   </div>
 
-                  {/* CPF Field */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="cpf"
-                      className="text-sm font-medium text-gray-300"
-                    >
-                      CPF
-                    </Label>
-                    <div className="relative group">
-                      <div className="pointer-events-none">
-                        <CreditCard
-                          className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${
-                            formData.cpf ? colors.text : "text-gray-500"
-                          }`}
-                        />
-                      </div>
+                  {/* CPF */}
+                  <div>
+                    <label htmlFor="cpf" style={labelStyle}>CPF</label>
+                    <div style={{ position: "relative" }}>
+                      <CreditCard
+                        style={{
+                          position: "absolute",
+                          left: "0.875rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: "1.125rem",
+                          height: "1.125rem",
+                          color: formData.cpf ? GOLD : MUTED,
+                          pointerEvents: "none",
+                          zIndex: 1,
+                          transition: "color 0.2s",
+                        }}
+                      />
                       <input
                         id="cpf"
                         name="cpf"
@@ -1663,34 +1325,16 @@ export function Register() {
                         onChange={handleChange}
                         maxLength={14}
                         autoComplete="off"
-                        style={{
-                          backgroundColor: "transparent",
-                          WebkitBoxShadow: "0 0 0 1000px transparent inset",
-                        }}
-                        className={`
-                          w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
-                          focus:outline-none focus:ring-2 transition-all duration-300
-                          ${
-                            errors.cpf
-                              ? "border-red-500/50 focus:ring-red-500/30"
-                              : `border-white/10 ${colors.ring}`
-                          }
-                        `}
-                      />
-                      <motion.div
-                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                        initial={{ width: 0 }}
-                        animate={{ width: formData.cpf ? "100%" : 0 }}
-                        transition={{ duration: 0.3 }}
+                        style={errors.cpf ? inputError : inputWithIconStyle}
                       />
                     </div>
                     <AnimatePresence>
                       {errors.cpf && (
                         <motion.p
-                          initial={{ opacity: 0, y: -5 }}
+                          initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="text-xs text-red-400"
+                          exit={{ opacity: 0, y: -4 }}
+                          style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                         >
                           {errors.cpf}
                         </motion.p>
@@ -1698,272 +1342,190 @@ export function Register() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Phone Field with Custom Dropdown */}
-                  <div
-                    className="space-y-1.5"
-                    style={{ position: "relative", zIndex: 20 }}
-                    ref={dropdownRef}
-                  >
-                    <Label className="text-sm font-medium text-gray-300">
-                      Telefone
-                    </Label>
+                  {/* Phone */}
+                  <div style={{ position: "relative", zIndex: 20 }} ref={dropdownRef}>
+                    <label style={labelStyle}>Telefone</label>
                     <div style={{ position: "relative" }}>
-                      <div className="flex gap-2">
-                        {/* Country Selector Button */}
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        {/* Country selector */}
                         <button
                           type="button"
-                          onClick={() =>
-                            setShowCountryDropdown(!showCountryDropdown)
-                          }
-                          className={`
-                            flex items-center gap-2 px-3 h-11 bg-white/5 border rounded-xl
-                            hover:bg-white/10 transition-all
-                            ${
-                              errors.phone
-                                ? "border-red-500/50"
-                                : `border-white/10 hover:border-white/20`
-                            }
-                          `}
+                          onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.375rem",
+                            padding: "0 0.75rem",
+                            height: "2.875rem",
+                            background: "rgba(255,255,255,0.05)",
+                            border: errors.phone
+                              ? "1px solid rgba(239,68,68,0.5)"
+                              : "1px solid rgba(255,255,255,0.1)",
+                            borderRadius: "0.5rem",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                            transition: "border-color 0.2s",
+                          }}
                         >
-                          <div className="w-6 h-6 flex items-center justify-center">
+                          <div style={{ width: "1.5rem", height: "1.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             {(() => {
-                              const Flag =
-                                flags[selectedCountry as keyof typeof flags];
-                              return Flag ? (
-                                <Flag
-                                  title={en[selectedCountry as keyof typeof en]}
-                                />
-                              ) : null;
+                              const Flag = flags[selectedCountry as keyof typeof flags];
+                              return Flag ? <Flag title={en[selectedCountry as keyof typeof en]} /> : null;
                             })()}
                           </div>
-                          <span className="text-white text-sm font-medium">
+                          <span style={{ color: "#fff", fontSize: "0.8125rem", fontWeight: 500 }}>
                             +{getCountryCallingCode(selectedCountry as any)}
                           </span>
                           <svg
-                            className={`w-4 h-4 text-gray-400 transition-transform ${
-                              showCountryDropdown ? "rotate-180" : ""
-                            }`}
+                            style={{
+                              width: "0.875rem",
+                              height: "0.875rem",
+                              color: MUTED,
+                              transform: showCountryDropdown ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.2s",
+                            }}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </button>
 
-                        {/* Phone Number Input */}
-                        <div className="relative flex-1">
-                          <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 z-10">
-                            <Phone
-                              className={`w-5 h-5 transition-all duration-300 ${
-                                formData.phone ? colors.text : "text-gray-500"
-                              }`}
-                            />
-                          </div>
+                        {/* Phone number input */}
+                        <div style={{ position: "relative", flex: 1 }}>
+                          <Phone
+                            style={{
+                              position: "absolute",
+                              left: "0.875rem",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              width: "1.125rem",
+                              height: "1.125rem",
+                              color: formData.phone ? GOLD : MUTED,
+                              pointerEvents: "none",
+                              zIndex: 1,
+                              transition: "color 0.2s",
+                            }}
+                          />
                           <input
                             type="tel"
                             placeholder={
-                              selectedCountry === "BR"
-                                ? "(00) 00000-0000"
-                                : selectedCountry === "US"
-                                ? "(000) 000-0000"
-                                : selectedCountry === "GB"
-                                ? "00000 000000"
-                                : "Phone number"
+                              selectedCountry === "BR" ? "(00) 00000-0000"
+                              : selectedCountry === "US" ? "(000) 000-0000"
+                              : selectedCountry === "GB" ? "00000 000000"
+                              : "Phone number"
                             }
                             value={(() => {
                               if (!formData.phone) return "";
-
-                              // Pega apenas os dígitos do telefone (sem o código do país)
-                              const countryCode = getCountryCallingCode(
-                                selectedCountry as any
-                              );
-                              const digitsOnly = formData.phone
-                                .replace(/\D/g, "")
-                                .replace(countryCode, "");
-
+                              const countryCode = getCountryCallingCode(selectedCountry as any);
+                              const digitsOnly = formData.phone.replace(/\D/g, "").replace(countryCode, "");
                               if (!digitsOnly) return "";
-
-                              // Formatação manual por país
                               if (selectedCountry === "BR") {
-                                if (digitsOnly.length <= 2) {
-                                  return `(${digitsOnly}`;
-                                } else if (digitsOnly.length <= 7) {
-                                  return `(${digitsOnly.substring(
-                                    0,
-                                    2
-                                  )}) ${digitsOnly.substring(2)}`;
-                                } else if (digitsOnly.length <= 11) {
-                                  return `(${digitsOnly.substring(
-                                    0,
-                                    2
-                                  )}) ${digitsOnly.substring(
-                                    2,
-                                    7
-                                  )}-${digitsOnly.substring(7)}`;
-                                }
+                                if (digitsOnly.length <= 2) return `(${digitsOnly}`;
+                                if (digitsOnly.length <= 7) return `(${digitsOnly.substring(0,2)}) ${digitsOnly.substring(2)}`;
+                                if (digitsOnly.length <= 11) return `(${digitsOnly.substring(0,2)}) ${digitsOnly.substring(2,7)}-${digitsOnly.substring(7)}`;
                               } else if (selectedCountry === "US") {
-                                if (digitsOnly.length <= 3) {
-                                  return `(${digitsOnly}`;
-                                } else if (digitsOnly.length <= 6) {
-                                  return `(${digitsOnly.substring(
-                                    0,
-                                    3
-                                  )}) ${digitsOnly.substring(3)}`;
-                                } else {
-                                  return `(${digitsOnly.substring(
-                                    0,
-                                    3
-                                  )}) ${digitsOnly.substring(
-                                    3,
-                                    6
-                                  )}-${digitsOnly.substring(6, 10)}`;
-                                }
+                                if (digitsOnly.length <= 3) return `(${digitsOnly}`;
+                                if (digitsOnly.length <= 6) return `(${digitsOnly.substring(0,3)}) ${digitsOnly.substring(3)}`;
+                                return `(${digitsOnly.substring(0,3)}) ${digitsOnly.substring(3,6)}-${digitsOnly.substring(6,10)}`;
                               }
-
                               return digitsOnly;
                             })()}
                             onChange={(e) => {
-                              // Pega o valor digitado (pode conter símbolos)
-                              const inputValue = e.target.value;
-
-                              // Remove tudo exceto dígitos
-                              const digitsOnly = inputValue.replace(/\D/g, "");
-
+                              const digitsOnly = e.target.value.replace(/\D/g, "");
                               if (!digitsOnly) {
                                 setFormData((prev) => ({ ...prev, phone: "" }));
                                 return;
                               }
-
-                              // Adiciona o código do país e formata
-                              const countryCode = getCountryCallingCode(
-                                selectedCountry as any
-                              );
+                              const countryCode = getCountryCallingCode(selectedCountry as any);
                               const fullPhone = `+${countryCode}${digitsOnly}`;
-
-                              setFormData((prev) => ({
-                                ...prev,
-                                phone: fullPhone,
-                              }));
-                              if (errors.phone) {
-                                setErrors((prev) => ({ ...prev, phone: "" }));
-                              }
+                              setFormData((prev) => ({ ...prev, phone: fullPhone }));
+                              if (errors.phone) setErrors((prev) => ({ ...prev, phone: "" }));
                             }}
-                            className={`
-                              w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
-                              focus:outline-none focus:ring-2 transition-all
-                              ${
-                                errors.phone
-                                  ? "border-red-500/50 focus:ring-red-500/30"
-                                  : `border-white/10 ${colors.ring}`
-                              }
-                            `}
-                            style={{
-                              backgroundColor: "transparent",
-                              WebkitBoxShadow: "0 0 0 1000px transparent inset",
-                            }}
-                          />
-                          <motion.div
-                            className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                            initial={{ width: 0 }}
-                            animate={{ width: formData.phone ? "100%" : 0 }}
-                            transition={{ duration: 0.3 }}
+                            style={
+                              errors.phone
+                                ? inputError
+                                : inputWithIconStyle
+                            }
                           />
                         </div>
                       </div>
 
-                      {/* Custom Dropdown */}
+                      {/* Country dropdown */}
                       <AnimatePresence>
                         {showCountryDropdown && (
                           <motion.div
-                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                            initial={{ opacity: 0, y: -8, scale: 0.97 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
-                            className="custom-country-dropdown"
+                            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                            transition={{ duration: 0.15 }}
+                            className="dlx-country-dropdown"
                           >
-                            {/* Search Bar */}
-                            <div className="custom-country-search">
-                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <div className="dlx-country-search">
+                              <div style={{ position: "relative" }}>
+                                <Search
+                                  style={{
+                                    position: "absolute",
+                                    left: "0.625rem",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    width: "0.875rem",
+                                    height: "0.875rem",
+                                    color: MUTED,
+                                  }}
+                                />
                                 <input
                                   type="text"
                                   placeholder="Buscar país..."
                                   value={countrySearch}
-                                  onChange={(e) =>
-                                    setCountrySearch(e.target.value)
-                                  }
+                                  onChange={(e) => setCountrySearch(e.target.value)}
                                   autoFocus
                                   onClick={(e) => e.stopPropagation()}
                                 />
                                 {countrySearch && (
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCountrySearch("");
-                                    }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                    onClick={(e) => { e.stopPropagation(); setCountrySearch(""); }}
+                                    style={{ position: "absolute", right: "0.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: MUTED }}
                                   >
-                                    <X className="w-4 h-4" />
+                                    <X style={{ width: "0.875rem", height: "0.875rem" }} />
                                   </button>
                                 )}
                               </div>
                             </div>
-
-                            {/* Countries List */}
-                            <div className="custom-country-list">
+                            <div className="dlx-country-list dlx-scroll">
                               {filteredCountries.length > 0 ? (
                                 filteredCountries.map((country) => {
-                                  const Flag =
-                                    flags[country as keyof typeof flags];
-                                  const countryName =
-                                    en[country as keyof typeof en] || country;
+                                  const Flag = flags[country as keyof typeof flags];
+                                  const countryName = en[country as keyof typeof en] || country;
                                   return (
                                     <div
                                       key={country}
                                       onClick={() => {
                                         setSelectedCountry(country);
-                                        const currentNumber =
-                                          formData.phone.replace(/^\+\d+/, "");
-                                        const newFullPhone = `+${getCountryCallingCode(
-                                          country as any
-                                        )}${currentNumber}`;
-                                        setFormData((prev) => ({
-                                          ...prev,
-                                          phone: newFullPhone,
-                                        }));
+                                        const currentNumber = formData.phone.replace(/^\+\d+/, "");
+                                        const newFullPhone = `+${getCountryCallingCode(country as any)}${currentNumber}`;
+                                        setFormData((prev) => ({ ...prev, phone: newFullPhone }));
                                         setShowCountryDropdown(false);
                                         setCountrySearch("");
                                       }}
-                                      className={`custom-country-item ${
-                                        selectedCountry === country
-                                          ? "selected"
-                                          : ""
-                                      }`}
+                                      className={`dlx-country-item${selectedCountry === country ? " selected" : ""}`}
                                     >
-                                      <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
+                                      <div style={{ width: "1.75rem", height: "1.75rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                         {Flag && <Flag title={countryName} />}
                                       </div>
-                                      <div className="custom-country-info">
+                                      <div style={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                         <span>{countryName}</span>
-                                        <span className="custom-country-code">
-                                          +
-                                          {getCountryCallingCode(
-                                            country as any
-                                          )}
+                                        <span style={{ color: MUTED, fontSize: "0.75rem" }}>
+                                          +{getCountryCallingCode(country as any)}
                                         </span>
                                       </div>
                                     </div>
                                   );
                                 })
                               ) : (
-                                <div className="p-8 text-center text-gray-400 text-sm">
+                                <div style={{ padding: "2rem", textAlign: "center", color: MUTED, fontSize: "0.875rem" }}>
                                   Nenhum país encontrado
                                 </div>
                               )}
@@ -1975,10 +1537,10 @@ export function Register() {
                     <AnimatePresence>
                       {errors.phone && (
                         <motion.p
-                          initial={{ opacity: 0, y: -5 }}
+                          initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="text-xs text-red-400"
+                          exit={{ opacity: 0, y: -4 }}
+                          style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                         >
                           {errors.phone}
                         </motion.p>
@@ -1986,71 +1548,50 @@ export function Register() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Gender and Birth Date in a row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Gender Field */}
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="gender"
-                        className="text-sm font-medium text-gray-300"
-                      >
-                        Gênero
-                      </Label>
+                  {/* Gender + Birth Date */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    {/* Gender */}
+                    <div>
+                      <label htmlFor="gender" style={labelStyle}>Gênero</label>
                       <select
                         id="gender"
                         name="gender"
                         value={formData.gender}
                         onChange={handleChange}
-                        className={`
-                          w-full h-11 px-4 bg-white/5 border rounded-xl text-white
-                          focus:outline-none focus:ring-2 transition-all
-                          ${
-                            errors.gender
-                              ? "border-red-500/50 focus:ring-red-500/30"
-                              : `border-white/10 ${colors.ring}`
-                          }
-                        `}
+                        style={{
+                          ...inputStyle,
+                          color: formData.gender ? "#fff" : MUTED,
+                          border: errors.gender ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                        }}
                       >
-                        <option value="" className="bg-gray-800">
-                          Selecione
-                        </option>
-                        <option value="masculino" className="bg-gray-800">
-                          Masculino
-                        </option>
-                        <option value="feminino" className="bg-gray-800">
-                          Feminino
-                        </option>
-                        <option value="outro" className="bg-gray-800">
-                          Outro
-                        </option>
+                        <option value="">Selecione</option>
+                        <option value="masculino">Masculino</option>
+                        <option value="feminino">Feminino</option>
+                        <option value="outro">Outro</option>
                       </select>
                       {errors.gender && (
-                        <p className="text-xs text-red-400">{errors.gender}</p>
+                        <p style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}>{errors.gender}</p>
                       )}
                     </div>
 
-                    {/* Birth Date Field */}
-                    <div
-                      className="space-y-1.5"
-                      style={{ position: "relative", zIndex: 10 }}
-                      ref={birthDateRef}
-                    >
-                      <Label
-                        htmlFor="birthDate"
-                        className="text-sm font-medium text-gray-300"
-                      >
-                        Nascimento
-                      </Label>
-                      <div className="relative group">
-                        {/* Ícone de calendário à esquerda */}
-                        <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 z-10">
-                          <Calendar
-                            className={`w-5 h-5 transition-all duration-300 ${
-                              formData.birthDate ? colors.text : "text-gray-500"
-                            }`}
-                          />
-                        </div>
-
+                    {/* Birth Date */}
+                    <div style={{ position: "relative", zIndex: 10 }} ref={birthDateRef}>
+                      <label htmlFor="birthDate" style={labelStyle}>Nascimento</label>
+                      <div style={{ position: "relative" }}>
+                        <Calendar
+                          style={{
+                            position: "absolute",
+                            left: "0.875rem",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: "1.125rem",
+                            height: "1.125rem",
+                            color: formData.birthDate ? GOLD : MUTED,
+                            pointerEvents: "none",
+                            zIndex: 1,
+                            transition: "color 0.2s",
+                          }}
+                        />
                         <input
                           type="text"
                           id="birthDate"
@@ -2062,198 +1603,128 @@ export function Register() {
                           maxLength={10}
                           autoComplete="off"
                           style={{
-                            backgroundColor: "transparent",
-                            WebkitBoxShadow: "0 0 0 1000px transparent inset",
+                            ...inputWithIconAndToggle,
+                            border: errors.birthDate ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(255,255,255,0.1)",
                           }}
-                          className={`
-                            w-full h-11 pl-12 pr-12 bg-transparent border rounded-xl text-white placeholder-gray-500
-                            focus:outline-none focus:ring-2 transition-all duration-300
-                            ${
-                              errors.birthDate
-                                ? "border-red-500/50 focus:ring-red-500/30"
-                                : `border-white/10 ${colors.ring}`
-                            }
-                          `}
                         />
-
-                        {/* Botão de calendário à direita */}
+                        {/* Calendar toggle */}
                         <button
                           type="button"
-                          onClick={() =>
-                            setShowBirthDateCalendar(!showBirthDateCalendar)
-                          }
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/10 transition-all"
+                          onClick={() => setShowBirthDateCalendar(!showBirthDateCalendar)}
+                          style={{
+                            position: "absolute",
+                            right: "0.5rem",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "0.375rem",
+                            borderRadius: "0.375rem",
+                          }}
                         >
                           <svg
-                            className={`w-4 h-4 transition-all duration-300 ${
-                              showBirthDateCalendar
-                                ? colors.text
-                                : "text-gray-400"
-                            }`}
+                            style={{
+                              width: "1rem",
+                              height: "1rem",
+                              color: showBirthDateCalendar ? GOLD : MUTED,
+                              transform: showBirthDateCalendar ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.2s, color 0.2s",
+                            }}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </button>
 
-                        {/* Calendário customizado */}
+                        {/* Calendar popup */}
                         <AnimatePresence>
                           {showBirthDateCalendar && (
                             <motion.div
-                              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                              initial={{ opacity: 0, y: -8, scale: 0.97 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                              transition={{ duration: 0.2 }}
-                              className="birth-date-calendar"
+                              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                              transition={{ duration: 0.15 }}
+                              className="dlx-calendar"
                             >
-                              {/* Header */}
-                              <div className="birth-calendar-header">
-                                {/* Seletores de Mês e Ano */}
-                                <div className="birth-calendar-selectors">
-                                  <select
-                                    value={selectedMonth}
-                                    onChange={handleMonthChange}
-                                    className="birth-calendar-selector"
-                                  >
+                              <div className="dlx-cal-header">
+                                <div className="dlx-cal-selectors">
+                                  <select value={selectedMonth} onChange={handleMonthChange} className="dlx-cal-select">
                                     {monthNames.map((month, index) => (
-                                      <option key={index} value={index}>
-                                        {month}
-                                      </option>
+                                      <option key={index} value={index}>{month}</option>
                                     ))}
                                   </select>
-
-                                  <select
-                                    value={selectedYear}
-                                    onChange={handleYearChange}
-                                    className="birth-calendar-selector"
-                                  >
+                                  <select value={selectedYear} onChange={handleYearChange} className="dlx-cal-select">
                                     {generateYears().map((year) => (
-                                      <option key={year} value={year}>
-                                        {year}
-                                      </option>
+                                      <option key={year} value={year}>{year}</option>
                                     ))}
                                   </select>
                                 </div>
-
-                                {/* Navegação com Setas */}
-                                <div className="birth-calendar-nav">
-                                  <button
-                                    type="button"
-                                    onClick={previousMonth}
-                                    className="birth-calendar-nav-btn"
-                                  >
-                                    <ChevronLeft className="w-5 h-5" />
+                                <div className="dlx-cal-nav">
+                                  <button type="button" onClick={previousMonth} className="dlx-cal-nav-btn">
+                                    <ChevronLeft style={{ width: "1.125rem", height: "1.125rem" }} />
                                   </button>
-
-                                  <span className="text-gray-400 text-sm">
+                                  <span style={{ color: MUTED, fontSize: "0.8125rem" }}>
                                     {monthNames[selectedMonth]} {selectedYear}
                                   </span>
-
-                                  <button
-                                    type="button"
-                                    onClick={nextMonth}
-                                    className="birth-calendar-nav-btn"
-                                  >
-                                    <ChevronRight className="w-5 h-5" />
+                                  <button type="button" onClick={nextMonth} className="dlx-cal-nav-btn">
+                                    <ChevronRight style={{ width: "1.125rem", height: "1.125rem" }} />
                                   </button>
                                 </div>
                               </div>
 
-                              {/* Day names */}
-                              <div className="birth-calendar-day-names">
+                              <div className="dlx-cal-day-names">
                                 {dayNames.map((name, index) => (
-                                  <div
-                                    key={`${name}-${index}`}
-                                    className="birth-calendar-day-name"
-                                  >
-                                    {name}
-                                  </div>
+                                  <div key={`${name}-${index}`} className="dlx-cal-day-name">{name}</div>
                                 ))}
                               </div>
 
-                              {/* Divider */}
-                              <div className="birth-calendar-divider" />
+                              <div className="dlx-cal-divider" />
 
-                              {/* Days */}
-                              <div className="birth-calendar-days">
+                              <div className="dlx-cal-days">
                                 {(() => {
                                   const days = [];
-                                  const totalDays = daysInMonth(
-                                    selectedYear,
-                                    selectedMonth
-                                  );
-                                  const firstDay = firstDayOfMonth(
-                                    selectedYear,
-                                    selectedMonth
-                                  );
-
-                                  // Empty cells for days before month starts
+                                  const totalDays = daysInMonth(selectedYear, selectedMonth);
+                                  const firstDay = firstDayOfMonth(selectedYear, selectedMonth);
                                   for (let i = 0; i < firstDay; i++) {
                                     days.push(<div key={`empty-${i}`} />);
                                   }
-
-                                  // Days of the month
                                   for (let day = 1; day <= totalDays; day++) {
                                     const selected = isDateSelected(day);
                                     const future = isFutureDate(day);
-
                                     days.push(
                                       <button
                                         key={day}
                                         type="button"
-                                        onClick={() =>
-                                          !future && handleDateSelect(day)
-                                        }
+                                        onClick={() => !future && handleDateSelect(day)}
                                         disabled={future}
-                                        className={`
-                                          birth-calendar-day
-                                          ${selected ? "selected" : ""}
-                                          ${future ? "disabled" : ""}
-                                        `}
+                                        className={`dlx-cal-day${selected ? " selected" : ""}${future ? " disabled" : ""}`}
                                       >
                                         {day}
                                       </button>
                                     );
                                   }
-
                                   return days;
                                 })()}
                               </div>
 
-                              {/* Legend */}
-                              <div className="birth-calendar-legend">
-                                <div className="birth-calendar-legend-item">
-                                  <div className="birth-calendar-legend-dot selected" />
-                                  <span className="birth-calendar-legend-text">
-                                    Selecionado
-                                  </span>
-                                </div>
+                              <div className="dlx-cal-legend">
+                                <div className="dlx-cal-legend-dot" />
+                                <span>Selecionado</span>
                               </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
-
-                        <motion.div
-                          className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                          initial={{ width: 0 }}
-                          animate={{ width: formData.birthDate ? "100%" : 0 }}
-                          transition={{ duration: 0.3 }}
-                        />
                       </div>
                       <AnimatePresence>
                         {errors.birthDate && (
                           <motion.p
-                            initial={{ opacity: 0, y: -5 }}
+                            initial={{ opacity: 0, y: -4 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -5 }}
-                            className="text-xs text-red-400"
+                            exit={{ opacity: 0, y: -4 }}
+                            style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                           >
                             {errors.birthDate}
                           </motion.p>
@@ -2262,27 +1733,30 @@ export function Register() {
                     </div>
                   </div>
 
-                  {/* CNPJ Field - Only for Professional and Owner */}
-                  {(selectedRole === "professional" ||
-                    selectedRole === "owner") && (
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="cnpj"
-                        className="text-sm font-medium text-gray-300"
-                      >
+                  {/* CNPJ (optional) */}
+                  {(selectedRole === "professional" || selectedRole === "owner") && (
+                    <div>
+                      <label htmlFor="cnpj" style={labelStyle}>
                         CNPJ{" "}
-                        <span className="text-gray-500 text-xs">
-                          (Opcional)
+                        <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400, textTransform: "none" }}>
+                          (opcional)
                         </span>
-                      </Label>
-                      <div className="relative group">
-                        <div className="pointer-events-none">
-                          <CreditCard
-                            className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${
-                              formData.cnpj ? colors.text : "text-gray-500"
-                            }`}
-                          />
-                        </div>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <CreditCard
+                          style={{
+                            position: "absolute",
+                            left: "0.875rem",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: "1.125rem",
+                            height: "1.125rem",
+                            color: formData.cnpj ? GOLD : MUTED,
+                            pointerEvents: "none",
+                            zIndex: 1,
+                            transition: "color 0.2s",
+                          }}
+                        />
                         <input
                           id="cnpj"
                           name="cnpj"
@@ -2292,34 +1766,16 @@ export function Register() {
                           onChange={handleChange}
                           maxLength={18}
                           autoComplete="off"
-                          style={{
-                            backgroundColor: "transparent",
-                            WebkitBoxShadow: "0 0 0 1000px transparent inset",
-                          }}
-                          className={`
-                            w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
-                            focus:outline-none focus:ring-2 transition-all duration-300
-                            ${
-                              errors.cnpj
-                                ? "border-red-500/50 focus:ring-red-500/30"
-                                : `border-white/10 ${colors.ring}`
-                            }
-                          `}
-                        />
-                        <motion.div
-                          className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                          initial={{ width: 0 }}
-                          animate={{ width: formData.cnpj ? "100%" : 0 }}
-                          transition={{ duration: 0.3 }}
+                          style={errors.cnpj ? inputError : inputWithIconStyle}
                         />
                       </div>
                       <AnimatePresence>
                         {errors.cnpj && (
                           <motion.p
-                            initial={{ opacity: 0, y: -5 }}
+                            initial={{ opacity: 0, y: -4 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -5 }}
-                            className="text-xs text-red-400"
+                            exit={{ opacity: 0, y: -4 }}
+                            style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                           >
                             {errors.cnpj}
                           </motion.p>
@@ -2328,79 +1784,58 @@ export function Register() {
                     </div>
                   )}
 
-                  {/* Navigation Buttons */}
-                  <div className="flex gap-3 pt-2">
-                    <motion.div
+                  {/* Nav buttons */}
+                  <div style={{ display: "flex", gap: "0.75rem", paddingTop: "0.5rem" }}>
+                    <motion.button
+                      type="button"
+                      onClick={handlePreviousStep}
                       whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex-1"
+                      whileTap={{ scale: 0.97 }}
+                      style={{ ...outlineBtnStyle, flex: 1 }}
                     >
-                      <Button
-                        type="button"
-                        onClick={handlePreviousStep}
-                        className="w-full h-11 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 transition-all"
-                      >
-                        Voltar
-                      </Button>
-                    </motion.div>
-                    <motion.div
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex-[2] relative"
+                      Voltar
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      onClick={handleNextStep}
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      style={{ ...goldBtnStyle, flex: 2 }}
                     >
-                      <motion.div
-                        className={`absolute -inset-0.5 bg-gradient-to-r ${colors.primary} rounded-xl opacity-0 blur`}
-                        whileHover={{ opacity: 0.7 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleNextStep}
-                        className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all relative overflow-hidden`}
-                      >
-                        <motion.div
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                          animate={{ x: ["-100%", "100%"] }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            repeatDelay: 1,
-                            ease: "linear",
-                          }}
-                        />
-                        <span className="relative z-10">Próximo</span>
-                      </Button>
-                    </motion.div>
+                      Próximo
+                    </motion.button>
                   </div>
                 </motion.div>
               )}
 
-              {/* STEP 3: Credentials */}
+              {/* ── STEP 3: Credentials ──────────────────────────────────────── */}
               {currentStep === 3 && (
                 <motion.div
                   key="step3"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-4"
+                  transition={SPRING}
+                  style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
                 >
-                  {/* Email Field */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="email"
-                      className="text-sm font-medium text-gray-300"
-                    >
-                      Email
-                    </Label>
-                    <div className="relative group">
-                      <div className="pointer-events-none">
-                        <Mail
-                          className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${
-                            formData.email ? colors.text : "text-gray-500"
-                          }`}
-                        />
-                      </div>
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" style={labelStyle}>Email</label>
+                    <div style={{ position: "relative" }}>
+                      <Mail
+                        style={{
+                          position: "absolute",
+                          left: "0.875rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: "1.125rem",
+                          height: "1.125rem",
+                          color: formData.email ? GOLD : MUTED,
+                          pointerEvents: "none",
+                          zIndex: 1,
+                          transition: "color 0.2s",
+                        }}
+                      />
                       <input
                         id="email"
                         name="email"
@@ -2410,36 +1845,22 @@ export function Register() {
                         onChange={handleChange}
                         onBlur={handleEmailBlur}
                         autoComplete="off"
-                        style={{
-                          backgroundColor: "transparent",
-                          WebkitBoxShadow: "0 0 0 1000px transparent inset",
-                        }}
-                        className={`
-                          w-full h-11 pl-12 pr-4 bg-transparent border rounded-xl text-white placeholder-gray-500
-                          focus:outline-none focus:ring-2 transition-all duration-300
-                          ${
-                            errors.email
-                              ? "border-red-500/50 focus:ring-red-500/30"
-                              : emailExists
-                              ? `border-green-500/50 ${colors.ring}`
-                              : `border-white/10 ${colors.ring}`
-                          }
-                        `}
-                      />
-                      <motion.div
-                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                        initial={{ width: 0 }}
-                        animate={{ width: formData.email ? "100%" : 0 }}
-                        transition={{ duration: 0.3 }}
+                        style={
+                          errors.email
+                            ? inputError
+                            : emailExists
+                            ? { ...inputWithIconStyle, border: "1px solid rgba(16,185,129,0.4)" }
+                            : inputWithIconStyle
+                        }
                       />
                     </div>
                     <AnimatePresence>
                       {errors.email && (
                         <motion.p
-                          initial={{ opacity: 0, y: -5 }}
+                          initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="text-xs text-red-400"
+                          exit={{ opacity: 0, y: -4 }}
+                          style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                         >
                           {errors.email}
                         </motion.p>
@@ -2447,22 +1868,24 @@ export function Register() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Password Field */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="password"
-                      className="text-sm font-medium text-gray-300"
-                    >
-                      Senha
-                    </Label>
-                    <div className="relative group">
-                      <div className="pointer-events-none">
-                        <Lock
-                          className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${
-                            formData.password ? colors.text : "text-gray-500"
-                          }`}
-                        />
-                      </div>
+                  {/* Password */}
+                  <div>
+                    <label htmlFor="password" style={labelStyle}>Senha</label>
+                    <div style={{ position: "relative" }}>
+                      <Lock
+                        style={{
+                          position: "absolute",
+                          left: "0.875rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: "1.125rem",
+                          height: "1.125rem",
+                          color: formData.password ? GOLD : MUTED,
+                          pointerEvents: "none",
+                          zIndex: 1,
+                          transition: "color 0.2s",
+                        }}
+                      />
                       <input
                         id="password"
                         name="password"
@@ -2471,28 +1894,25 @@ export function Register() {
                         value={formData.password}
                         onChange={handleChange}
                         autoComplete="off"
-                        style={{
-                          backgroundColor: "transparent",
-                          WebkitBoxShadow: "0 0 0 1000px transparent inset",
-                        }}
-                        className={`
-                          w-full h-11 pl-12 pr-12 bg-transparent border rounded-xl text-white placeholder-gray-500
-                          focus:outline-none focus:ring-2 transition-all duration-300
-                          ${
-                            errors.password
-                              ? "border-red-500/50 focus:ring-red-500/30"
-                              : `border-white/10 ${colors.ring}`
-                          }
-                        `}
+                        style={errors.password ? inputErrorWithToggle : inputWithIconAndToggle}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300 z-20 ${
-                          showPassword
-                            ? colors.text
-                            : "text-gray-500 hover:text-gray-300"
-                        }`}
+                        style={{
+                          position: "absolute",
+                          right: "0.875rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: showPassword ? GOLD : MUTED,
+                          zIndex: 2,
+                          transition: "color 0.2s",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
                       >
                         <AnimatePresence mode="wait">
                           {showPassword ? (
@@ -2503,7 +1923,7 @@ export function Register() {
                               exit={{ rotate: 180, opacity: 0 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <EyeOff className="w-5 h-5" />
+                              <EyeOff style={{ width: "1.125rem", height: "1.125rem" }} />
                             </motion.div>
                           ) : (
                             <motion.div
@@ -2513,25 +1933,19 @@ export function Register() {
                               exit={{ rotate: 180, opacity: 0 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <Eye className="w-5 h-5" />
+                              <Eye style={{ width: "1.125rem", height: "1.125rem" }} />
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </button>
-                      <motion.div
-                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                        initial={{ width: 0 }}
-                        animate={{ width: formData.password ? "100%" : 0 }}
-                        transition={{ duration: 0.3 }}
-                      />
                     </div>
                     <AnimatePresence>
                       {errors.password && (
                         <motion.p
-                          initial={{ opacity: 0, y: -5 }}
+                          initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="text-xs text-red-400"
+                          exit={{ opacity: 0, y: -4 }}
+                          style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                         >
                           {errors.password}
                         </motion.p>
@@ -2539,24 +1953,24 @@ export function Register() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Confirm Password Field */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="confirmPassword"
-                      className="text-sm font-medium text-gray-300"
-                    >
-                      Confirmar senha
-                    </Label>
-                    <div className="relative group">
-                      <div className="pointer-events-none">
-                        <Lock
-                          className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-300 z-10 ${
-                            formData.confirmPassword
-                              ? colors.text
-                              : "text-gray-500"
-                          }`}
-                        />
-                      </div>
+                  {/* Confirm Password */}
+                  <div>
+                    <label htmlFor="confirmPassword" style={labelStyle}>Confirmar senha</label>
+                    <div style={{ position: "relative" }}>
+                      <Lock
+                        style={{
+                          position: "absolute",
+                          left: "0.875rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: "1.125rem",
+                          height: "1.125rem",
+                          color: formData.confirmPassword ? GOLD : MUTED,
+                          pointerEvents: "none",
+                          zIndex: 1,
+                          transition: "color 0.2s",
+                        }}
+                      />
                       <input
                         id="confirmPassword"
                         name="confirmPassword"
@@ -2565,30 +1979,25 @@ export function Register() {
                         value={formData.confirmPassword}
                         onChange={handleChange}
                         autoComplete="off"
-                        style={{
-                          backgroundColor: "transparent",
-                          WebkitBoxShadow: "0 0 0 1000px transparent inset",
-                        }}
-                        className={`
-                          w-full h-11 pl-12 pr-12 bg-transparent border rounded-xl text-white placeholder-gray-500
-                          focus:outline-none focus:ring-2 transition-all duration-300
-                          ${
-                            errors.confirmPassword
-                              ? "border-red-500/50 focus:ring-red-500/30"
-                              : `border-white/10 ${colors.ring}`
-                          }
-                        `}
+                        style={errors.confirmPassword ? inputErrorWithToggle : inputWithIconAndToggle}
                       />
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300 z-20 ${
-                          showConfirmPassword
-                            ? colors.text
-                            : "text-gray-500 hover:text-gray-300"
-                        }`}
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={{
+                          position: "absolute",
+                          right: "0.875rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: showConfirmPassword ? GOLD : MUTED,
+                          zIndex: 2,
+                          transition: "color 0.2s",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
                       >
                         <AnimatePresence mode="wait">
                           {showConfirmPassword ? (
@@ -2599,7 +2008,7 @@ export function Register() {
                               exit={{ rotate: 180, opacity: 0 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <EyeOff className="w-5 h-5" />
+                              <EyeOff style={{ width: "1.125rem", height: "1.125rem" }} />
                             </motion.div>
                           ) : (
                             <motion.div
@@ -2609,27 +2018,19 @@ export function Register() {
                               exit={{ rotate: 180, opacity: 0 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <Eye className="w-5 h-5" />
+                              <Eye style={{ width: "1.125rem", height: "1.125rem" }} />
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </button>
-                      <motion.div
-                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${colors.primary} pointer-events-none`}
-                        initial={{ width: 0 }}
-                        animate={{
-                          width: formData.confirmPassword ? "100%" : 0,
-                        }}
-                        transition={{ duration: 0.3 }}
-                      />
                     </div>
                     <AnimatePresence>
                       {errors.confirmPassword && (
                         <motion.p
-                          initial={{ opacity: 0, y: -5 }}
+                          initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="text-xs text-red-400"
+                          exit={{ opacity: 0, y: -4 }}
+                          style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem" }}
                         >
                           {errors.confirmPassword}
                         </motion.p>
@@ -2637,147 +2038,171 @@ export function Register() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Navigation & Submit Buttons */}
-                  <div className="flex gap-3 pt-2">
-                    <motion.div
+                  {/* Nav + Submit */}
+                  <div style={{ display: "flex", gap: "0.75rem", paddingTop: "0.5rem" }}>
+                    <motion.button
+                      type="button"
+                      onClick={handlePreviousStep}
                       whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex-1"
+                      whileTap={{ scale: 0.97 }}
+                      style={{ ...outlineBtnStyle, flex: 1 }}
                     >
-                      <Button
-                        type="button"
-                        onClick={handlePreviousStep}
-                        className="w-full h-11 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl border border-white/10 transition-all"
-                      >
-                        Voltar
-                      </Button>
-                    </motion.div>
-                    <motion.div
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex-[2] relative"
+                      Voltar
+                    </motion.button>
+                    <motion.button
+                      type="submit"
+                      disabled={isLoading}
+                      whileHover={!isLoading ? { scale: 1.02, y: -1 } : {}}
+                      whileTap={!isLoading ? { scale: 0.97 } : {}}
+                      style={{
+                        ...goldBtnStyle,
+                        flex: 2,
+                        opacity: isLoading ? 0.75 : 1,
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                      }}
                     >
-                      <motion.div
-                        className={`absolute -inset-0.5 bg-gradient-to-r ${colors.primary} rounded-xl opacity-0 blur`}
-                        whileHover={{ opacity: 0.7 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <Button
-                        type="submit"
-                        className={`w-full h-11 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white font-semibold rounded-xl shadow-lg ${colors.shadow} transition-all relative overflow-hidden`}
-                        disabled={isLoading}
-                      >
-                        <motion.div
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                          animate={{ x: ["-100%", "100%"] }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            repeatDelay: 1,
-                            ease: "linear",
-                          }}
-                        />
-                        <span className="relative z-10 flex items-center justify-center gap-2">
-                          {isLoading ? (
-                            <>
-                              <motion.div
-                                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                                animate={{ rotate: 360 }}
-                                transition={{
-                                  duration: 1,
-                                  repeat: Infinity,
-                                  ease: "linear",
-                                }}
-                              />
-                              Criando conta...
-                            </>
-                          ) : (
-                            <>
-                              Criar conta
-                              <motion.div
-                                animate={{ x: [0, 3, 0], y: [0, -2, 0] }}
-                                transition={{
-                                  duration: 1,
-                                  repeat: Infinity,
-                                  repeatDelay: 1,
-                                }}
-                              >
-                                <Send className="w-4 h-4" />
-                              </motion.div>
-                            </>
-                          )}
-                        </span>
-                      </Button>
-                    </motion.div>
+                      {isLoading ? (
+                        <>
+                          <motion.div
+                            style={{
+                              width: "1rem",
+                              height: "1rem",
+                              border: `2px solid ${BG}44`,
+                              borderTop: `2px solid ${BG}`,
+                              borderRadius: "50%",
+                            }}
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          />
+                          Criando conta...
+                        </>
+                      ) : (
+                        <>
+                          Criar conta
+                          <motion.div
+                            animate={{ x: [0, 3, 0], y: [0, -2, 0] }}
+                            transition={{ duration: 1, repeat: Infinity, repeatDelay: 1 }}
+                          >
+                            <Send style={{ width: "0.875rem", height: "0.875rem" }} />
+                          </motion.div>
+                        </>
+                      )}
+                    </motion.button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </form>
 
-          {/* Login Link */}
-          <motion.div
-            className="mt-5 text-center"
+          {/* Divider */}
+          <div style={{ borderBottom: DIVIDER, margin: "1.25rem 0 1rem" }} />
+
+          {/* Login link */}
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
+            transition={{ delay: 0.6 }}
+            style={{ textAlign: "center", fontSize: "0.8125rem", color: MUTED, margin: 0 }}
           >
-            <p className="text-xs text-gray-500">
-              Já tem uma conta?{" "}
-              <motion.button
-                type="button"
-                onClick={() => navigate("/login")}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`font-semibold ${colors.text} hover:opacity-80 transition-colors relative inline-block`}
-              >
-                Faça login
-                <motion.div
-                  className={`absolute -bottom-0.5 left-0 h-0.5 bg-gradient-to-r ${colors.primary}`}
-                  initial={{ width: 0 }}
-                  whileHover={{ width: "100%" }}
-                  transition={{ duration: 0.2 }}
-                />
-              </motion.button>
-            </p>
-          </motion.div>
-        </motion.div>
+            Já tem uma conta?{" "}
+            <motion.button
+              type="button"
+              onClick={() => navigate("/login")}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: GOLD,
+                fontWeight: 600,
+                fontSize: "0.8125rem",
+                padding: 0,
+              }}
+            >
+              Faça login
+            </motion.button>
+          </motion.p>
+        </div>
       </motion.div>
 
-      {/* Modal de Confirmação de Senha */}
+      {/* ── Password Confirmation Modal ────────────────────────────────────── */}
       <AnimatePresence>
         {showPasswordModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1rem",
+            }}
+          >
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowPasswordModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.85)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+              }}
             />
 
-            {/* Modal */}
+            {/* Modal card */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-6"
+              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              transition={SPRING}
+              style={{
+                position: "relative",
+                width: "100%",
+                maxWidth: "420px",
+                background: "#0a0800",
+                border: `1px solid rgba(212,175,55,0.2)`,
+                borderRadius: CARD_RADIUS,
+                padding: "1.75rem",
+                boxShadow: "0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,175,55,0.06)",
+              }}
             >
               {/* Header */}
-              <div className="flex items-start gap-3 mb-6">
+              <div style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", marginBottom: "1.25rem" }}>
                 <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors.primary} flex items-center justify-center flex-shrink-0`}
+                  style={{
+                    width: "2.875rem",
+                    height: "2.875rem",
+                    borderRadius: "0.75rem",
+                    background: `linear-gradient(135deg,${GOLD},${GOLD2})`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
                 >
-                  <Lock className="w-6 h-6 text-white" />
+                  <Lock style={{ width: "1.375rem", height: "1.375rem", color: BG }} />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-white">
+                <div style={{ flex: 1 }}>
+                  <h3
+                    style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontSize: "1.125rem",
+                      fontWeight: 700,
+                      color: "#fff",
+                      margin: 0,
+                    }}
+                  >
                     Confirmar Identidade
                   </h3>
-                  <p className="text-sm text-gray-400 mt-1">
+                  <p style={{ fontSize: "0.8125rem", color: MUTED, marginTop: "0.25rem" }}>
                     Digite sua senha para adicionar o perfil de{" "}
-                    <span className={colors.text}>
+                    <span style={{ color: GOLD, fontWeight: 600 }}>
                       {selectedRole === "client"
                         ? "Cliente"
                         : selectedRole === "professional"
@@ -2788,30 +2213,45 @@ export function Register() {
                 </div>
               </div>
 
-              {/* Informações preenchidas */}
-              <div className="mb-4 p-3 bg-white/5 rounded-xl border border-white/10">
-                <p className="text-xs font-medium text-gray-400 mb-2">
+              {/* Data summary */}
+              <div
+                style={{
+                  marginBottom: "1rem",
+                  padding: "0.875rem",
+                  background: "rgba(255,255,255,0.03)",
+                  border: CARD_BORDER,
+                  borderRadius: "0.75rem",
+                }}
+              >
+                <p style={{ fontSize: "0.75rem", fontWeight: 500, color: MUTED, marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                   Dados que serão utilizados:
                 </p>
-                <div className="space-y-1 text-sm text-white">
-                  <p>✓ Nome: {formData.name}</p>
-                  <p>✓ CPF: {formData.cpf}</p>
-                  <p>✓ Telefone: {formData.phone}</p>
-                  {formData.cnpj && <p>✓ CNPJ: {formData.cnpj}</p>}
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.8125rem", color: "#fff" }}>
+                  <p style={{ margin: 0 }}>✓ Nome: {formData.name}</p>
+                  <p style={{ margin: 0 }}>✓ CPF: {formData.cpf}</p>
+                  <p style={{ margin: 0 }}>✓ Telefone: {formData.phone}</p>
+                  {formData.cnpj && <p style={{ margin: 0 }}>✓ CNPJ: {formData.cnpj}</p>}
                 </div>
               </div>
 
-              {/* Campo de senha */}
-              <div className="space-y-2 mb-6">
-                <Label
-                  htmlFor="modal-password"
-                  className="text-sm font-medium text-gray-300"
-                >
+              {/* Password input */}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label htmlFor="modal-password" style={labelStyle}>
                   Senha da conta existente
-                </Label>
-                <div className="relative">
+                </label>
+                <div style={{ position: "relative" }}>
                   <Lock
-                    className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${colors.text}`}
+                    style={{
+                      position: "absolute",
+                      left: "0.875rem",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: "1.125rem",
+                      height: "1.125rem",
+                      color: GOLD,
+                      pointerEvents: "none",
+                      zIndex: 1,
+                    }}
                   />
                   <input
                     id="modal-password"
@@ -2819,63 +2259,71 @@ export function Register() {
                     placeholder="Digite sua senha"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    onKeyPress={(e) =>
-                      e.key === "Enter" && handleConfirmPassword()
-                    }
-                    className={`
-                      w-full h-11 pl-12 pr-4 bg-white/5 border rounded-xl text-white placeholder-gray-500
-                      focus:outline-none focus:ring-2 transition-all
-                      ${
-                        passwordError
-                          ? "border-red-500/50 focus:ring-red-500/30"
-                          : `border-white/10 ${colors.ring}`
-                      }
-                    `}
+                    onKeyPress={(e) => e.key === "Enter" && handleConfirmPassword()}
                     autoFocus
+                    style={
+                      passwordError
+                        ? inputError
+                        : inputWithIconStyle
+                    }
                   />
                 </div>
                 {passwordError && (
                   <motion.p
-                    initial={{ opacity: 0, y: -5 }}
+                    initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-xs text-red-400 flex items-center gap-1"
+                    style={{ fontSize: "0.75rem", color: "#F87171", marginTop: "0.25rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
                   >
-                    <AlertCircle className="w-3 h-3" />
+                    <AlertCircle style={{ width: "0.75rem", height: "0.75rem" }} />
                     {passwordError}
                   </motion.p>
                 )}
               </div>
 
-              {/* Botões */}
-              <div className="flex gap-3">
-                <Button
+              {/* Actions */}
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button
                   type="button"
                   onClick={() => {
                     setShowPasswordModal(false);
                     setConfirmPassword("");
                     setPasswordError("");
                   }}
-                  variant="outline"
-                  className="flex-1 border-white/10 text-white hover:bg-white/5"
                   disabled={isLoading}
+                  style={{ ...outlineBtnStyle, flex: 1, opacity: isLoading ? 0.6 : 1, cursor: isLoading ? "not-allowed" : "pointer" }}
                 >
                   Cancelar
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
                   onClick={handleConfirmPassword}
-                  className={`flex-1 bg-gradient-to-r ${colors.primary} hover:opacity-90 text-white`}
                   disabled={isLoading || !confirmPassword}
+                  style={{
+                    ...goldBtnStyle,
+                    flex: 1,
+                    opacity: isLoading || !confirmPassword ? 0.6 : 1,
+                    cursor: isLoading || !confirmPassword ? "not-allowed" : "pointer",
+                  }}
                 >
                   {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <>
+                      <motion.div
+                        style={{
+                          width: "1rem",
+                          height: "1rem",
+                          border: `2px solid ${BG}44`,
+                          borderTop: `2px solid ${BG}`,
+                          borderRadius: "50%",
+                        }}
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
                       Confirmando...
-                    </div>
+                    </>
                   ) : (
                     "Confirmar"
                   )}
-                </Button>
+                </button>
               </div>
             </motion.div>
           </div>

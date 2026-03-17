@@ -9,7 +9,6 @@ import {
   LogOut,
   X,
   Heart,
-  Clock,
   Wallet,
   ChevronRight,
   Building2,
@@ -62,10 +61,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     path: '/profissional',
   };
 
+  // Agendamentos pessoais (como cliente) — válido para qualquer role
+  const agendamentosPath = user ? '/cliente/agendamentos' : '/login'
+
   const commonItems = [
-    { icon: Calendar, label: 'Agendamentos', path: '/agendamentos' },
+    { icon: Calendar, label: 'Agendamentos', path: agendamentosPath },
     { icon: Heart, label: 'Favoritos', path: '/favoritos' },
-    { icon: Clock, label: 'Histórico', path: '/historico' },
     { icon: Wallet, label: 'Carteira', path: '/carteira' },
     { icon: User, label: 'Perfil', path: '/perfil' },
   ];
@@ -280,7 +281,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                   return (
                     <motion.button
-                      key={item.path}
+                      key={item.label}
                       initial={{ opacity: 0, x: -12 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.05 + index * 0.04 }}

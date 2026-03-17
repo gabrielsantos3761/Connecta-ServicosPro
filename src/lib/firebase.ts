@@ -3,6 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 // Firebase configuration object
 // Você obterá essas credenciais no Firebase Console
@@ -23,6 +24,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app, 'southamerica-east1');
 
 // Configurar persistência de autenticação
 setPersistence(auth, browserLocalPersistence).catch((error) => {

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { TrendingUp, TrendingDown, ChevronDown } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Popover } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
@@ -68,14 +67,18 @@ export function ComparisonSelector({
         </div>
       }
     >
-      <Button
-        variant="outline"
-        size="sm"
-        className={cn("justify-between gap-2", className)}
+      <button
+        style={{
+          display: "flex", alignItems: "center", gap: "0.4rem",
+          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: "0.5rem", color: "#fff", padding: "0.375rem 0.75rem",
+          fontSize: "0.8rem", cursor: "pointer", whiteSpace: "nowrap",
+        }}
+        className={cn(className)}
       >
-        <span className="text-xs">Comparar: {selectedOption?.label}</span>
-        <ChevronDown className="h-3 w-3" />
-      </Button>
+        <span>Comparar: {selectedOption?.label}</span>
+        <ChevronDown size={12} />
+      </button>
     </Popover>
   )
 }

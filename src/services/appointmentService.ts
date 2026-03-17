@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  updateDoc,
   query,
   where,
   getDocs,
@@ -37,6 +38,10 @@ export interface Appointment {
   commissionPercent?: number | null
   professionalAmount?: number
   businessAmount?: number
+  /** ID da cobrança no Abacate Pay */
+  abacatePayId?: string
+  /** Status do pagamento retornado pelo Abacate Pay */
+  abacatePayStatus?: 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED'
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -60,6 +65,8 @@ export interface CreateAppointmentData {
   commissionPercent?: number | null
   professionalAmount?: number | null
   businessAmount?: number | null
+  abacatePayId?: string
+  abacatePayStatus?: 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED'
 }
 
 // ============================================
@@ -109,11 +116,53 @@ export async function createAppointment(data: CreateAppointmentData): Promise<st
     commissionPercent: data.commissionPercent ?? null,
     professionalAmount: data.professionalAmount ?? null,
     businessAmount: data.businessAmount ?? null,
+    abacatePayId: data.abacatePayId ?? null,
+    abacatePayStatus: data.abacatePayStatus ?? null,
     createdAt: now,
     updatedAt: now,
   })
 
   return docRef.id
+}
+
+// ============================================
+// BUSCAR AGENDAMENTOS DO CLIENTE
+// Usa apenas where de igualdade (sem índice composto)
+// Filtragem por data feita no cliente
+// ============================================
+
+export async function getAppointmentsByClient(
+  clientId: string,
+  fromDate?: Date,
+  toDate?: Date
+): Promise<Appointment[]> {
+  const q = query(
+    collection(db, 'appointments'),
+    where('clientId', '==', clientId),
+  )
+
+  const snap = await getDocs(q)
+  const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment))
+
+  if (!fromDate && !toDate) {
+    return all.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
+  }
+
+  let result = all
+  if (fromDate) {
+    const from = new Date(fromDate)
+    from.setHours(0, 0, 0, 0)
+    const fromStr = from.toISOString().split('T')[0]
+    result = result.filter(a => a.date >= fromStr)
+  }
+  if (toDate) {
+    const to = new Date(toDate)
+    to.setHours(23, 59, 59, 999)
+    const toStr = to.toISOString().split('T')[0]
+    result = result.filter(a => a.date <= toStr)
+  }
+
+  return result.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
 }
 
 // ============================================
@@ -176,4 +225,36 @@ export async function getAppointmentsByBusiness(
   }
 
   return result.sort(sortByScheduledAt)
+}
+
+// ============================================
+// ATUALIZAR STATUS DO AGENDAMENTO
+// ============================================
+
+export async function updateAppointmentStatus(
+  appointmentId: string,
+  status: AppointmentStatus
+): Promise<void> {
+  await updateDoc(doc(db, 'appointments', appointmentId), {
+    status,
+    updatedAt: Timestamp.now(),
+  })
+}
+
+// ============================================
+// VINCULAR PAGAMENTO ABACATE PAY
+// ============================================
+
+export async function updateAppointmentPayment(
+  appointmentId: string,
+  abacatePayId: string,
+  abacatePayStatus: 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED'
+): Promise<void> {
+  const status: AppointmentStatus = abacatePayStatus === 'PAID' ? 'confirmed' : 'pending'
+  await updateDoc(doc(db, 'appointments', appointmentId), {
+    abacatePayId,
+    abacatePayStatus,
+    status,
+    updatedAt: Timestamp.now(),
+  })
 }

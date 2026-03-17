@@ -1719,3 +1719,88 @@ exports.validateSession = onCall({
     );
   }
 });
+
+// ============================================
+// ABACATE PAY PROXY
+// Proxy server-side para evitar CORS.
+// Requer autenticação Firebase.
+// ============================================
+
+exports.abacatePayProxy = onCall({ cors: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+  }
+
+  const { action, data } = request.data ?? {};
+  const apiKey = process.env.ABACATEPAY_API_KEY;
+
+  if (!apiKey) {
+    throw new HttpsError('internal', 'Chave Abacate Pay não configurada no servidor.');
+  }
+
+  const BASE_URL = 'https://api.abacatepay.com/v1';
+  let url, fetchOptions;
+
+  switch (action) {
+    case 'createPixQRCode': {
+      url = `${BASE_URL}/pixQrCode/create`;
+      const body = {
+        amount: Number(data.amount),
+        expiresIn: data.expiresIn ?? 1800,
+      };
+      if (data.description) {
+        body.description = String(data.description).slice(0, 37);
+      }
+      // customer é opcional — só envia se tiver taxId (CPF/CNPJ) válido
+      if (data.customerTaxId) {
+        body.customer = {
+          name: data.customerName ?? 'Cliente',
+          cellphone: data.customerPhone ?? '(11) 9999-9999',
+          email: data.customerEmail ?? 'sandbox@teste.com',
+          taxId: String(data.customerTaxId),
+        };
+      }
+      fetchOptions = {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      };
+      break;
+    }
+    case 'checkPixStatus': {
+      url = `${BASE_URL}/pixQrCode/check?id=${encodeURIComponent(String(data.id))}`;
+      fetchOptions = {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${apiKey}` },
+      };
+      break;
+    }
+    case 'simulatePixPayment': {
+      url = `${BASE_URL}/pixQrCode/simulate-payment?id=${encodeURIComponent(String(data.id))}`;
+      fetchOptions = {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      };
+      break;
+    }
+    default:
+      throw new HttpsError('invalid-argument', `Ação inválida: ${action}`);
+  }
+
+  const response = await fetch(url, fetchOptions);
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    console.error(`[abacatePayProxy] ${action} → [${response.status}]:`, responseText);
+    throw new HttpsError('internal', `Abacate Pay [${response.status}]: ${responseText}`);
+  }
+
+  return JSON.parse(responseText);
+});

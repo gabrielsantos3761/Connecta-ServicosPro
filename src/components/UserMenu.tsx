@@ -10,6 +10,8 @@ export function UserMenu() {
   const menuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
+  const businessId = localStorage.getItem('selected_business_id')
+
   // Fechar menu ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -131,7 +133,11 @@ export function UserMenu() {
               <button
                 onClick={() => {
                   setIsOpen(false)
-                  navigate('/configuracoes')
+                  if (businessId) {
+                    navigate(`/${businessId}/dashboard/configuracoes`)
+                  } else {
+                    navigate('/selecionar-empresa')
+                  }
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-left group"
               >
